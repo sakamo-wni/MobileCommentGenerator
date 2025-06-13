@@ -23,9 +23,17 @@ from src.data.location_manager import Location
 
 
 class WxTechAPIError(Exception):
-    """WxTech API エラー"""
-
-    pass
+    """WxTech API エラー
+    
+    Attributes:
+        status_code: HTTPステータスコード（あれば）
+        error_type: エラータイプ（api_key_invalid, rate_limit, network_error等）
+    """
+    
+    def __init__(self, message: str, status_code: Optional[int] = None, error_type: Optional[str] = None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.error_type = error_type
 
 
 class WxTechAPIClient:
@@ -99,41 +107,41 @@ class WxTechAPIClient:
 
             # ステータスコードチェック
             if response.status_code == 401:
-                raise WxTechAPIError("APIキーが無効です")
+                raise WxTechAPIError("APIキーが無効です", status_code=401, error_type='api_key_invalid')
             elif response.status_code == 403:
-                raise WxTechAPIError("APIアクセスが拒否されました")
+                raise WxTechAPIError("APIアクセスが拒否されました", status_code=403, error_type='http_error')
             elif response.status_code == 404:
-                raise WxTechAPIError("指定された地点データが見つかりません")
+                raise WxTechAPIError("指定された地点データが見つかりません", status_code=404, error_type='http_error')
             elif response.status_code == 429:
-                raise WxTechAPIError("レート制限に達しました")
+                raise WxTechAPIError("レート制限に達しました", status_code=429, error_type='rate_limit')
             elif response.status_code == 500:
-                raise WxTechAPIError("APIサーバーエラーが発生しました")
+                raise WxTechAPIError("APIサーバーエラーが発生しました", status_code=500, error_type='server_error')
             elif response.status_code != 200:
-                raise WxTechAPIError(f"APIエラー: ステータスコード {response.status_code}")
+                raise WxTechAPIError(f"APIエラー: ステータスコード {response.status_code}", status_code=response.status_code, error_type='http_error')
 
             # JSON パース
             try:
                 data = response.json()
             except json.JSONDecodeError:
-                raise WxTechAPIError("レスポンスのJSONパースに失敗しました")
+                raise WxTechAPIError("レスポンスのJSONパースに失敗しました", status_code=response.status_code, error_type='http_error')
 
             # エラーレスポンスチェック
             if "error" in data:
                 error_msg = data.get("message", "不明なエラー")
-                raise WxTechAPIError(f"APIエラー: {error_msg}")
+                raise WxTechAPIError(f"APIエラー: {error_msg}", status_code=response.status_code, error_type='http_error')
 
             # 成功レスポンス検証
             if "wxdata" not in data or not data["wxdata"]:
-                raise WxTechAPIError("天気データが含まれていません")
+                raise WxTechAPIError("天気データが含まれていません", status_code=response.status_code, error_type='http_error')
 
             return data
 
         except requests.exceptions.Timeout:
-            raise WxTechAPIError(f"リクエストがタイムアウトしました（{self.timeout}秒）")
+            raise WxTechAPIError(f"リクエストがタイムアウトしました（{self.timeout}秒）", error_type='timeout')
         except requests.exceptions.ConnectionError:
-            raise WxTechAPIError("API サーバーに接続できません")
+            raise WxTechAPIError("API サーバーに接続できません", error_type='network_error')
         except requests.exceptions.RequestException as e:
-            raise WxTechAPIError(f"リクエスト実行エラー: {str(e)}")
+            raise WxTechAPIError(f"リクエスト実行エラー: {str(e)}", error_type='network_error')
 
     def get_forecast(self, lat: float, lon: float) -> WeatherForecastCollection:
         """指定座標の天気予報を取得

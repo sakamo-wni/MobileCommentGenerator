@@ -24,32 +24,67 @@ class WeatherConfig:
         rate_limit_delay: レート制限回避遅延（秒）
         cache_ttl: キャッシュTTL（秒）
         enable_caching: キャッシュ有効化フラグ
+        forecast_cache_retention_days: 予報キャッシュ保持日数
+        temp_diff_threshold_previous_day: 前日との有意な温度差閾値（℃）
+        temp_diff_threshold_12hours: 12時間前との有意な温度差閾値（℃）
+        daily_temp_range_threshold_large: 大きな日較差閾値（℃）
+        daily_temp_range_threshold_medium: 中程度の日較差閾値（℃）
     """
 
-    wxtech_api_key: str = field(default_factory=lambda: os.getenv("WXTECH_API_KEY", ""))
-    default_location: str = field(
-        default_factory=lambda: os.getenv("DEFAULT_WEATHER_LOCATION", "東京")
-    )
-    forecast_hours: int = field(
-        default_factory=lambda: int(os.getenv("WEATHER_FORECAST_HOURS", "24"))
-    )
-    forecast_hours_ahead: int = field(
-        default_factory=lambda: int(os.getenv("WEATHER_FORECAST_HOURS_AHEAD", "12"))
-    )
-    api_timeout: int = field(default_factory=lambda: int(os.getenv("WEATHER_API_TIMEOUT", "30")))
-    max_retries: int = field(default_factory=lambda: int(os.getenv("WEATHER_API_MAX_RETRIES", "3")))
-    rate_limit_delay: float = field(
-        default_factory=lambda: float(os.getenv("WEATHER_API_RATE_LIMIT_DELAY", "0.1"))
-    )
-    cache_ttl: int = field(
-        default_factory=lambda: int(os.getenv("WEATHER_CACHE_TTL", "300"))
-    )  # 5分
-    enable_caching: bool = field(
-        default_factory=lambda: os.getenv("WEATHER_ENABLE_CACHING", "true").lower() == "true"
-    )
+    wxtech_api_key: str = field(default="")
+    default_location: str = field(default="東京")
+    forecast_hours: int = field(default=24)
+    forecast_hours_ahead: int = field(default=12)
+    api_timeout: int = field(default=30)
+    max_retries: int = field(default=3)
+    rate_limit_delay: float = field(default=0.1)
+    cache_ttl: int = field(default=300)  # 5分
+    enable_caching: bool = field(default=True)
+    
+    # 予報キャッシュ設定
+    forecast_cache_retention_days: int = field(default=7)
+    
+    # 温度差閾値設定（気象学的根拠に基づく）
+    temp_diff_threshold_previous_day: float = field(default=5.0)  # 前日比5℃: 人体が明確に体感できる温度差
+    temp_diff_threshold_12hours: float = field(default=3.0)  # 12時間前比3℃: 体調管理に影響する可能性がある基準値
+    daily_temp_range_threshold_large: float = field(default=15.0)  # 日較差15℃: 健康影響リスクが高まる閾値
+    daily_temp_range_threshold_medium: float = field(default=10.0)  # 日較差10℃: 注意が必要な閾値
+    
+    # 温度分類の閾値（気象庁の基準に基づく）
+    temp_threshold_hot: float = field(default=30.0)  # 真夏日の基準
+    temp_threshold_warm: float = field(default=25.0)  # 夏日の基準
+    temp_threshold_cool: float = field(default=10.0)  # 肌寒く感じる温度
+    temp_threshold_cold: float = field(default=5.0)  # 冬日に近い温度
 
     def __post_init__(self):
-        """設定の検証"""
+        """環境変数からの読み込みと設定の検証"""
+        # 環境変数から設定を読み込む
+        self.wxtech_api_key = os.getenv("WXTECH_API_KEY", self.wxtech_api_key)
+        self.default_location = os.getenv("DEFAULT_WEATHER_LOCATION", self.default_location)
+        self.forecast_hours = int(os.getenv("WEATHER_FORECAST_HOURS", str(self.forecast_hours)))
+        self.forecast_hours_ahead = int(os.getenv("WEATHER_FORECAST_HOURS_AHEAD", str(self.forecast_hours_ahead)))
+        self.api_timeout = int(os.getenv("WEATHER_API_TIMEOUT", str(self.api_timeout)))
+        self.max_retries = int(os.getenv("WEATHER_API_MAX_RETRIES", str(self.max_retries)))
+        self.rate_limit_delay = float(os.getenv("WEATHER_API_RATE_LIMIT_DELAY", str(self.rate_limit_delay)))
+        self.cache_ttl = int(os.getenv("WEATHER_CACHE_TTL", str(self.cache_ttl)))
+        self.enable_caching = os.getenv("WEATHER_ENABLE_CACHING", "true" if self.enable_caching else "false").lower() == "true"
+        
+        # 予報キャッシュ設定
+        self.forecast_cache_retention_days = int(os.getenv("FORECAST_CACHE_RETENTION_DAYS", str(self.forecast_cache_retention_days)))
+        
+        # 温度差閾値設定
+        self.temp_diff_threshold_previous_day = float(os.getenv("TEMP_DIFF_THRESHOLD_PREVIOUS_DAY", str(self.temp_diff_threshold_previous_day)))
+        self.temp_diff_threshold_12hours = float(os.getenv("TEMP_DIFF_THRESHOLD_12HOURS", str(self.temp_diff_threshold_12hours)))
+        self.daily_temp_range_threshold_large = float(os.getenv("DAILY_TEMP_RANGE_THRESHOLD_LARGE", str(self.daily_temp_range_threshold_large)))
+        self.daily_temp_range_threshold_medium = float(os.getenv("DAILY_TEMP_RANGE_THRESHOLD_MEDIUM", str(self.daily_temp_range_threshold_medium)))
+        
+        # 温度分類の閾値
+        self.temp_threshold_hot = float(os.getenv("TEMP_THRESHOLD_HOT", str(self.temp_threshold_hot)))
+        self.temp_threshold_warm = float(os.getenv("TEMP_THRESHOLD_WARM", str(self.temp_threshold_warm)))
+        self.temp_threshold_cool = float(os.getenv("TEMP_THRESHOLD_COOL", str(self.temp_threshold_cool)))
+        self.temp_threshold_cold = float(os.getenv("TEMP_THRESHOLD_COLD", str(self.temp_threshold_cold)))
+        
+        # 検証
         if not self.wxtech_api_key:
             raise ValueError("WXTECH_API_KEY環境変数が設定されていません")
 
@@ -75,6 +110,11 @@ class WeatherConfig:
             "rate_limit_delay": self.rate_limit_delay,
             "cache_ttl": self.cache_ttl,
             "enable_caching": self.enable_caching,
+            "forecast_cache_retention_days": self.forecast_cache_retention_days,
+            "temp_diff_threshold_previous_day": self.temp_diff_threshold_previous_day,
+            "temp_diff_threshold_12hours": self.temp_diff_threshold_12hours,
+            "daily_temp_range_threshold_large": self.daily_temp_range_threshold_large,
+            "daily_temp_range_threshold_medium": self.daily_temp_range_threshold_medium,
         }
 
 
@@ -89,18 +129,17 @@ class LangGraphConfig:
         min_confidence_threshold: 最小信頼度閾値
     """
 
-    enable_weather_integration: bool = field(
-        default_factory=lambda: os.getenv("LANGGRAPH_ENABLE_WEATHER", "true").lower() == "true"
-    )
-    auto_location_detection: bool = field(
-        default_factory=lambda: os.getenv("LANGGRAPH_AUTO_LOCATION", "false").lower() == "true"
-    )
-    weather_context_window: int = field(
-        default_factory=lambda: int(os.getenv("LANGGRAPH_WEATHER_CONTEXT_WINDOW", "24"))
-    )
-    min_confidence_threshold: float = field(
-        default_factory=lambda: float(os.getenv("LANGGRAPH_MIN_CONFIDENCE", "0.7"))
-    )
+    enable_weather_integration: bool = field(default=True)
+    auto_location_detection: bool = field(default=False)
+    weather_context_window: int = field(default=24)
+    min_confidence_threshold: float = field(default=0.7)
+    
+    def __post_init__(self):
+        """環境変数から設定を読み込む"""
+        self.enable_weather_integration = os.getenv("LANGGRAPH_ENABLE_WEATHER", "true" if self.enable_weather_integration else "false").lower() == "true"
+        self.auto_location_detection = os.getenv("LANGGRAPH_AUTO_LOCATION", "true" if self.auto_location_detection else "false").lower() == "true"
+        self.weather_context_window = int(os.getenv("LANGGRAPH_WEATHER_CONTEXT_WINDOW", str(self.weather_context_window)))
+        self.min_confidence_threshold = float(os.getenv("LANGGRAPH_MIN_CONFIDENCE", str(self.min_confidence_threshold)))
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換
@@ -129,8 +168,13 @@ class AppConfig:
 
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     langgraph: LangGraphConfig = field(default_factory=LangGraphConfig)
-    debug_mode: bool = field(default_factory=lambda: os.getenv("DEBUG", "false").lower() == "true")
-    log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO").upper())
+    debug_mode: bool = field(default=False)
+    log_level: str = field(default="INFO")
+    
+    def __post_init__(self):
+        """環境変数から設定を読み込む"""
+        self.debug_mode = os.getenv("DEBUG", "true" if self.debug_mode else "false").lower() == "true"
+        self.log_level = os.getenv("LOG_LEVEL", self.log_level).upper()
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換
@@ -239,6 +283,11 @@ def setup_environment_defaults():
         "WEATHER_API_RATE_LIMIT_DELAY": "0.1",
         "WEATHER_CACHE_TTL": "300",
         "WEATHER_ENABLE_CACHING": "true",
+        "FORECAST_CACHE_RETENTION_DAYS": "7",
+        "TEMP_DIFF_THRESHOLD_PREVIOUS_DAY": "5.0",
+        "TEMP_DIFF_THRESHOLD_12HOURS": "3.0",
+        "DAILY_TEMP_RANGE_THRESHOLD_LARGE": "15.0",
+        "DAILY_TEMP_RANGE_THRESHOLD_MEDIUM": "10.0",
         "LANGGRAPH_ENABLE_WEATHER": "true",
         "LANGGRAPH_AUTO_LOCATION": "false",
         "LANGGRAPH_WEATHER_CONTEXT_WINDOW": "24",
