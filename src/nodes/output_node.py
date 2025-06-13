@@ -25,6 +25,11 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
     Returns:
         時系列の天気データ
     """
+    from src.data.forecast_cache import ensure_jst
+    
+    # タイムゾーンを確保
+    base_datetime = ensure_jst(base_datetime)
+    
     timeline_data: Dict[str, Any] = {
         "future_forecasts": [],
         "past_forecasts": [],
@@ -34,11 +39,24 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
     try:
         cache = ForecastCache()
         
-        # 未来の予報データ（3時間ごと、12時間後まで）
+        # 未来の予報データ（利用可能な範囲で取得）
         future_times = []
-        for hours in range(3, 13, 3):  # 3, 6, 9, 12時間後
+        # まず24時間先まで試行し、利用可能なデータのみ使用
+        for hours in range(3, 25, 3):  # 3, 6, 9, 12, 15, 18, 21, 24時間後
             future_time = base_datetime + timedelta(hours=hours)
             future_times.append((future_time, f"+{hours}h"))
+        
+        # 利用可能なデータがあるかを事前チェック
+        available_count = 0
+        for future_time, label in future_times:
+            try:
+                forecast = cache.get_forecast_at_time(location_name, future_time)
+                if forecast:
+                    available_count += 1
+            except:
+                pass
+        
+        logger.info(f"利用可能な未来予報データ: {available_count}件")
         
         for future_time, label in future_times:
             try:
@@ -51,6 +69,9 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
                         "temperature": forecast.temperature,
                         "precipitation": forecast.precipitation
                     })
+                    logger.debug(f"未来予報取得成功: {label} at {future_time}")
+                else:
+                    logger.warning(f"未来予報データなし: {label} at {future_time}")
             except Exception as e:
                 logger.warning(f"未来の予報取得エラー ({label}): {e}")
         
@@ -222,21 +243,134 @@ def _determine_final_comment(state: CommentGenerationState) -> str:
     2. selected_pair の weather_comment
     3. エラーを発生させる
     """
+    logger.critical(f"🚨 _determine_final_comment 開始")
+    logger.critical(f"🚨 state.generated_comment = '{getattr(state, 'generated_comment', None)}'")
+    logger.critical(f"🚨 state.selected_pair = {getattr(state, 'selected_pair', None)}")
+    
+    # 最終安全チェック用データ
+    weather_data = state.weather_data
+    final_comment = None
+    
     # LLM生成コメントがある場合
     if state.generated_comment:
-        return state.generated_comment
+        final_comment = state.generated_comment
+        logger.critical(f"🚨 generated_comment使用: '{final_comment}'")
+    else:
+        # 選択されたペアがある場合 - 正しい形式で構成
+        selected_pair = state.selected_pair
+        if selected_pair:
+            weather_comment = ""
+            advice_comment = ""
+            
+            if hasattr(selected_pair, "weather_comment") and selected_pair.weather_comment:
+                weather_comment = selected_pair.weather_comment.comment_text
+                
+            if hasattr(selected_pair, "advice_comment") and selected_pair.advice_comment:
+                advice_comment = selected_pair.advice_comment.comment_text
+            
+            logger.critical(f"🚨 選択されたペア: weather='{weather_comment}', advice='{advice_comment}'")
+            
+            # 正しい形式で結合（weather + 全角スペース + advice）
+            if weather_comment and advice_comment:
+                final_comment = f"{weather_comment}　{advice_comment}"
+                logger.critical(f"🚨 ペア結合使用: '{final_comment}'")
+            elif weather_comment:
+                final_comment = weather_comment
+                logger.critical(f"🚨 weather_commentのみ使用: '{final_comment}'")
+            elif advice_comment:
+                final_comment = advice_comment
+                logger.critical(f"🚨 advice_commentのみ使用: '{final_comment}'")
 
-    # 選択されたペアがある場合
-    selected_pair = state.selected_pair
-    if selected_pair and hasattr(selected_pair, "weather_comment"):
-        weather_comment = selected_pair.weather_comment
-        if weather_comment and hasattr(weather_comment, "comment_text"):
-            return weather_comment.comment_text
-
-    # コメントが生成できなかった場合はエラー
-    raise ValueError(
-        "コメントの生成に失敗しました。LLMまたは過去データから適切なコメントを取得できませんでした。"
-    )
+    if not final_comment:
+        # コメントが生成できなかった場合はエラー
+        raise ValueError(
+            "コメントの生成に失敗しました。LLMまたは過去データから適切なコメントを取得できませんでした。"
+        )
+    
+    # 🚨 最終安全チェック：特殊気象条件に対する不適切なコメント組み合わせの修正
+    if weather_data and final_comment:
+        current_weather = weather_data.weather_description.lower()
+        temperature = weather_data.temperature if hasattr(weather_data, 'temperature') else 20.0
+        weather_condition = weather_data.weather_condition.value
+        
+        # 特殊気象条件ごとの適切なコメント置換
+        if weather_condition == "thunder" or "雷" in current_weather:
+            logger.critical(f"🚨 雷天候検出: '{final_comment}'")
+            if "　" in final_comment and not any(word in final_comment for word in ["雷", "屋内", "危険", "注意"]):
+                parts = final_comment.split("　")
+                parts[0] = "雷雨に警戒"
+                parts[1] = "屋内での避難を"
+                final_comment = "　".join(parts)
+                logger.critical(f"🚨 雷天候修正: '{final_comment}'")
+                
+        elif weather_condition == "fog" or "霧" in current_weather:
+            logger.critical(f"🚨 霧天候検出: '{final_comment}'")
+            if "　" in final_comment and not any(word in final_comment for word in ["霧", "視界", "運転", "注意"]):
+                parts = final_comment.split("　")
+                parts[0] = "霧で視界不良"
+                parts[1] = "運転には注意を"
+                final_comment = "　".join(parts)
+                logger.critical(f"🚨 霧天候修正: '{final_comment}'")
+                
+        elif weather_condition in ["storm", "severe_storm"] or any(word in current_weather for word in ["嵐", "暴風"]):
+            logger.critical(f"🚨 嵐天候検出: '{final_comment}'")
+            if "　" in final_comment and not any(word in final_comment for word in ["嵐", "暴風", "強風", "危険"]):
+                parts = final_comment.split("　")
+                parts[0] = "大荒れの天気"
+                parts[1] = "外出は控えて"
+                final_comment = "　".join(parts)
+                logger.critical(f"🚨 嵐天候修正: '{final_comment}'")
+                
+        elif weather_condition == "heavy_rain" or "大雨" in current_weather:
+            logger.critical(f"🚨 大雨天候検出: '{final_comment}'")
+            if "　" in final_comment and not any(word in final_comment for word in ["大雨", "洪水", "冠水", "危険"]):
+                parts = final_comment.split("　")
+                parts[0] = "大雨に警戒"
+                parts[1] = "冠水に注意を"
+                final_comment = "　".join(parts)
+                logger.critical(f"🚨 大雨天候修正: '{final_comment}'")
+                
+        # 雨天で不適切なコメント全般の修正（拡張版）
+        elif "雨" in current_weather:
+            logger.critical(f"🚨 雨天コメント検証: '{final_comment}'")
+            
+            inappropriate_keywords = ["熱中症", "暑い", "ムシムシ", "花粉", "日焼け", "紫外線", "散歩", "ピクニック", "外遊び"]
+            needs_correction = any(keyword in final_comment for keyword in inappropriate_keywords)
+            
+            if needs_correction:
+                logger.critical(f"🚨 雨天不適切コメント検出: '{final_comment}'")
+                
+                if "　" in final_comment:  # 複合コメントの場合
+                    parts = final_comment.split("　")
+                    
+                    # 天気コメント部分の修正
+                    if any(word in parts[0] for word in inappropriate_keywords):
+                        if any(word in parts[0] for word in ["熱中症", "暑い", "ムシムシ"]):
+                            parts[0] = "雨模様"
+                        elif "花粉" in parts[0]:
+                            parts[0] = "雨降り"
+                        else:
+                            parts[0] = "雨の空"
+                    
+                    # アドバイス部分の修正
+                    if any(word in parts[1] for word in inappropriate_keywords):
+                        if "花粉" in parts[1]:
+                            parts[1] = "雨に注意を"
+                        elif any(word in parts[1] for word in ["熱中症", "暑い", "ムシムシ"]):
+                            parts[1] = "傘をお忘れなく"
+                        elif any(word in parts[1] for word in ["散歩", "ピクニック", "外遊び"]):
+                            parts[1] = "室内で過ごそう"
+                        else:
+                            parts[1] = "濡れないよう注意"
+                    
+                    final_comment = "　".join(parts)
+                else:
+                    final_comment = "雨の日はお気をつけて"
+                
+                logger.critical(f"🚨 雨天修正後: '{final_comment}'")
+            
+    logger.critical(f"🚨 最終コメント確定: '{final_comment}'")
+    return final_comment
 
 
 def _create_generation_metadata(
