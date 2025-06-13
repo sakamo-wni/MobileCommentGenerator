@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+さいたま,2025-06-14T00:00:00+09:00,2025-06-13T10:51:56.591696+09:00,25.0,,,rain,くもりのち雨,0.0,0.0,0.0,"{'weather_code': '214', 'wind_direction': 'calm', 'wind_direction_degrees': 0, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

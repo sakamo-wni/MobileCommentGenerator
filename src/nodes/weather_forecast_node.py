@@ -16,7 +16,7 @@ from src.apis.wxtech_client import WxTechAPIClient, WxTechAPIError
 from src.data.location_manager import LocationManager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection
 from src.data.weather_trend import WeatherTrend
-from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences
+from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
 
@@ -122,12 +122,13 @@ class WeatherForecastNode:
                     return await client.get_forecast_async(
                         location_obj.latitude,
                         location_obj.longitude,
+                        forecast_hours=72,
                     )
 
                 if isinstance(location, tuple) and len(location) == 2:
                     # 緯度経度から直接取得
                     lat, lon = location
-                    return await client.get_forecast_async(lat, lon)
+                    return await client.get_forecast_async(lat, lon, forecast_hours=72)
 
                 raise ValueError("無効な地点情報です")
 
@@ -482,9 +483,9 @@ def fetch_weather_forecast_node(state):
         # WxTech APIクライアントの初期化
         client = WxTechAPIClient(api_key)
 
-        # 天気予報の取得
+        # 天気予報の取得（72時間分）
         try:
-            forecast_collection = client.get_forecast(lat, lon)
+            forecast_collection = client.get_forecast(lat, lon, forecast_hours=72)
         except WxTechAPIError as e:
             # エラータイプに基づいて適切なエラーメッセージを設定
             if e.error_type == 'api_key_invalid':
@@ -557,10 +558,21 @@ def fetch_weather_forecast_node(state):
             state.add_error(error_msg, "weather_forecast")
             raise ValueError(error_msg)
 
-        # 予報データをキャッシュに保存
+        # 予報データをキャッシュに保存（全ての予報データを保存）
         try:
+            # 選択された予報データを保存
             save_forecast_to_cache(selected_forecast, location_name)
-            logger.info(f"予報データをキャッシュに保存: {location_name}")
+            
+            # 72時間分の全予報データもキャッシュに保存（タイムライン表示用）
+            cache = get_forecast_cache()
+            for forecast in forecast_collection.forecasts:
+                try:
+                    cache.save_forecast(forecast, location_name)
+                except Exception as forecast_save_error:
+                    logger.debug(f"個別予報保存に失敗: {forecast_save_error}")
+                    continue
+                    
+            logger.info(f"予報データをキャッシュに保存: {location_name} ({len(forecast_collection.forecasts)}件)")
         except Exception as e:
             logger.warning(f"キャッシュ保存に失敗: {e}")
             # キャッシュ保存の失敗は致命的エラーではないので続行
@@ -649,7 +661,23 @@ def _select_priority_forecast(forecasts, target_datetime):
         return selected
     
     # 全て晴れの場合は、目標時刻に最も近いものを選択
-    selected = min(forecasts, key=lambda f: abs((f.datetime - target_datetime).total_seconds()))
+    # タイムゾーンの違いを解決するため、両方をnaive datetimeに統一
+    if target_datetime.tzinfo is not None:
+        # target_datetimeがタイムゾーン付きの場合、ナイーブに変換
+        target_naive = target_datetime.replace(tzinfo=None)
+    else:
+        target_naive = target_datetime
+    
+    def get_time_diff(f) -> float:
+        forecast_time = f.datetime
+        if forecast_time.tzinfo is not None:
+            # 予報時刻もナイーブに変換
+            forecast_naive = forecast_time.replace(tzinfo=None)
+        else:
+            forecast_naive = forecast_time
+        return abs((forecast_naive - target_naive).total_seconds())
+    
+    selected = min(forecasts, key=get_time_diff)
     logger.info(f"目標時刻に最も近い予報を選択: {selected.weather_description} ({selected.datetime})")
     return selected
 

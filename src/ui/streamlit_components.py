@@ -293,6 +293,60 @@ def result_display(result: Dict[str, Any]):
                 ),
             )
 
+        # 時系列予報データ
+        weather_timeline = metadata.get("weather_timeline")
+        if weather_timeline:
+            st.subheader("📈 時系列予報データ")
+            
+            # 概要表示
+            summary = weather_timeline.get("summary", {})
+            if summary:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("天気パターン", summary.get("weather_pattern", "不明"))
+                with col2:
+                    st.metric("気温範囲", summary.get("temperature_range", "不明"))
+                with col3:
+                    st.metric("最大降水量", summary.get("max_precipitation", "不明"))
+            
+            # 過去の推移
+            past_forecasts = weather_timeline.get("past_forecasts", [])
+            if past_forecasts:
+                st.write("**過去の推移（12時間前〜基準時刻）**")
+                past_df_data = []
+                for forecast in past_forecasts:
+                    past_df_data.append({
+                        "時刻": forecast.get("label", ""),
+                        "日時": forecast.get("time", ""),
+                        "天気": forecast.get("weather", ""),
+                        "気温": f"{forecast.get('temperature', 'N/A')}°C",
+                        "降水量": f"{forecast.get('precipitation', 0)}mm" if forecast.get('precipitation', 0) > 0 else "-"
+                    })
+                if past_df_data:
+                    import pandas as pd
+                    st.dataframe(pd.DataFrame(past_df_data), use_container_width=True)
+            
+            # 未来の予報
+            future_forecasts = weather_timeline.get("future_forecasts", [])
+            if future_forecasts:
+                st.write("**今後の予報（3〜12時間後）**")
+                future_df_data = []
+                for forecast in future_forecasts:
+                    future_df_data.append({
+                        "時刻": forecast.get("label", ""),
+                        "日時": forecast.get("time", ""),
+                        "天気": forecast.get("weather", ""),
+                        "気温": f"{forecast.get('temperature', 'N/A')}°C",
+                        "降水量": f"{forecast.get('precipitation', 0)}mm" if forecast.get('precipitation', 0) > 0 else "-"
+                    })
+                if future_df_data:
+                    import pandas as pd
+                    st.dataframe(pd.DataFrame(future_df_data), use_container_width=True)
+            
+            # エラー表示
+            if "error" in weather_timeline:
+                st.error(f"時系列データ取得エラー: {weather_timeline['error']}")
+
         # 選択された過去コメント情報
         if "selected_past_comments" in metadata:
             st.subheader("📝 参考にした過去コメント")

@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+佐賀,2025-06-14T07:00:00+09:00,2025-06-13T11:16:38.951169+09:00,24.0,,,severe_storm,大雨・嵐,27.0,96.0,5.0,"{'weather_code': '850', 'wind_direction': 'northwest', 'wind_direction_degrees': 315, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

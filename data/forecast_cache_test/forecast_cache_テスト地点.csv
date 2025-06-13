@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+テスト地点,2025-06-13T12:01:45.640660,2025-06-13T00:01:45.640902,22.5,,,clear,晴れ,0.0,60.0,3.0,"{'weather_code': '01', 'wind_direction': 'north', 'wind_direction_degrees': 0, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

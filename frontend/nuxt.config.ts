@@ -3,6 +3,9 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
   
+  // UI Framework
+  modules: ['@nuxt/ui'],
+  
   // TypeScript設定
   typescript: {
     strict: true,

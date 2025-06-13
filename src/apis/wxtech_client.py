@@ -143,12 +143,13 @@ class WxTechAPIClient:
         except requests.exceptions.RequestException as e:
             raise WxTechAPIError(f"リクエスト実行エラー: {str(e)}", error_type='network_error')
 
-    def get_forecast(self, lat: float, lon: float) -> WeatherForecastCollection:
+    def get_forecast(self, lat: float, lon: float, forecast_hours: int = 72) -> WeatherForecastCollection:
         """指定座標の天気予報を取得
 
         Args:
             lat: 緯度
             lon: 経度
+            forecast_hours: 予報時間数（デフォルト: 72時間）
 
         Returns:
             天気予報コレクション
@@ -161,11 +162,29 @@ class WxTechAPIClient:
             raise ValueError(f"緯度が範囲外です: {lat} （-90～90の範囲で指定してください）")
         if not (-180 <= lon <= 180):
             raise ValueError(f"経度が範囲外です: {lon} （-180～180の範囲で指定してください）")
+        if forecast_hours <= 0 or forecast_hours > 168:  # 最大7日間
+            raise ValueError(f"予報時間数が範囲外です: {forecast_hours} （1-168時間の範囲で指定してください）")
 
-        # API リクエスト実行
-        params = {"lat": lat, "lon": lon}
+        # API リクエスト実行（72時間の予報データを要求）
+        params = {
+            "lat": lat, 
+            "lon": lon,
+            "hours": forecast_hours  # 予報時間数パラメータ
+        }
 
+        # ログ出力でパラメータを確認
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔄 WxTech API リクエスト: endpoint=ss1wx, params={params}")
+        
         raw_data = self._make_request("ss1wx", params)
+        
+        # レスポンスの基本情報をログ出力
+        if "wxdata" in raw_data and raw_data["wxdata"]:
+            wxdata = raw_data["wxdata"][0]
+            srf_count = len(wxdata.get("srf", []))
+            mrf_count = len(wxdata.get("mrf", []))
+            logger.info(f"📊 WxTech API レスポンス: srf={srf_count}件, mrf={mrf_count}件")
 
         # レスポンスデータの変換
         return self._parse_forecast_response(raw_data, f"lat:{lat},lon:{lon}")
@@ -186,7 +205,7 @@ class WxTechAPIClient:
         if location.latitude is None or location.longitude is None:
             raise ValueError(f"地点 '{location.name}' に緯度経度情報がありません")
 
-        forecast_collection = self.get_forecast(location.latitude, location.longitude)
+        forecast_collection = self.get_forecast(location.latitude, location.longitude, forecast_hours=72)
 
         # 地点名を正しく設定
         forecast_collection.location = location.name
@@ -195,19 +214,20 @@ class WxTechAPIClient:
 
         return forecast_collection
 
-    async def get_forecast_async(self, lat: float, lon: float) -> WeatherForecastCollection:
+    async def get_forecast_async(self, lat: float, lon: float, forecast_hours: int = 72) -> WeatherForecastCollection:
         """非同期で天気予報を取得
 
         Args:
             lat: 緯度
             lon: 経度
+            forecast_hours: 予報時間数（デフォルト: 72時間）
 
         Returns:
             天気予報コレクション
         """
         loop = asyncio.get_running_loop()
         with ThreadPoolExecutor() as pool:
-            return await loop.run_in_executor(pool, self.get_forecast, lat, lon)
+            return await loop.run_in_executor(pool, self.get_forecast, lat, lon, forecast_hours)
 
     def _parse_forecast_response(
         self, raw_data: Dict[str, Any], location_name: str
@@ -647,7 +667,7 @@ async def get_japan_1km_mesh_weather_forecast(
     """
     client = WxTechAPIClient(api_key)
     try:
-        forecast_collection = await client.get_forecast_async(lat, lon)
+        forecast_collection = await client.get_forecast_async(lat, lon, forecast_hours=72)
         return forecast_collection.to_dict()
     finally:
         client.close()

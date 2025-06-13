@@ -12,6 +12,9 @@ from src.data.past_comment import CommentType, PastCommentCollection, PastCommen
 from src.data.weather_data import WeatherForecast
 from src.llm.llm_manager import LLMManager
 from src.config.comment_config import get_comment_config
+from src.config.severe_weather_config import get_severe_weather_config
+from src.data.forecast_cache import ForecastCache
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +96,13 @@ def _select_best_comment(comments: List[PastComment], weather_data: WeatherForec
     if not comments:
         return None
 
+    # 悪天候設定を取得
+    severe_config = get_severe_weather_config()
+    
     # 候補の準備（事前フィルタリング適用）
     candidates = []
     if comment_type == CommentType.WEATHER_COMMENT:
+        severe_weather_matched = []  # 悪天候に特化したコメント
         weather_matched = []
         others = []
         
@@ -105,24 +112,52 @@ def _select_best_comment(comments: List[PastComment], weather_data: WeatherForec
                 logger.info(f"天気条件不適合のためコメントを除外: {comment.comment_text} (天気: {weather_data.weather_description})")
                 continue
                 
-            candidate = _create_candidate_dict(len(weather_matched) + len(others), comment, original_index=i)
+            candidate = _create_candidate_dict(len(severe_weather_matched) + len(weather_matched) + len(others), comment, original_index=i)
             
-            if _is_weather_matched(comment.weather_condition, weather_data.weather_description):
-                weather_matched.append(candidate)
+            # 悪天候時の特別な優先順位付け
+            if severe_config.is_severe_weather(weather_data.weather_condition):
+                # 悪天候に適したコメントかチェック
+                if _is_severe_weather_appropriate(comment.comment_text, weather_data):
+                    severe_weather_matched.append(candidate)
+                elif _is_weather_matched(comment.weather_condition, weather_data.weather_description):
+                    weather_matched.append(candidate)
+                else:
+                    others.append(candidate)
             else:
-                others.append(candidate)
+                # 通常の天気マッチング
+                if _is_weather_matched(comment.weather_condition, weather_data.weather_description):
+                    weather_matched.append(candidate)
+                else:
+                    others.append(candidate)
         
-        candidates = weather_matched[:20] + others[:10]
-        logger.info(f"天気コメント候補: 全{len(comments)}件中、天気一致{len(weather_matched)}件を優先")
+        # 悪天候時は悪天候用コメントを最優先、次に天気一致、最後にその他
+        candidates = severe_weather_matched[:15] + weather_matched[:10] + others[:5]
+        logger.info(f"天気コメント候補: 全{len(comments)}件中、悪天候専用{len(severe_weather_matched)}件、天気一致{len(weather_matched)}件を優先")
     else:
         # アドバイスコメントの事前フィルタリング
-        candidates = []
+        severe_advice_matched = []  # 悪天候に適したアドバイス
+        normal_advice = []
+        
         for i, comment in enumerate(comments[:30]):
             # アドバイスコメントの事前フィルタリング
             if _should_exclude_advice_comment(comment.comment_text, weather_data):
                 logger.info(f"天気・気温条件不適合のためコメントを除外: {comment.comment_text}")
                 continue
-            candidates.append(_create_candidate_dict(len(candidates), comment, original_index=i))
+            
+            candidate = _create_candidate_dict(len(severe_advice_matched) + len(normal_advice), comment, original_index=i)
+            
+            # 悪天候時の特別な優先順位付け
+            if severe_config.is_severe_weather(weather_data.weather_condition):
+                if _is_severe_weather_advice_appropriate(comment.comment_text, weather_data):
+                    severe_advice_matched.append(candidate)
+                else:
+                    normal_advice.append(candidate)
+            else:
+                normal_advice.append(candidate)
+        
+        # 悪天候時は安全重視のアドバイスを優先
+        candidates = severe_advice_matched[:15] + normal_advice[:15]
+        logger.info(f"アドバイス候補: 悪天候用{len(severe_advice_matched)}件を優先")
 
     # プロンプト生成（stateを渡す）
     prompt = _generate_prompt(candidates, weather_data, location_name, target_datetime, comment_type, state)
@@ -166,9 +201,25 @@ def _should_exclude_weather_comment(comment_text: str, weather_data: WeatherFore
     current_weather = weather_data.weather_description.lower()
     comment_lower = comment_text.lower()
     
+    # 激しい悪天候時の不適切なコメント（最優先）
+    if any(severe_word in current_weather for severe_word in ["大雨", "豪雨", "嵐", "暴風", "台風", "雷"]):
+        # 穏やかさや過ごしやすさを表現するコメントを除外
+        if any(calm_word in comment_lower for calm_word in ["穏やか", "過ごしやすい", "快適", "爽やか", "心地良い", "のどか", "静か"]):
+            return True
+        # 晴天関連のコメントを除外
+        if any(sunny_word in comment_lower for sunny_word in ["青空", "晴れ", "快晴", "日差し", "太陽", "陽射し", "眩しい"]):
+            return True
+    
     # 雨天時の不適切なコメント
-    if any(rain_word in current_weather for rain_word in ["雨", "小雨", "大雨", "豪雨"]):
+    if any(rain_word in current_weather for rain_word in ["雨", "小雨", "中雨", "大雨", "豪雨"]):
+        # 晴天関連のコメントを除外
         if any(sunny_word in comment_lower for sunny_word in ["青空", "晴れ", "快晴", "日差し", "太陽", "陽射し"]):
+            return True
+        # 外出推奨系コメントを除外
+        if any(outdoor_word in comment_lower for outdoor_word in ["お出かけ", "外出", "散歩", "ピクニック", "日和"]):
+            return True
+        # 雨天時は穏やかなコメントも除外（雨の強さに関係なく）
+        if any(calm_word in comment_lower for calm_word in ["穏やか", "過ごしやすい", "快適", "爽やか", "心地良い"]):
             return True
     
     # 晴天時の不適切なコメント  
@@ -200,6 +251,15 @@ def _should_exclude_advice_comment(comment_text: str, weather_data: WeatherForec
     heat_threshold = config.heat_warning_threshold
     cold_threshold = config.cold_warning_threshold
     
+    # 激しい悪天候時は適切なアドバイスを優先
+    if any(severe_word in current_weather for severe_word in ["大雨", "豪雨", "嵐", "暴風", "台風", "雷"]):
+        # 悪天候時の不適切なアドバイスを除外
+        if any(good_weather_advice in comment_lower for good_weather_advice in ["散歩", "外出", "お出かけ", "ピクニック", "日光浴"]):
+            return True
+        # 晴天向けアドバイスを除外
+        if any(sunny_advice in comment_lower for sunny_advice in ["日焼け止め", "帽子", "サングラス", "日傘"]):
+            return True
+    
     # 気温による除外
     if weather_data.temperature < heat_threshold and "熱中症" in comment_text:
         return True
@@ -207,8 +267,12 @@ def _should_exclude_advice_comment(comment_text: str, weather_data: WeatherForec
         return True
     
     # 雨天時の不適切なアドバイス
-    if any(rain_word in current_weather for rain_word in ["雨", "小雨", "大雨"]):
+    if any(rain_word in current_weather for rain_word in ["雨", "小雨", "中雨", "大雨", "豪雨"]):
+        # 晴天向けアドバイスを除外
         if any(sunny_advice in comment_lower for sunny_advice in ["日焼け止め", "帽子", "サングラス", "日傘"]):
+            return True
+        # 外出推奨系アドバイスを除外
+        if any(outdoor_advice in comment_lower for outdoor_advice in ["お出かけ", "外出", "散歩", "ピクニック", "日和"]):
             return True
     
     # 晴天時の不適切なアドバイス
@@ -234,9 +298,103 @@ def _is_weather_matched(comment_weather: str, current_weather: str) -> bool:
     return current_weather in comment_weather or comment_weather in current_weather
 
 
+def _is_severe_weather_appropriate(comment_text: str, weather_data: WeatherForecast) -> bool:
+    """コメントが悪天候に適しているか判定"""
+    comment_lower = comment_text.lower()
+    severe_config = get_severe_weather_config()
+    
+    # 悪天候を示唆するキーワードがあるかチェック
+    severe_keywords = [
+        "荒れ", "激し", "警戒", "注意", "不安定", "変わりやすい", 
+        "スッキリしない", "崩れ", "悪化", "心配", "必須", "警報",
+        "視界", "慎重", "安全", "控えめ", "様子", "傘", "雨",
+        "ニワカ", "どんより", "じめじめ", "湿った"
+    ]
+    
+    # 悪天候キーワードが含まれているか
+    has_severe_keyword = any(keyword in comment_lower for keyword in severe_keywords)
+    
+    # 除外キーワードが含まれていないか
+    has_exclude_keyword = any(keyword in comment_lower for keyword in severe_config.exclude_keywords_severe)
+    
+    return has_severe_keyword and not has_exclude_keyword
+
+
+def _is_severe_weather_advice_appropriate(comment_text: str, weather_data: WeatherForecast) -> bool:
+    """アドバイスが悪天候に適しているか判定"""
+    comment_lower = comment_text.lower()
+    severe_config = get_severe_weather_config()
+    
+    # 悪天候時に推奨されるアドバイスキーワード
+    severe_advice_keywords = [
+        "室内", "屋内", "安全", "慎重", "警戒", "注意",
+        "早め", "備え", "確認", "中止", "延期", "控え",
+        "無理", "避け", "気をつけ", "余裕", "ゆっくり",
+        "傘", "雨具", "濡れ", "心配", "必須", "お守り"
+    ]
+    
+    # 悪天候アドバイスキーワードが含まれているか
+    has_severe_keyword = any(keyword in comment_lower for keyword in severe_advice_keywords)
+    
+    # 除外キーワードが含まれていないか（お出かけ系など）
+    outdoor_keywords = ["散歩", "外出", "お出かけ", "ピクニック", "外遊び", "日光浴", "日焼け"]
+    has_outdoor_keyword = any(keyword in comment_lower for keyword in outdoor_keywords)
+    
+    return has_severe_keyword and not has_outdoor_keyword
+
+
 def _generate_prompt(candidates: List[Dict[str, Any]], weather_data: WeatherForecast, location_name: str, target_datetime: datetime, comment_type: CommentType, state: Optional[CommentGenerationState] = None) -> str:
     """選択用プロンプトを生成"""
-    # WeatherTrendの取得
+    
+    # 時系列データの取得と分析（直接ForecastCacheから取得）
+    timeline_info = ""
+    severe_future_warning = ""
+    
+    location_name_param = state.location_name if state else None
+    if location_name_param and weather_data and weather_data.datetime:
+        try:
+            cache = ForecastCache()
+            future_forecasts = []
+            
+            # 未来の予報を直接取得（3, 6, 9時間後）
+            for hours in [3, 6, 9]:
+                future_time = weather_data.datetime + timedelta(hours=hours)
+                try:
+                    forecast = cache.get_forecast_at_time(location_name_param, future_time)
+                    if forecast:
+                        future_forecasts.append({
+                            'label': f'+{hours}h',
+                            'weather': forecast.weather_description,
+                            'temperature': forecast.temperature,
+                            'precipitation': forecast.precipitation
+                        })
+                except Exception as e:
+                    logger.debug(f"未来予報取得エラー (+{hours}h): {e}")
+            
+            # 未来の悪天候を検出
+            if future_forecasts:
+                severe_future = []
+                for forecast in future_forecasts:
+                    weather_desc = forecast.get('weather', '')
+                    if any(severe in weather_desc for severe in ['大雨', '嵐', '暴風', '台風', '雷', '豪雨']):
+                        severe_future.append(f"{forecast['label']}: {weather_desc}")
+                
+                if severe_future:
+                    severe_future_warning = f"""
+【重要警告】今後悪天候が予想されています:
+{chr(10).join(f'- {warning}' for warning in severe_future)}
+→ より強い警戒コメントを優先してください！"""
+                
+                timeline_info = f"""
+                
+【時系列予報情報】
+- 今後の変化: {len(future_forecasts)}時点の予報あり
+- 悪天候検出: {len(severe_future)}件の警告"""
+        
+        except Exception as e:
+            logger.warning(f"時系列データ取得エラー: {e}")
+    
+    # WeatherTrendの取得（既存）
     weather_trend_info = ""
     if state and hasattr(state, 'generation_metadata'):
         weather_trend = state.generation_metadata.get('weather_trend')
@@ -257,7 +415,7 @@ def _generate_prompt(candidates: List[Dict[str, Any]], weather_data: WeatherFore
 - 湿度: {weather_data.humidity}%
 - 風速: {weather_data.wind_speed}m/s
 - 降水量: {weather_data.precipitation}mm
-- 日時: {target_datetime.strftime("%Y年%m月%d日 %H時")}{weather_trend_info}
+- 日時: {target_datetime.strftime("%Y年%m月%d日 %H時")}{timeline_info}{weather_trend_info}{severe_future_warning}
 
 候補:
 {json.dumps(candidates, ensure_ascii=False, indent=2)}
@@ -265,6 +423,28 @@ def _generate_prompt(candidates: List[Dict[str, Any]], weather_data: WeatherFore
 """
 
     if comment_type == CommentType.WEATHER_COMMENT:
+        # 悪天候時の特別な指示
+        severe_config = get_severe_weather_config()
+        severe_instruction = ""
+        
+        # 現在または未来の悪天候チェック
+        current_severe = severe_config.is_severe_weather(weather_data.weather_condition)
+        future_severe = bool(severe_future_warning)
+        
+        if current_severe or future_severe:
+            current_desc = f"現在は{weather_data.weather_description}" if current_severe else "現在は軽微な天候"
+            future_desc = "、さらに今後悪天候が予想されています" if future_severe else ""
+            
+            severe_instruction = f"""
+【重要】{current_desc}{future_desc}。
+以下の点を最優先で考慮してください：
+1. 安全性を重視したコメントを選ぶ（特に未来の悪天候を考慮）
+2. 警戒や注意を促す表現を優先
+3. 穏やかさや快適さを表現するコメントは避ける
+4. 現在～未来の厳しい気象状況を的確に表現する
+5. 【特に重要】今後悪天候が予想される場合は強い警戒コメントを選択
+"""
+        
         # 気象変化を考慮した追加基準
         trend_criteria = ""
         if state and hasattr(state, 'generation_metadata'):
@@ -290,15 +470,54 @@ def _generate_prompt(candidates: List[Dict[str, Any]], weather_data: WeatherFore
             elif weather_data.weather_condition.value == "severe_storm":
                 special_criteria += "\n   - 「大雨」「嵐」「暴風」「危険」「警戒」などの表現を含むコメント"
         
-        base += f"""{special_criteria}
+        # 悪天候時の特別な基準を追加
+        severe_weather_criteria = ""
+        if any(severe in weather_data.weather_description.lower() for severe in ["大雨", "豪雨", "嵐", "暴風", "台風", "雷"]):
+            severe_weather_criteria = f"""
+
+【重要】悪天候時の選択基準:
+⚠️ 現在は「{weather_data.weather_description}」という激しい天候です
+- 「穏やか」「過ごしやすい」「快適」などの表現は絶対に避ける
+- 「荒れる」「注意」「気をつけて」などの警戒を促す表現を優先
+- 悪天候の状況を適切に表現するコメントを選択"""
+
+        # 未来の悪天候による基準強化
+        future_criteria = ""
+        if future_severe:
+            future_criteria = "\n6. 【最重要】今後の悪天候を考慮し、より強い警戒コメントを選択（「大荒れ」「激しい」「警戒」等）"
+        
+        base += f"""{severe_instruction}{special_criteria}{severe_weather_criteria}
 
 選択基準:
-1. 天気条件の一致（雨なら「スッキリしない空」等）
-2. 気温表現の適合性（{weather_data.temperature}°Cに適した表現）
-3. 絶対禁止：雨天+「晴れ」系、22°C+「猛暑」系{trend_criteria}
+1. 【最優先】悪天候時は危険性や注意を促すコメント
+2. 天気条件の一致（雨なら「スッキリしない空」等、嵐なら「荒れる」等）
+3. 気温表現の適合性（{weather_data.temperature}°Cに適した表現）
+4. 絶対禁止：悪天候時+「穏やか」系、雨天+「晴れ」系、気温不一致{trend_criteria}{future_criteria}
 
-現在は{weather_data.weather_description}・{weather_data.temperature}°Cです。適切な表現を選んでください。"""
+現在は{weather_data.weather_description}・{weather_data.temperature}°Cです。安全で適切な表現を選んでください。"""
     else:
+        # 悪天候時の特別な指示（アドバイス用）
+        severe_config = get_severe_weather_config()
+        severe_instruction = ""
+        
+        # 現在または未来の悪天候チェック（アドバイス用）
+        current_severe = severe_config.is_severe_weather(weather_data.weather_condition)
+        future_severe = bool(severe_future_warning)
+        
+        if current_severe or future_severe:
+            current_desc = f"現在は{weather_data.weather_description}" if current_severe else "現在は軽微な天候"
+            future_desc = "、さらに今後悪天候が予想されています" if future_severe else ""
+            
+            severe_instruction = f"""
+【重要】{current_desc}{future_desc}。
+以下の点を最優先で考慮してください：
+1. 安全確保を最優先としたアドバイスを選ぶ（特に未来の悪天候を考慮）
+2. 室内での過ごし方や安全対策を推奨
+3. 外出を推奨するようなアドバイスは避ける
+4. 悪天候に対する適切な準備を促す
+5. 【特に重要】今後悪天候が予想される場合は強い安全対策アドバイスを選択
+"""
+        
         # アドバイスも気象変化を考慮
         trend_advice = ""
         if state and hasattr(state, 'generation_metadata'):
@@ -331,14 +550,26 @@ def _generate_prompt(candidates: List[Dict[str, Any]], weather_data: WeatherFore
             elif weather_data.weather_condition.value == "severe_storm":
                 special_criteria += "\n   - 「大雨に警戒」「外出危険」「嵐に備える」などの安全対策"
         
-        base += f"""{special_criteria}
+        # 悪天候時のアドバイス基準を追加
+        severe_weather_advice = ""
+        if any(severe in weather_data.weather_description.lower() for severe in ["大雨", "豪雨", "嵐", "暴風", "台風", "雷"]):
+            severe_weather_advice = f"""
+
+【重要】悪天候時のアドバイス基準:
+⚠️ 現在は「{weather_data.weather_description}」という危険な天候です
+- 「外出注意」「安全第一」「傘必携」などの安全対策を最優先
+- 「散歩」「お出かけ」「ピクニック」などの外出推奨は絶対に避ける
+- 悪天候に適した準備・対策のアドバイスを選択"""
+
+        base += f"""{severe_instruction}{special_criteria}{severe_weather_advice}
 
 選択基準:
-1. 気温による除外（{weather_data.temperature}°C）：
+1. 【最優先】悪天候時は安全対策・注意喚起のアドバイス
+2. 気温による除外（{weather_data.temperature}°C）：
    - {heat_threshold}°C未満で「熱中症」系は選択禁止
    - {cold_threshold}°C以上で「防寒」系は選択禁止
-2. 天気条件への適切性（雨なら濡れ対策等）
-3. 実用的で具体的なアドバイス{trend_advice}
+3. 天気条件への適切性（雨なら濡れ対策等、嵐なら外出控える等）
+4. 実用的で具体的なアドバイス{trend_advice}
 
 **重要**: 現在{weather_data.temperature}°Cなので、熱中症関連は{'選択禁止' if weather_data.temperature < heat_threshold else '選択可能'}です。"""
 
