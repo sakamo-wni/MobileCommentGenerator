@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 
 from src.data.weather_data import WeatherForecast
 from src.config.weather_config import get_config
+from src.utils.exceptions import DataValidationError, CacheError
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ class ForecastCacheEntry:
                 metadata=metadata
             )
         except (ValueError, IndexError) as e:
-            raise ValueError(f"CSV行の解析に失敗しました: {e}")
+            raise DataValidationError(f"CSV行の解析に失敗しました: {e}")
     
     @classmethod
     def from_weather_forecast(cls, weather_forecast: WeatherForecast, location_name: str) -> "ForecastCacheEntry":
@@ -275,9 +276,11 @@ class ForecastCache:
             
             return None
             
+        except CacheError:
+            raise
         except Exception as e:
             logger.error(f"予報データの取得に失敗: {e}")
-            return None
+            raise CacheError(f"予報データの取得に失敗: {e}")
     
     def get_previous_day_forecast(self, location_name: str, reference_datetime: datetime) -> Optional[ForecastCacheEntry]:
         """前日の同時刻の予報データを取得

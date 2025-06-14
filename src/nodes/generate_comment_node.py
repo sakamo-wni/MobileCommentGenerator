@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
 import os
+import yaml
 
 # langgraph nodeデコレータは新バージョンでは不要
 
@@ -16,6 +17,7 @@ from src.data.weather_data import WeatherForecast
 from src.data.comment_pair import CommentPair
 from src.config.weather_config import get_config
 from src.utils.common_utils import get_season_from_month, get_time_period_from_hour
+from src.utils.exceptions import DataNotFoundError, LLMAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +43,10 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
         llm_provider = state.llm_provider if state.llm_provider else "openai"
 
         if not weather_data:
-            raise ValueError("Weather data is required for comment generation")
+            raise DataNotFoundError("Weather data is required for comment generation")
 
         if not selected_pair:
-            raise ValueError("Selected comment pair is required for generation")
+            raise DataNotFoundError("Selected comment pair is required for generation")
 
         # LLMマネージャーの初期化
         llm_manager = LLMManager(provider=llm_provider)
@@ -130,12 +132,14 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
 
         return state
 
+    except (DataNotFoundError, LLMAPIError):
+        raise
     except Exception as e:
         logger.error(f"Error in generate_comment_node: {str(e)}")
         state.add_error(str(e), "generate_comment")
 
         # エラーを再発生させて適切に処理
-        raise
+        raise LLMAPIError(f"コメント生成中にエラーが発生しました: {str(e)}")
 
 
 def _get_ng_words() -> List[str]:

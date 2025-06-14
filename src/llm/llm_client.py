@@ -13,6 +13,12 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 import json
 
+from src.utils.exceptions import (
+    ConfigurationError,
+    LLMAPIError,
+    ValidationError,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,7 +63,7 @@ class LLMClient(ABC):
     def _validate_response(self, response_text: str) -> str:
         """レスポンスの検証・整形"""
         if not response_text:
-            raise ValueError("空のレスポンスが返されました")
+            raise ValidationError("空のレスポンスが返されました")
 
         # 15文字制限チェック
         if len(response_text) > 15:
@@ -77,7 +83,7 @@ class OpenAIClient(LLMClient):
     def _get_api_key(self) -> str:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY環境変数が設定されていません")
+            raise ConfigurationError("OPENAI_API_KEY環境変数が設定されていません")
         return api_key
 
     def generate_comment(self, prompt: str) -> str:
@@ -86,9 +92,11 @@ class OpenAIClient(LLMClient):
             response = self._make_api_request(prompt)
             generated_text = response["choices"][0]["message"]["content"]
             return self._validate_response(generated_text)
+        except LLMAPIError:
+            raise
         except Exception as e:
             logger.error(f"OpenAI API エラー: {str(e)}")
-            raise
+            raise LLMAPIError(f"OpenAI API エラー: {str(e)}")
 
     def _make_api_request(self, prompt: str) -> Dict[str, Any]:
         """OpenAI API リクエスト"""
@@ -107,7 +115,7 @@ class OpenAIClient(LLMClient):
             return response
         except Exception as e:
             logger.error(f"OpenAI API リクエストエラー: {str(e)}")
-            raise
+            raise LLMAPIError(f"OpenAI API リクエストエラー: {str(e)}")
 
 
 class GeminiClient(LLMClient):
@@ -116,7 +124,7 @@ class GeminiClient(LLMClient):
     def _get_api_key(self) -> str:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise ValueError("GEMINI_API_KEY環境変数が設定されていません")
+            raise ConfigurationError("GEMINI_API_KEY環境変数が設定されていません")
         return api_key
 
     def generate_comment(self, prompt: str) -> str:
@@ -125,9 +133,11 @@ class GeminiClient(LLMClient):
             response = self._make_api_request(prompt)
             generated_text = response["candidates"][0]["content"]["parts"][0]["text"]
             return self._validate_response(generated_text)
+        except LLMAPIError:
+            raise
         except Exception as e:
             logger.error(f"Gemini API エラー: {str(e)}")
-            raise
+            raise LLMAPIError(f"Gemini API エラー: {str(e)}")
 
     def _make_api_request(self, prompt: str) -> Dict[str, Any]:
         """Gemini API リクエスト"""
@@ -158,7 +168,7 @@ class GeminiClient(LLMClient):
             return response.json()
         except Exception as e:
             logger.error(f"Gemini API リクエストエラー: {str(e)}")
-            raise
+            raise LLMAPIError(f"Gemini API リクエストエラー: {str(e)}")
 
 
 class AnthropicClient(LLMClient):
@@ -167,7 +177,7 @@ class AnthropicClient(LLMClient):
     def _get_api_key(self) -> str:
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY環境変数が設定されていません")
+            raise ConfigurationError("ANTHROPIC_API_KEY環境変数が設定されていません")
         return api_key
 
     def generate_comment(self, prompt: str) -> str:
@@ -176,9 +186,11 @@ class AnthropicClient(LLMClient):
             response = self._make_api_request(prompt)
             generated_text = response["content"][0]["text"]
             return self._validate_response(generated_text)
+        except LLMAPIError:
+            raise
         except Exception as e:
             logger.error(f"Anthropic API エラー: {str(e)}")
-            raise
+            raise LLMAPIError(f"Anthropic API エラー: {str(e)}")
 
     def _make_api_request(self, prompt: str) -> Dict[str, Any]:
         """Anthropic API リクエスト"""
@@ -204,7 +216,7 @@ class AnthropicClient(LLMClient):
             return response.json()
         except Exception as e:
             logger.error(f"Anthropic API リクエストエラー: {str(e)}")
-            raise
+            raise LLMAPIError(f"Anthropic API リクエストエラー: {str(e)}")
 
 
 class LLMClientFactory:
@@ -235,7 +247,7 @@ class LLMClientFactory:
         if config is None:
             config = cls.DEFAULT_CONFIGS.get(provider)
             if config is None:
-                raise ValueError(f"未対応のプロバイダー: {provider}")
+                raise ConfigurationError(f"未対応のプロバイダー: {provider}")
 
         if provider == "openai":
             return OpenAIClient(config)
@@ -244,7 +256,7 @@ class LLMClientFactory:
         elif provider == "anthropic":
             return AnthropicClient(config)
         else:
-            raise ValueError(f"未対応のプロバイダー: {provider}")
+            raise ConfigurationError(f"未対応のプロバイダー: {provider}")
 
     @classmethod
     def get_available_providers(cls) -> List[str]:
@@ -259,7 +271,7 @@ class LLMClientFactory:
             try:
                 client = cls.create_client(provider)
                 results[provider] = bool(client.api_key)
-            except ValueError:
+            except (ValueError, ConfigurationError):
                 results[provider] = False
         return results
 

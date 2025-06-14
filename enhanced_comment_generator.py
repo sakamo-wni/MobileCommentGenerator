@@ -3,11 +3,16 @@ import logging
 import os
 import yaml
 from collections import Counter, defaultdict
-from typing import Optional
 
 import boto3
 import pandas as pd
 from botocore.exceptions import ClientError, NoCredentialsError
+
+from src.utils.exceptions import (
+    S3ConnectionError,
+    S3PermissionError,
+    ConfigurationError
+)
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -25,6 +30,7 @@ def load_s3_config() -> dict:
                 config = yaml.safe_load(f) or {}
         except yaml.YAMLError as e:
             logger.error(f"設定ファイルの読み込みエラー: {e}")
+            raise ConfigurationError(f"S3設定ファイルの読み込みに失敗: {e}")
     
     # 環境変数で上書き
     s3_config = config.get("s3", {})
@@ -32,7 +38,7 @@ def load_s3_config() -> dict:
     prefix = os.getenv("S3_PREFIX", s3_config.get("prefix", "downloaded_jsonl_files_archive/"))
     
     if not bucket_name:
-        raise ValueError("S3_BUCKET_NAMEが設定されていません。環境変数またはconfig/s3_config.yamlで設定してください。")
+        raise ConfigurationError("S3_BUCKET_NAMEが設定されていません。環境変数またはconfig/s3_config.yamlで設定してください。")
     
     return {
         "bucket_name": bucket_name,
@@ -57,14 +63,16 @@ def create_s3_client():
         return session.client("s3")
     except NoCredentialsError as e:
         logger.error("AWS認証情報が見つかりません。環境変数またはIAMロールを確認してください。")
-        raise
+        raise S3ConnectionError("AWS認証情報が見つかりません。環境変数またはIAMロールを確認してください。") from e
     except ClientError as e:
         error_code = e.response.get('Error', {}).get('Code', 'Unknown')
         logger.error(f"AWS APIエラー: {error_code} - {e}")
-        raise
+        if error_code in ['AccessDenied', 'Forbidden']:
+            raise S3PermissionError(f"S3アクセス権限エラー: {error_code}") from e
+        raise S3ConnectionError(f"AWS APIエラー: {error_code} - {e}") from e
     except Exception as e:
         logger.error(f"S3クライアントの作成に失敗: {type(e).__name__} - {e}")
-        raise
+        raise S3ConnectionError(f"S3クライアントの作成に失敗: {type(e).__name__} - {e}") from e
 
 # 設定の読み込み
 try:
@@ -74,7 +82,10 @@ try:
     s3 = create_s3_client()
 except Exception as e:
     logger.error(f"初期化エラー: {e}")
-    raise
+    # 具体的な例外タイプで再スロー
+    if isinstance(e, (ConfigurationError, S3ConnectionError, S3PermissionError)):
+        raise
+    raise ConfigurationError(f"初期化エラー: {e}") from e
 
 # 📁 出力フォルダ作成
 os.makedirs("output/analysis", exist_ok=True)

@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 
+from src.utils.exceptions import ConfigurationError, InvalidConfigError
+
 
 @dataclass
 class WeatherConfig:
@@ -86,13 +88,13 @@ class WeatherConfig:
         
         # 検証
         if not self.wxtech_api_key:
-            raise ValueError("WXTECH_API_KEY環境変数が設定されていません")
+            raise ConfigurationError("WXTECH_API_KEY環境変数が設定されていません")
 
         if self.forecast_hours <= 0:
-            raise ValueError("forecast_hoursは1以上である必要があります")
+            raise InvalidConfigError("forecast_hoursは1以上である必要があります")
 
         if self.api_timeout <= 0:
-            raise ValueError("api_timeoutは1以上である必要があります")
+            raise InvalidConfigError("api_timeoutは1以上である必要があります")
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換（ログ出力用、APIキーはマスク）

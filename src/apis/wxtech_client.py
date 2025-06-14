@@ -20,9 +20,14 @@ from src.data.weather_data import (
     WindDirection,
 )
 from src.data.location_manager import Location
+from src.utils.exceptions import (
+    WeatherAPIError,
+    DataValidationError,
+    TimeoutError as CustomTimeoutError,
+)
 
 
-class WxTechAPIError(Exception):
+class WxTechAPIError(WeatherAPIError):
     """WxTech API エラー
     
     Attributes:
@@ -137,7 +142,7 @@ class WxTechAPIClient:
             return data
 
         except requests.exceptions.Timeout:
-            raise WxTechAPIError(f"リクエストがタイムアウトしました（{self.timeout}秒）", error_type='timeout')
+            raise CustomTimeoutError(f"リクエストがタイムアウトしました（{self.timeout}秒）")
         except requests.exceptions.ConnectionError:
             raise WxTechAPIError("API サーバーに接続できません", error_type='network_error')
         except requests.exceptions.RequestException as e:
@@ -159,11 +164,11 @@ class WxTechAPIClient:
         """
         # パラメータ検証
         if not (-90 <= lat <= 90):
-            raise ValueError(f"緯度が範囲外です: {lat} （-90～90の範囲で指定してください）")
+            raise DataValidationError(f"緯度が範囲外です: {lat} （-90～90の範囲で指定してください）")
         if not (-180 <= lon <= 180):
-            raise ValueError(f"経度が範囲外です: {lon} （-180～180の範囲で指定してください）")
+            raise DataValidationError(f"経度が範囲外です: {lon} （-180～180の範囲で指定してください）")
         if forecast_hours <= 0 or forecast_hours > 168:  # 最大7日間
-            raise ValueError(f"予報時間数が範囲外です: {forecast_hours} （1-168時間の範囲で指定してください）")
+            raise DataValidationError(f"予報時間数が範囲外です: {forecast_hours} （1-168時間の範囲で指定してください）")
 
         # API リクエスト実行（72時間の予報データを要求）
         params = {
@@ -203,7 +208,7 @@ class WxTechAPIClient:
             WxTechAPIError: API エラーが発生した場合
         """
         if location.latitude is None or location.longitude is None:
-            raise ValueError(f"地点 '{location.name}' に緯度経度情報がありません")
+            raise DataValidationError(f"地点 '{location.name}' に緯度経度情報がありません")
 
         forecast_collection = self.get_forecast(location.latitude, location.longitude, forecast_hours=72)
 
@@ -252,7 +257,7 @@ class WxTechAPIClient:
                         forecast_data, location_name, is_hourly=True
                     )
                     forecasts.append(forecast)
-                except Exception as e:
+                except WeatherAPIError as e:
                     warnings.warn(f"時間別予報の解析に失敗: {str(e)}")
                     continue
 
@@ -264,7 +269,7 @@ class WxTechAPIClient:
                         forecast_data, location_name, is_hourly=False
                     )
                     forecasts.append(forecast)
-                except Exception as e:
+                except WeatherAPIError as e:
                     warnings.warn(f"日別予報の解析に失敗: {str(e)}")
                     continue
 

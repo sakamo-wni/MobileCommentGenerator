@@ -1,8 +1,6 @@
 """天気コメント検証システム - 天気条件に不適切なコメントを検出・除外"""
 
 import logging
-import os
-import yaml
 from typing import List, Dict, Any, Tuple, Optional
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment, CommentType

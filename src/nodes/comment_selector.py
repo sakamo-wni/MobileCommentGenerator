@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List
 
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.comment_pair import CommentPair
