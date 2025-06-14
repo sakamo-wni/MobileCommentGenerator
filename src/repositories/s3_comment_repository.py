@@ -21,13 +21,20 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
 
 from src.data.past_comment import PastComment, PastCommentCollection, CommentType
+from src.utils.exceptions import (
+    S3Error,
+    S3ConnectionError,
+    S3PermissionError,
+    DataValidationError,
+    ConfigurationError,
+)
 
 
 # ログ設定
 logger = logging.getLogger(__name__)
 
 
-class S3CommentRepositoryError(Exception):
+class S3CommentRepositoryError(S3Error):
     """S3コメントリポジトリ関連のエラー"""
 
     pass
@@ -102,7 +109,7 @@ class S3CommentRepository:
                     logger.error(
                         f"プロファイル '{profile_name}' でのセッション作成に失敗: {str(e)}"
                     )
-                    raise
+                    raise S3ConnectionError(f"プロファイル '{profile_name}' でのセッション作成に失敗: {str(e)}")
             elif aws_access_key_id and aws_secret_access_key:
                 self.s3_client = boto3.client(
                     "s3",
@@ -115,9 +122,9 @@ class S3CommentRepository:
                 self.s3_client = boto3.client("s3", region_name=region_name)
 
         except (NoCredentialsError, PartialCredentialsError) as e:
-            raise S3CommentRepositoryError(f"AWS認証情報が設定されていません: {str(e)}")
+            raise S3PermissionError(f"AWS認証情報が設定されていません: {str(e)}")
         except Exception as e:
-            raise S3CommentRepositoryError(f"S3クライアントの初期化に失敗: {str(e)}")
+            raise S3ConnectionError(f"S3クライアントの初期化に失敗: {str(e)}")
 
     def test_connection(self) -> bool:
         """S3接続をテスト
@@ -196,7 +203,7 @@ class S3CommentRepository:
         """
         # 期間フォーマットの検証
         if not re.match(r"^\d{6}$", period):
-            raise ValueError(f"期間は YYYYMM 形式で指定してください: {period}")
+            raise DataValidationError(f"期間は YYYYMM 形式で指定してください: {period}")
 
         # ファイルパスの構築
         file_key = f"downloaded_jsonl_files_archive/{period}/{period}.jsonl"

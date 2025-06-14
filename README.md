@@ -69,11 +69,10 @@ mobile-comment-generator/
 ├── .env.example                # 環境変数例
 ├── app.py                      # Streamlitメインエントリポイント
 ├── enhanced_comment_generator.py # 拡張コメント生成器
-├── test_all_locations.py       # 全地点テスト
-├── test_connections.py         # 接続テスト
-├── test_rain_selection.py      # 雨天時選択テスト
-├── test_s3_access.py           # S3アクセステスト
-├── test_weather_flow.py        # 天気フローテスト
+├── tests/                      # テストファイル
+│   ├── unit/                  # 単体テスト
+│   └── integration/           # 統合テスト
+│       └── test_weather_validation_system.py  # 天気検証システム統合テスト
 ├── requirements.txt            # Python依存関係
 ├── requirements-dev.txt        # 開発用依存関係
 ├── requirements-streamlit.txt  # Streamlit用依存関係

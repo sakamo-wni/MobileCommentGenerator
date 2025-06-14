@@ -3,11 +3,11 @@
 LLMを使用して天気情報と過去コメントを基にコメントを生成する。
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
-import yaml
 import os
+import yaml
 
 # langgraph nodeデコレータは新バージョンでは不要
 
@@ -16,6 +16,8 @@ from src.llm.llm_manager import LLMManager
 from src.data.weather_data import WeatherForecast
 from src.data.comment_pair import CommentPair
 from src.config.weather_config import get_config
+from src.utils.common_utils import get_season_from_month, get_time_period_from_hour
+from src.utils.exceptions import DataNotFoundError, LLMAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,8 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
         更新された状態（generated_comment追加）
     """
     try:
+        print("🔥🔥🔥 GENERATE_COMMENT_NODE CALLED 🔥🔥🔥")
+        logger.critical("🔥🔥🔥 GENERATE_COMMENT_NODE CALLED 🔥🔥🔥")
         logger.info("Starting comment generation")
 
         # 必要なデータの確認
@@ -39,10 +43,10 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
         llm_provider = state.llm_provider if state.llm_provider else "openai"
 
         if not weather_data:
-            raise ValueError("Weather data is required for comment generation")
+            raise DataNotFoundError("Weather data is required for comment generation")
 
         if not selected_pair:
-            raise ValueError("Selected comment pair is required for generation")
+            raise DataNotFoundError("Selected comment pair is required for generation")
 
         # LLMマネージャーの初期化
         llm_manager = LLMManager(provider=llm_provider)
@@ -64,7 +68,23 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
             selected_pair.advice_comment.comment_text if selected_pair.advice_comment else ""
         )
 
-        # 最終コメントは選択されたコメントをそのまま使用（間に全角スペース）
+        # 緊急安全チェック：完全に不適切な組み合わせを強制修正
+        logger.critical(f"🚨 最終安全チェック開始: 天気='{weather_data.weather_description}', 気温={weather_data.temperature}°C")
+        logger.critical(f"🚨 選択されたコメント: 天気='{weather_comment}', アドバイス='{advice_comment}'")
+        
+        # 雨天で熱中症警告は絶対に不適切
+        if "雨" in weather_data.weather_description and weather_data.temperature < 30.0 and advice_comment and "熱中症" in advice_comment:
+            logger.critical(f"🚨 緊急修正: 雨天+低温で熱中症警告を除外")
+            advice_comment = "雨にご注意を"
+            logger.critical(f"🚨 アドバイス修正完了: '{advice_comment}'")
+        
+        # 大雨・嵐でムシムシ暑いは不適切
+        if ("大雨" in weather_data.weather_description or "嵐" in weather_data.weather_description) and weather_comment and "ムシムシ" in weather_comment:
+            logger.critical(f"🚨 緊急修正: 悪天候でムシムシコメントを除外")
+            weather_comment = "荒れた天気"
+            logger.critical(f"🚨 天気コメント修正完了: '{weather_comment}'")
+
+        # 最終コメント構成
         if weather_comment and advice_comment:
             generated_comment = f"{weather_comment}　{advice_comment}"
         elif weather_comment:
@@ -112,12 +132,14 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
 
         return state
 
+    except (DataNotFoundError, LLMAPIError):
+        raise
     except Exception as e:
         logger.error(f"Error in generate_comment_node: {str(e)}")
         state.add_error(str(e), "generate_comment")
 
         # エラーを再発生させて適切に処理
-        raise
+        raise LLMAPIError(f"コメント生成中にエラーが発生しました: {str(e)}")
 
 
 def _get_ng_words() -> List[str]:
@@ -165,53 +187,16 @@ def _get_time_period(target_datetime: Optional[datetime]) -> str:
     """時間帯を判定"""
     if not target_datetime:
         target_datetime = datetime.now()
-
-    hour = target_datetime.hour
-    if 5 <= hour < 10:
-        return "朝"
-    elif 10 <= hour < 17:
-        return "昼"
-    elif 17 <= hour < 21:
-        return "夕方"
-    else:
-        return "夜"
+    return get_time_period_from_hour(target_datetime.hour)
 
 
 def _get_season(target_datetime: Optional[datetime]) -> str:
     """季節を判定"""
     if not target_datetime:
         target_datetime = datetime.now()
-
-    month = target_datetime.month
-    if month in [3, 4, 5]:
-        return "春"
-    elif month in [6, 7, 8]:
-        return "夏"
-    elif month in [9, 10, 11]:
-        return "秋"
-    else:
-        return "冬"
+    return get_season_from_month(target_datetime.month)
 
 
-def _get_fallback_comment(weather_data: Optional[WeatherForecast]) -> str:
-    """フォールバックコメントを生成"""
-    if not weather_data:
-        return "今日も一日頑張ろう"
-
-    # シンプルな天気ベースのコメント
-    weather_comments = {
-        "晴れ": "晴れて気持ちいい",
-        "曇り": "曇り空ですね",
-        "雨": "傘をお忘れなく",
-        "雪": "雪に注意です",
-    }
-
-    weather_condition = weather_data.weather_description
-    for key, comment in weather_comments.items():
-        if key in weather_condition:
-            return comment
-
-    return "今日も良い一日を"
 
 
 def _analyze_temperature_differences(temperature_differences: Dict[str, Optional[float]], current_temp: float) -> Dict[str, Any]:
@@ -312,5 +297,4 @@ __all__ = [
     "_get_ng_words",
     "_get_time_period",
     "_get_season",
-    "_get_fallback_comment",
 ]

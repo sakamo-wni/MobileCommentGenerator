@@ -1,0 +1,58 @@
+# 天気関連の閾値設定
+
+temperature:
+  # 温度閾値
+  hot_threshold: 30.0  # 暑い判定
+  cold_threshold: 12.0  # 寒い判定（15.0から変更）
+  freezing_threshold: 0.0  # 氷点下
+  
+  # 温度差閾値
+  large_daily_difference: 10.0  # 大きな日較差
+  moderate_daily_difference: 7.0  # 中程度の日較差
+  large_hourly_difference: 7.0  # 大きな12時間差
+  moderate_hourly_difference: 5.0  # 中程度の12時間差
+  
+  # 熱中症警告
+  heatstroke_warning_temp: 30.0  # 熱中症注意温度
+
+precipitation:
+  # 降水量レベル（mm/h）
+  none: 0.0
+  light_max: 2.0  # 軽い雨
+  moderate_max: 5.0  # 中程度の雨
+  heavy_max: 10.0  # 強い雨
+  very_heavy_max: 50.0  # 非常に激しい雨
+  
+  # 雷判定
+  thunder_severe_threshold: 5.0  # 強い雷の降水量閾値
+
+humidity:
+  # 湿度閾値
+  high_threshold: 80.0  # 高湿度
+  low_threshold: 30.0  # 低湿度
+
+wind:
+  # 風速閾値（m/s）
+  strong_threshold: 10.0  # 強風
+  very_strong_threshold: 15.0  # 非常に強い風
+  storm_threshold: 20.0  # 暴風
+
+# スコアリング重み
+scoring:
+  base_score: 100.0
+  strong_warning_bonus: 20.0
+  mild_expression_penalty: 30.0
+  season_match_bonus: 10.0
+  popularity_max_bonus: 10.0
+  popularity_divisor: 1000.0
+
+# 生成設定
+generation:
+  # 候補数制限
+  weather_candidates_limit: 15
+  advice_candidates_limit: 10
+  fallback_candidates_limit: 5
+  
+  # デフォルト値
+  default_llm_provider: "openai"
+  default_forecast_hours: 12

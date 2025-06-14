@@ -47,7 +47,7 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
             
         # コメント取得
         past_comments = repository.get_recent_comments(
-            limit=30  # weather_comment + advice
+            limit=180  # 各季節から最大15個ずつ取得 (15 * 2 types * 6 seasons = 180)
         )
         
         # メタデータ生成

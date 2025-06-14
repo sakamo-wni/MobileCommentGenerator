@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+長崎,2025-06-14T00:00:00+09:00,2025-06-13T11:27:21.651440+09:00,26.0,,,severe_storm,大雨・嵐,0.0,0.0,0.0,"{'weather_code': '850', 'wind_direction': 'calm', 'wind_direction_degrees': 0, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

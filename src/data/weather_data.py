@@ -53,7 +53,7 @@ class WeatherCondition(Enum):
     @property
     def is_special_condition(self) -> bool:
         """特殊な気象状況かどうかを判定"""
-        return self.priority >= 8  # 霧、嵐、雷、猫暮、大雨・嵐を特殊気象とする
+        return self.priority >= 4  # 雨、大雨、霧、嵐、雷、猫暮、大雨・嵐を特殊気象とする
 
 
 class WindDirection(Enum):
@@ -203,14 +203,38 @@ class WeatherForecast:
             WeatherCondition.HEAVY_RAIN,
             WeatherCondition.HEAVY_SNOW,
             WeatherCondition.STORM,
-            WeatherCondition.THUNDER,      # 雷を追加
             WeatherCondition.SEVERE_STORM, # 大雨・嵐を追加
         }
+        
+        # 雷は降水量が5mm以上の場合のみ悪天候とする
+        thunder_with_rain = (
+            self.weather_condition == WeatherCondition.THUNDER and 
+            self.precipitation >= 5.0
+        )
+        
         return (
             self.weather_condition in severe_conditions
+            or thunder_with_rain  # 雷+降水量5mm以上
             or self.precipitation >= 10.0  # 強い降水
             or self.wind_speed >= 15.0  # 強風
         )
+    
+    def get_precipitation_severity(self) -> str:
+        """降水量の重要度を取得
+        
+        Returns:
+            降水量レベル（'none', 'light', 'moderate', 'heavy', 'very_heavy'）
+        """
+        if self.precipitation <= 0.5:
+            return "none"
+        elif self.precipitation <= 2.0:
+            return "light"  # 軽い雨
+        elif self.precipitation <= 10.0:
+            return "moderate"  # 中程度の雨
+        elif self.precipitation <= 30.0:
+            return "heavy"  # 大雨
+        else:
+            return "very_heavy"  # 激しい雨
 
     def get_comfort_level(self) -> str:
         """快適度レベルを取得

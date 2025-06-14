@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+中津,2025-06-14T07:00:00+09:00,2025-06-13T11:27:31.135661+09:00,22.0,,,rain,雨,2.0,94.0,2.0,"{'weather_code': '300', 'wind_direction': 'southwest', 'wind_direction_degrees': 225, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

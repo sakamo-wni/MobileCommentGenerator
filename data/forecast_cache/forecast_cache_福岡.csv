@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+福岡,2025-06-14T07:00:00+09:00,2025-06-13T11:27:08.562752+09:00,18.0,,,rain,雨,1.0,85.0,1.0,"{'weather_code': '300', 'wind_direction': 'east', 'wind_direction_degrees': 90, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

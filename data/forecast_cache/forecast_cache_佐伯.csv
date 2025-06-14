@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+佐伯,2025-06-14T08:00:00+09:00,2025-06-13T11:27:33.295695+09:00,24.0,,,rain,雨,1.0,97.0,2.0,"{'weather_code': '300', 'wind_direction': 'northwest', 'wind_direction_degrees': 315, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"

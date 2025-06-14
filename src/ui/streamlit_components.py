@@ -329,7 +329,7 @@ def result_display(result: Dict[str, Any]):
             # 未来の予報
             future_forecasts = weather_timeline.get("future_forecasts", [])
             if future_forecasts:
-                st.write("**今後の予報（3〜12時間後）**")
+                st.write("**今後の予報（3〜24時間後）**")
                 future_df_data = []
                 for forecast in future_forecasts:
                     future_df_data.append({

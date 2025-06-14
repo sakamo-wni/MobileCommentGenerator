@@ -18,6 +18,7 @@ from src.nodes.evaluate_candidate_node import evaluate_candidate_node
 from src.nodes.input_node import input_node
 from src.nodes.output_node import output_node
 from src.config.weather_config import get_config
+from src.utils.exceptions import WorkflowError
 
 
 # 定数
@@ -221,6 +222,8 @@ def run_comment_generation(
             ),
             "warnings": result.get("warnings", []),
         }
+    except WorkflowError:
+        raise
     except Exception as e:
         import logging
 
@@ -236,14 +239,7 @@ def run_comment_generation(
         elif "コメントの生成に失敗しました" in error_msg:
             error_msg = f"LLMエラー: {error_msg}"
 
-        return {
-            "success": False,
-            "error": error_msg,
-            "final_comment": None,
-            "generation_metadata": {},
-            "execution_time_ms": 0,
-            "retry_count": 0,
-        }
+        raise WorkflowError(error_msg)
 
 
 # エクスポート

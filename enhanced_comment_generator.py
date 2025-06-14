@@ -1,22 +1,94 @@
 import json
+import logging
 import os
+import yaml
 from collections import Counter, defaultdict
-from typing import Dict, List, Set, Optional
 
 import boto3
 import pandas as pd
+from botocore.exceptions import ClientError, NoCredentialsError
 
-# 🔑 AWSプロファイル名を環境変数から取得（デフォルト: dit-training）
-aws_profile = os.getenv("AWS_PROFILE", "dit-training")
-session = boto3.Session(profile_name=aws_profile)
-s3 = session.client("s3")
+from src.utils.exceptions import (
+    S3ConnectionError,
+    S3PermissionError,
+    ConfigurationError
+)
 
-# 📂 S3バケット情報
-BUCKET = "it-literacy-457604437098-ap-northeast-1"
-PREFIX = "downloaded_jsonl_files_archive/"
+# ロガー設定
+logger = logging.getLogger(__name__)
 
-# 🗃 出力フォルダを作成
-os.makedirs("output", exist_ok=True)
+# 設定ファイルの読み込み
+def load_s3_config() -> dict:
+    """S3設定を読み込む（環境変数優先）"""
+    config_path = "config/s3_config.yaml"
+    config = {}
+    
+    # YAMLファイルが存在する場合は読み込む
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            logger.error(f"設定ファイルの読み込みエラー: {e}")
+            raise ConfigurationError(f"S3設定ファイルの読み込みに失敗: {e}")
+    
+    # 環境変数で上書き
+    s3_config = config.get("s3", {})
+    bucket_name = os.getenv("S3_BUCKET_NAME", s3_config.get("bucket_name", ""))
+    prefix = os.getenv("S3_PREFIX", s3_config.get("prefix", "downloaded_jsonl_files_archive/"))
+    
+    if not bucket_name:
+        raise ConfigurationError("S3_BUCKET_NAMEが設定されていません。環境変数またはconfig/s3_config.yamlで設定してください。")
+    
+    return {
+        "bucket_name": bucket_name,
+        "prefix": prefix,
+        "region": os.getenv("AWS_REGION", s3_config.get("region", "ap-northeast-1")),
+    }
+
+# AWS認証情報の設定
+def create_s3_client():
+    """S3クライアントを作成（環境変数による認証）"""
+    try:
+        # AWS_PROFILEが設定されている場合はプロファイルを使用
+        aws_profile = os.getenv("AWS_PROFILE")
+        if aws_profile:
+            session = boto3.Session(profile_name=aws_profile)
+            logger.info(f"AWSプロファイル '{aws_profile}' を使用")
+        else:
+            # プロファイルが設定されていない場合は、IAMロールまたは環境変数の認証情報を使用
+            session = boto3.Session()
+            logger.info("デフォルトのAWS認証情報を使用")
+        
+        return session.client("s3")
+    except NoCredentialsError as e:
+        logger.error("AWS認証情報が見つかりません。環境変数またはIAMロールを確認してください。")
+        raise S3ConnectionError("AWS認証情報が見つかりません。環境変数またはIAMロールを確認してください。") from e
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        logger.error(f"AWS APIエラー: {error_code} - {e}")
+        if error_code in ['AccessDenied', 'Forbidden']:
+            raise S3PermissionError(f"S3アクセス権限エラー: {error_code}") from e
+        raise S3ConnectionError(f"AWS APIエラー: {error_code} - {e}") from e
+    except Exception as e:
+        logger.error(f"S3クライアントの作成に失敗: {type(e).__name__} - {e}")
+        raise S3ConnectionError(f"S3クライアントの作成に失敗: {type(e).__name__} - {e}") from e
+
+# 設定の読み込み
+try:
+    s3_config = load_s3_config()
+    BUCKET = s3_config["bucket_name"]
+    PREFIX = s3_config["prefix"]
+    s3 = create_s3_client()
+except Exception as e:
+    logger.error(f"初期化エラー: {e}")
+    # 具体的な例外タイプで再スロー
+    if isinstance(e, (ConfigurationError, S3ConnectionError, S3PermissionError)):
+        raise
+    raise ConfigurationError(f"初期化エラー: {e}") from e
+
+# 📁 出力フォルダ作成
+os.makedirs("output/analysis", exist_ok=True)
 
 
 # 🗓 カテゴリ分類関数
@@ -40,7 +112,6 @@ def classify_category(yyyymm: str) -> str:
 # 🎯 天候パターン分析器
 class WeatherPatternAnalyzer:
     def __init__(self):
-        # 天候パターン定義
         self.patterns = {
             "sunny": ["晴", "陽", "日差し", "太陽", "青空", "快晴", "好天", "日射", "眩し", "まぶし"],
             "cloudy": ["雲", "曇", "どんより", "厚雲", "薄雲", "雲間", "雲海"],
@@ -57,36 +128,21 @@ class WeatherPatternAnalyzer:
             "special": ["黄砂", "花粉", "紫外線", "UV", "オゾン", "PM2.5", "大気"],
         }
 
-    def analyze_comment(self, comment: str) -> Dict[str, bool]:
-        """コメントの天候パターンを分析"""
-        result = {}
-        for pattern, keywords in self.patterns.items():
-            result[pattern] = any(keyword in comment for keyword in keywords)
-        return result
+    def analyze_comment(self, comment: str) -> dict[str, bool]:
+        return {p: any(k in comment for k in ks) for p, ks in self.patterns.items()}
 
-    def get_missing_patterns(self, current_top30: List[str]) -> List[str]:
-        """現在のTOP30で不足しているパターンを特定"""
-        pattern_counts = defaultdict(int)
-
-        for comment in current_top30:
-            analysis = self.analyze_comment(comment)
-            for pattern, found in analysis.items():
+    def get_missing_patterns(self, top_comments: list[str]) -> list[str]:
+        counts = defaultdict(int)
+        for c in top_comments:
+            for p, found in self.analyze_comment(c).items():
                 if found:
-                    pattern_counts[pattern] += 1
-
-        # 不足パターンを特定（閾値: 2件未満）
-        missing = []
-        for pattern in self.patterns.keys():
-            if pattern_counts[pattern] < 2:
-                missing.append(pattern)
-
-        return missing
+                    counts[p] += 1
+        return [p for p, c in counts.items() if c < 2]
 
 
-# 🔍 コメント品質スコアリング
+# 📊 コメント品質スコアリング
 class CommentQualityScorer:
     def __init__(self):
-        # 高品質指標
         self.quality_indicators = {
             "具体性": ["具体的", "詳細", "明確", "はっきり", "しっかり"],
             "感情表現": ["気持ち", "快適", "爽やか", "心地", "楽し", "嬉し"],
@@ -94,265 +150,141 @@ class CommentQualityScorer:
             "時間性": ["朝", "昼", "夕", "夜", "午前", "午後", "明け方", "夕方"],
             "地域性": ["海", "山", "都市", "郊外", "沿岸", "内陸", "平野", "盆地"],
         }
-
-        # 低品質指標（除外対象）
         self.negative_indicators = ["？？？", "不明", "エラー", "###", "NULL", "none"]
 
     def score_comment(self, comment: str, count: int) -> float:
-        """コメントの品質スコアを計算"""
         if any(neg in comment for neg in self.negative_indicators):
             return 0.0
-
-        # 基本スコア（使用回数の対数）
-        base_score = min(10.0, count / 1000)
-
-        # 品質ボーナス
-        quality_bonus = 0.0
-        for category, indicators in self.quality_indicators.items():
-            if any(ind in comment for ind in indicators):
-                quality_bonus += 1.0
-
-        # 長さボーナス（適度な長さを評価）
-        length_bonus = 0.0
-        if 4 <= len(comment) <= 12:
-            length_bonus = 2.0
-        elif 3 <= len(comment) <= 15:
-            length_bonus = 1.0
-
-        return base_score + quality_bonus + length_bonus
+        base = min(10.0, count / 1000)
+        bonus = sum(1.0 for ks in self.quality_indicators.values() if any(k in comment for k in ks))
+        length_bonus = 2.0 if 4 <= len(comment) <= 12 else 1.0 if 3 <= len(comment) <= 15 else 0.0
+        return base + bonus + length_bonus
 
 
-# 🎯 スマートコメント抽出器
+# 🌈 コメント抽出器
 class SmartCommentExtractor:
     def __init__(self):
         self.analyzer = WeatherPatternAnalyzer()
         self.scorer = CommentQualityScorer()
 
-    def extract_enhanced_comments(self, all_comments: List[str], current_top30: List[str], target_count: int = 50) -> List[tuple[str, int, Dict]]:
-        """拡張コメントを抽出"""
-        # 現在のTOP30を除外
+    def extract_enhanced_comments(self, all_comments: list[str], current_top30: list[str], target_count: int = 100):
         current_set = set(current_top30)
-
-        # 不足パターンを特定
         missing_patterns = self.analyzer.get_missing_patterns(current_top30)
-
-        # 全コメントのカウント
         comment_counter = Counter(all_comments)
-
-        # 候補コメントを評価
         candidates = []
+
         for comment, count in comment_counter.items():
             if comment in current_set:
                 continue
+            patterns = self.analyzer.analyze_comment(comment)
+            score = self.scorer.score_comment(comment, count)
+            missing_bonus = sum(5.0 for p in missing_patterns if patterns.get(p))
+            total = score + missing_bonus
+            candidates.append({"comment": comment, "count": count, "score": total, "patterns": patterns})
 
-            # パターン分析
-            pattern_analysis = self.analyzer.analyze_comment(comment)
-
-            # 品質スコア計算
-            quality_score = self.scorer.score_comment(comment, count)
-
-            # 不足パターンボーナス
-            missing_bonus = 0.0
-            for pattern in missing_patterns:
-                if pattern_analysis.get(pattern, False):
-                    missing_bonus += 5.0
-
-            total_score = quality_score + missing_bonus
-
-            candidates.append(
-                {
-                    "comment": comment,
-                    "count": count,
-                    "quality_score": quality_score,
-                    "missing_bonus": missing_bonus,
-                    "total_score": total_score,
-                    "patterns": pattern_analysis,
-                }
-            )
-
-        # スコア順でソート
-        candidates.sort(key=lambda x: x["total_score"], reverse=True)
-
-        # 多様性を考慮した選択
-        selected = []
-        pattern_counts = defaultdict(int)
-
-        for candidate in candidates:
-            if len(selected) >= (target_count - 30):
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+        selected, pattern_counts = [], defaultdict(int)
+        for c in candidates:
+            if len(selected) >= target_count - 30:
                 break
-
-            # パターンバランスをチェック
-            dominant_patterns = [p for p, found in candidate["patterns"].items() if found]
-
-            # 同一パターンの過度な集中を避ける
-            if dominant_patterns:
-                max_pattern_count = max(pattern_counts[p] for p in dominant_patterns) if dominant_patterns else 0
-                if max_pattern_count >= 3:  # 同一パターン3件まで
-                    continue
-
-            selected.append(candidate)
-            for pattern in dominant_patterns:
-                pattern_counts[pattern] += 1
-
+            if max((pattern_counts[p] for p, v in c["patterns"].items() if v), default=0) >= 3:
+                continue
+            selected.append(c)
+            for p, v in c["patterns"].items():
+                if v:
+                    pattern_counts[p] += 1
         return selected
 
 
-# 📊 分析レポート生成
-def generate_analysis_report(category: str, current_top30: List[str], enhanced_candidates: List[Dict], comment_type: str) -> str:
-    """分析レポートを生成"""
+# 🧠 レポート生成
+def generate_analysis_report(category: str, top30: list[str], enhanced: list[dict], comment_type: str) -> str:
     analyzer = WeatherPatternAnalyzer()
-
-    # 現在のパターン分析
-    current_patterns = defaultdict(int)
-    for comment in current_top30:
-        analysis = analyzer.analyze_comment(comment)
-        for pattern, found in analysis.items():
+    current = defaultdict(int)
+    for c in top30:
+        for p, found in analyzer.analyze_comment(c).items():
             if found:
-                current_patterns[pattern] += 1
+                current[p] += 1
 
-    # 追加コメントのパターン分析
-    new_patterns = defaultdict(int)
-    for candidate in enhanced_candidates:
-        for pattern, found in candidate["patterns"].items():
+    new = defaultdict(int)
+    for c in enhanced:
+        for p, found in c["patterns"].items():
             if found:
-                new_patterns[pattern] += 1
+                new[p] += 1
 
-    report = f"""
-# {category}の{comment_type}分析レポート
+    report = f"""\n# {category}の{comment_type}分析レポート\n\n## 現在のTOP30パターン分布\n"""
+    for p, c in sorted(current.items()):
+        report += f"- {p}: {c}件\n"
 
-## 現在のTOP30パターン分布
-"""
-    for pattern, count in sorted(current_patterns.items()):
-        report += f"- {pattern}: {count}件\n"
+    report += """\n## 追加推奨コメント（例：上位20件 / 拡張コメント全体で100件）\n"""
+    for i, c in enumerate(enhanced[:20], 1):
+        ps = ", ".join([p for p, v in c["patterns"].items() if v])
+        report += f"{i}. {c['comment']} (使用回数: {c['count']}, スコア: {c['score']:.1f})\n   パターン: {ps}\n"
 
-    report += """
-## 追加推奨コメント（上位10件）
-"""
-    for i, candidate in enumerate(enhanced_candidates[:10], 1):
-        patterns = [p for p, found in candidate["patterns"].items() if found]
-        report += f"{i}. {candidate['comment']} (使用回数: {candidate['count']}, スコア: {candidate['total_score']:.1f})\n"
-        report += f"   パターン: {', '.join(patterns)}\n"
-
-    report += """
-## 追加後のパターン改善
-"""
-    for pattern in analyzer.patterns.keys():
-        current = current_patterns[pattern]
-        new = new_patterns[pattern]
-        if new > 0:
-            report += f"- {pattern}: {current}件 → {current + new}件 (+{new})\n"
+    report += """\n## 追加後のパターン改善\n"""
+    for p in analyzer.patterns:
+        c = current[p]
+        n = new[p]
+        if n > 0:
+            report += f"- {p}: {c}件 → {c + n}件 (+{n})\n"
 
     return report
 
 
-# 🔄 メイン処理
+# 🚀 メイン処理
 def main():
     print("🚀 スマートコメント抽出器を開始...")
-
-    # S3からファイル一覧取得
     response = s3.list_objects_v2(Bucket=BUCKET, Prefix=PREFIX)
-    jsonl_keys = [obj["Key"] for obj in response.get("Contents", []) if obj["Key"].endswith(".jsonl")]
+    keys = [o["Key"] for o in response.get("Contents", []) if o["Key"].endswith(".jsonl")]
 
-    # カテゴリごとのコメント集計
-    weather_by_category = defaultdict(list)
-    advice_by_category = defaultdict(list)
+    weather_by_cat = defaultdict(list)
+    advice_by_cat = defaultdict(list)
 
-    # 各ファイルを処理
-    for key in sorted(jsonl_keys):
+    for key in sorted(keys):
         yyyymm = key.split("/")[-1].replace(".jsonl", "")
-        category = classify_category(yyyymm)
-        print(f"📂 処理中: {key} → カテゴリ: {category}")
-
+        cat = classify_category(yyyymm)
+        print(f"📂 {key} → {cat}")
         obj = s3.get_object(Bucket=BUCKET, Key=key)
         lines = obj["Body"].read().decode("utf-8").splitlines()
         for line in lines:
             try:
-                data = json.loads(line)
-                wc = data.get("weather_comment")
-                adv = data.get("advice")
-                if wc and len(wc.strip()) > 0:
-                    weather_by_category[category].append(wc.strip())
-                if adv and len(adv.strip()) > 0:
-                    advice_by_category[category].append(adv.strip())
-            except json.JSONDecodeError:
+                d = json.loads(line)
+                wc = d.get("weather_comment", "").strip()
+                adv = d.get("advice", "").strip()
+                if wc:
+                    weather_by_cat[cat].append(wc)
+                if adv:
+                    advice_by_cat[cat].append(adv)
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSONDecodeError in line: {line[:50]}... Error: {e}")
                 continue
 
     extractor = SmartCommentExtractor()
 
-    # 📈 weather_comment の処理
-    print("\n🌤 Weather Comment処理開始...")
-    for cat, comments in weather_by_category.items():
-        if not comments:
-            continue
+    for typ, dataset in [("weather_comment", weather_by_cat), ("advice", advice_by_cat)]:
+        print(f"\n📈 {typ} の処理開始...")
+        for cat, comments in dataset.items():
+            if not comments:
+                continue
 
-        # 現在のTOP30
-        current_top30_tuples = Counter(comments).most_common(30)
-        current_top30 = [comment for comment, count in current_top30_tuples]
+            top30_tuples = Counter(comments).most_common(30)
+            top30 = [c for c, _ in top30_tuples]
+            enhanced = extractor.extract_enhanced_comments(comments, top30, target_count=100)
 
-        # 拡張コメント抽出
-        enhanced_candidates = extractor.extract_enhanced_comments(
-            comments,
-            current_top30,
-            target_count=50,
-        )
+            df_top30 = pd.DataFrame(top30_tuples, columns=[typ, "count"])
+            df_top30.to_csv(f"output/{cat}_{typ}_top30.csv", index=False, encoding="utf-8-sig")
 
-        # TOP30 CSV出力
-        df_top30 = pd.DataFrame(current_top30_tuples, columns=["weather_comment", "count"])
-        output_path_30 = f"output/{cat}_weather_comment_top30.csv"
-        df_top30.to_csv(output_path_30, index=False)
+            enhanced_tuples = [(c["comment"], c["count"]) for c in enhanced[:70]]
+            all_combined = top30_tuples + enhanced_tuples
+            df_all = pd.DataFrame(all_combined, columns=[typ, "count"])
+            df_all.to_csv(f"output/{cat}_{typ}_enhanced100.csv", index=False, encoding="utf-8-sig")
 
-        # 拡張版CSV出力（TOP30 + 追加20件）
-        enhanced_tuples = [(c["comment"], c["count"]) for c in enhanced_candidates[:20]]
-        all_enhanced = current_top30_tuples + enhanced_tuples
-        df_enhanced = pd.DataFrame(all_enhanced, columns=["weather_comment", "count"])
-        output_path_50 = f"output/{cat}_weather_comment_enhanced50.csv"
-        df_enhanced.to_csv(output_path_50, index=False)
+            report = generate_analysis_report(cat, top30, enhanced, typ)
+            with open(f"output/analysis/{cat}_{typ}_analysis.md", "w", encoding="utf-8") as f:
+                f.write(report)
 
-        # 分析レポート生成
-        report = generate_analysis_report(cat, current_top30, enhanced_candidates, "weather_comment")
-        with open(f"output/analysis/{cat}_weather_analysis.md", "w", encoding="utf-8") as f:
-            f.write(report)
+            print(f"✅ {cat}: 出力完了（Top30 + Enhanced100）")
 
-        print(f"✅ {cat}: TOP30={output_path_30}, Enhanced50={output_path_50}")
-
-    # 📈 advice の処理
-    print("\n💡 Advice処理開始...")
-    for cat, advices in advice_by_category.items():
-        if not advices:
-            continue
-
-        # 現在のTOP30
-        current_top30_tuples = Counter(advices).most_common(30)
-        current_top30 = [advice for advice, count in current_top30_tuples]
-
-        # 拡張コメント抽出
-        enhanced_candidates = extractor.extract_enhanced_comments(
-            advices,
-            current_top30,
-            target_count=50,
-        )
-
-        # TOP30 CSV出力
-        df_top30 = pd.DataFrame(current_top30_tuples, columns=["advice", "count"])
-        output_path_30 = f"output/{cat}_advice_top30.csv"
-        df_top30.to_csv(output_path_30, index=False)
-
-        # 拡張版CSV出力
-        enhanced_tuples = [(c["comment"], c["count"]) for c in enhanced_candidates[:20]]
-        all_enhanced = current_top30_tuples + enhanced_tuples
-        df_enhanced = pd.DataFrame(all_enhanced, columns=["advice", "count"])
-        output_path_50 = f"output/{cat}_advice_enhanced50.csv"
-        df_enhanced.to_csv(output_path_50, index=False)
-
-        # 分析レポート生成
-        report = generate_analysis_report(cat, current_top30, enhanced_candidates, "advice")
-        with open(f"output/analysis/{cat}_advice_analysis.md", "w", encoding="utf-8") as f:
-            f.write(report)
-
-        print(f"✅ {cat}: TOP30={output_path_30}, Enhanced50={output_path_50}")
-
-    print("\n🎉 スマートコメント抽出完了！")
-    print("📊 分析レポートは output/analysis/ フォルダを確認してください")
+    print("\n🎉 全処理完了！ output/ を確認してね！")
 
 
 if __name__ == "__main__":

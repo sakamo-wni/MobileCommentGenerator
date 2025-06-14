@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class OpenAIProvider(LLMProvider):
     """OpenAI APIを使用するプロバイダー"""
 
-    def __init__(self, api_key: str, model: str = "gpt-4"):
+    def __init__(self, api_key: str, model: str = "gpt-3.5-turbo"):
         """
         OpenAIプロバイダーの初期化。
 

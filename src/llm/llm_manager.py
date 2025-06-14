@@ -13,6 +13,7 @@ from src.llm.providers.base_provider import LLMProvider
 from src.llm.providers.openai_provider import OpenAIProvider
 from src.llm.providers.gemini_provider import GeminiProvider
 from src.llm.providers.anthropic_provider import AnthropicProvider
+from src.utils.exceptions import ConfigurationError, LLMAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class LLMManager:
         }
 
         if provider_name not in providers:
-            raise ValueError(f"Unknown provider: {provider_name}")
+            raise ConfigurationError(f"Unknown provider: {provider_name}")
 
         return providers[provider_name]()
 
@@ -47,7 +48,7 @@ class LLMManager:
         """OpenAIプロバイダーを初期化"""
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError(
+            raise ConfigurationError(
                 "OPENAI_API_KEY環境変数が設定されていません。\n"
                 "設定方法: export OPENAI_API_KEY='your-api-key' または .envファイルに記載"
             )
@@ -62,7 +63,7 @@ class LLMManager:
         """Geminiプロバイダーを初期化"""
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise ValueError(
+            raise ConfigurationError(
                 "GEMINI_API_KEY環境変数が設定されていません。\n"
                 "設定方法: export GEMINI_API_KEY='your-api-key' または .envファイルに記載"
             )
@@ -74,7 +75,7 @@ class LLMManager:
         """Anthropicプロバイダーを初期化"""
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            raise ValueError(
+            raise ConfigurationError(
                 "ANTHROPIC_API_KEY環境変数が設定されていません。\n"
                 "設定方法: export ANTHROPIC_API_KEY='your-api-key' または .envファイルに記載"
             )
@@ -128,9 +129,11 @@ class LLMManager:
                     weather_data=dummy_weather, past_comments=None, constraints=constraints
                 )
 
+        except LLMAPIError:
+            raise
         except Exception as e:
             logger.error(f"Error generating text: {str(e)}")
-            raise
+            raise LLMAPIError(f"テキスト生成中にエラーが発生しました: {str(e)}")
 
     def generate_comment(
         self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
@@ -166,9 +169,11 @@ class LLMManager:
 
             return comment
 
+        except LLMAPIError:
+            raise
         except Exception as e:
             logger.error(f"Error generating comment: {str(e)}")
-            raise
+            raise LLMAPIError(f"コメント生成中にエラーが発生しました: {str(e)}")
 
     def switch_provider(self, provider_name: str):
         """プロバイダーを切り替える"""

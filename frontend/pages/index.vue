@@ -451,7 +451,7 @@ useHead({
 // Reactive state
 const selectedLocation = ref('')
 const selectedLocations = ref([])
-const selectedProvider = ref('openai')
+const selectedProvider = ref({ label: 'OpenAI GPT', value: 'openai' })
 const generating = ref(false)
 const result = ref(null)
 const results = ref([])
@@ -543,17 +543,18 @@ const generateComment = async () => {
     ? selectedLocations.value 
     : selectedLocation.value ? [selectedLocation.value] : []
 
-  if (locationsToProcess.length === 0 || !selectedProvider.value) {
+  const providerValue = selectedProvider.value?.value || selectedProvider.value
+  if (locationsToProcess.length === 0 || !providerValue) {
     console.warn('Location or provider not selected:', { 
       locations: locationsToProcess, 
-      provider: selectedProvider.value 
+      provider: providerValue 
     })
     return
   }
 
   console.log('Starting comment generation:', { 
     locations: locationsToProcess, 
-    provider: selectedProvider.value,
+    provider: providerValue,
     forecastHours: forecastHours.value
   })
   
@@ -569,7 +570,7 @@ const generateComment = async () => {
       for (const location of locationsToProcess) {
         const requestBody = {
           location: location,
-          llm_provider: selectedProvider.value,
+          llm_provider: selectedProvider.value.value || selectedProvider.value,
           target_datetime: new Date().toISOString()
         }
         
@@ -604,7 +605,7 @@ const generateComment = async () => {
       // Single location generation
       const requestBody = {
         location: locationsToProcess[0],
-        llm_provider: selectedProvider.value,
+        llm_provider: selectedProvider.value.value || selectedProvider.value,
         target_datetime: new Date().toISOString()
       }
       

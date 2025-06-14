@@ -1,0 +1,2 @@
+location_name,forecast_datetime,cached_at,temperature,max_temperature,min_temperature,weather_condition,weather_description,precipitation,humidity,wind_speed,metadata
+人吉,2025-06-14T08:00:00+09:00,2025-06-13T11:27:51.275736+09:00,23.0,,,rain,雨,3.0,96.0,1.0,"{'weather_code': '300', 'wind_direction': 'west', 'wind_direction_degrees': 270, 'pressure': None, 'visibility': None, 'uv_index': None, 'confidence': None}"
