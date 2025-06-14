@@ -1,9 +1,12 @@
 """天気コメント検証システム - 天気条件に不適切なコメントを検出・除外"""
 
 import logging
+import os
+import yaml
 from typing import List, Dict, Any, Tuple, Optional
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment, CommentType
+from src.config.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -12,99 +15,34 @@ class WeatherCommentValidator:
     """天気条件に基づいてコメントの適切性を検証"""
     
     def __init__(self):
+        # 設定ファイルから検証ルールを読み込み
+        config = ConfigLoader.load_config("validation_rules.yaml")
+        
         # 天気別禁止ワードの定義
-        self.weather_forbidden_words = {
-            # 雨天時（全レベル）
-            "rain": {
-                "weather_comment": [
-                    "青空", "晴れ", "快晴", "日差し", "太陽", "陽射し", "眩しい",
-                    "穏やか", "過ごしやすい", "快適", "爽やか", "心地良い", "のどか",
-                    "お出かけ日和", "散歩日和", "ピクニック", "外出推奨",
-                    "スッキリ", "気持ちいい", "清々しい",
-                    # 雨天時に矛盾する表現を追加
-                    "中休み", "晴れ間", "回復", "一時的な晴れ", "梅雨の中休み",
-                    "梅雨明け", "からっと", "さっぱり", "乾燥", "湿度低下"
-                ],
-                "advice": [
-                    "日焼け止め", "帽子", "サングラス", "日傘", "紫外線",
-                    "お出かけ", "外出", "散歩", "ピクニック", "日光浴",
-                    "過ごしやすい", "快適", "心地良い", "爽やか",
-                    # 雨天時の生活関連アドバイスを追加
-                    "洗濯物を外に", "布団を干す", "外干しを", "窓を開けて", "ベランダ作業"
-                ]
-            },
-            # 大雨・豪雨・嵐
-            "heavy_rain": {
-                "weather_comment": [
-                    # 雨天時の禁止ワード全て
-                    "青空", "晴れ", "快晴", "日差し", "太陽", "陽射し", "眩しい",
-                    "穏やか", "過ごしやすい", "快適", "爽やか", "心地良い", "のどか",
-                    "お出かけ日和", "散歩日和", "ピクニック", "外出推奨",
-                    "スッキリ", "気持ちいい", "清々しい",
-                    # 軽微な表現（大雨時は特に禁止）
-                    "にわか雨", "ニワカ雨", "変わりやすい", "スッキリしない",
-                    "蒸し暑い", "厳しい暑さ", "体感", "心地",
-                    "雲の多い", "どんより", "じめじめ", "湿っぽい",
-                    # 大雨時に特に不適切な表現を追加
-                    "中休み", "晴れ間", "回復", "一時的な晴れ", "梅雨の中休み",
-                    "梅雨明け", "からっと", "さっぱり", "乾燥", "湿度低下"
-                ],
-                "advice": [
-                    # 基本的な外出系
-                    "日焼け止め", "帽子", "サングラス", "日傘", "紫外線",
-                    "お出かけ", "外出", "散歩", "ピクニック", "日光浴",
-                    "過ごしやすい", "快適", "心地良い", "爽やか",
-                    # 軽い対策（大雨時は不適切）
-                    "折り畳み傘", "軽い雨具", "短時間の外出"
-                ]
-            },
-            # 晴天時
-            "sunny": {
-                "weather_comment": [
-                    "雨", "じめじめ", "湿った", "どんより", "曇り", "雲が厚い",
-                    "傘", "雨具", "濡れ", "湿気", "降水"
-                ],
-                "advice": [
-                    "傘", "レインコート", "濡れ", "雨具", "長靴"
-                ]
-            },
-            # 曇天時
-            "cloudy": {
-                "weather_comment": [
-                    "青空", "快晴", "眩しい", "強い日差し", "ギラギラ",
-                    # 雨天時の生活関連表現を追加
-                    "洗濯日和", "布団干し日和", "外干し", "窓を開けて", "ベランダで"
-                ],
-                "advice": [
-                    "強い日差し対策", "紫外線対策必須"
-                ]
-            }
-        }
+        self.weather_forbidden_words = config.get("weather_forbidden_words", {})
         
         # 温度別禁止ワード
-        self.temperature_forbidden_words = {
-            "hot": {  # 30°C以上
-                "forbidden": ["寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着"]
-            },
-            "cold": {  # 12°C未満（防寒閾値調整）
-                "forbidden": ["暑い", "猛暑", "酷暑", "熱中症", "クーラー", "冷房"]
-            },
-            "mild": {  # 10-30°C
-                "forbidden": ["極寒", "凍える", "猛暑", "酷暑"]
-            }
-        }
+        self.temperature_forbidden_words = config.get("temperature_forbidden_words", {})
         
         # 必須キーワード（悪天候時）
-        self.required_keywords = {
-            "heavy_rain": {
-                "weather_comment": ["注意", "警戒", "危険", "荒れ", "激しい", "強い", "本格的"],
-                "advice": ["傘", "雨具", "安全", "注意", "室内", "控え", "警戒", "備え", "準備"]
-            },
-            "storm": {
-                "weather_comment": ["嵐", "暴風", "警戒", "危険", "荒天", "大荒れ"],
-                "advice": ["危険", "外出控え", "安全確保", "警戒", "室内", "備え", "準備"]
-            }
-        }
+        self.required_keywords = config.get("required_keywords", {})
+        
+        # 地域別NG表現
+        self.regional_ng_expressions = config.get("regional_ng_expressions", {})
+        
+        # 湿度別禁止ワード
+        self.humidity_forbidden_words = config.get("humidity_forbidden_words", {})
+        
+        # 閾値設定
+        self.thresholds = config.get("thresholds", {
+            "temperature": {"hot": 30, "cold": 12, "mild_min": 10, "mild_max": 30},
+            "humidity": {"high": 80, "low": 30},
+            "precipitation": {"light": 3.0, "moderate": 10.0, "heavy": 20.0, "very_heavy": 50.0},
+            "thunder": {"light_threshold": 5.0}
+        })
+        
+        # 過度な警戒表現
+        self.excessive_warning_words = config.get("excessive_warning_words", {})
     
     def validate_comment(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
         """
@@ -168,26 +106,19 @@ class WeatherCommentValidator:
         
         # 雷の特別チェック（降水量を考慮）
         elif "雷" in weather_desc:
-            if precipitation >= 5.0:
+            thunder_threshold = self.thresholds.get("thunder", {}).get("light_threshold", 5.0)
+            if precipitation >= thunder_threshold:
                 # 強い雷（降水量5mm以上）
                 forbidden_words = self.weather_forbidden_words["heavy_rain"][comment_type]
                 for word in forbidden_words:
                     if word in comment_text:
                         return False, f"強い雷雨時の禁止ワード「{word}」を含む"
             else:
-                # 軽微な雷（降水量5mm未満）
-                if comment_type == "weather_comment":
-                    # 軽微な雷では強い警戒表現を禁止
-                    strong_warning_words = ["激しい", "警戒", "危険", "大荒れ", "本格的", "強雨"]
-                    for word in strong_warning_words:
+                # 軽微な雷（設定閾値未満）
+                if comment_type in self.excessive_warning_words:
+                    for word in self.excessive_warning_words[comment_type]:
                         if word in comment_text:
                             return False, f"軽微な雷（{precipitation}mm）で過度な警戒表現「{word}」を含む"
-                elif comment_type == "advice":
-                    # 軽微な雷では強い警戒アドバイスを禁止
-                    strong_warning_advice = ["避難", "危険", "中止", "延期", "控える"]
-                    for word in strong_warning_advice:
-                        if word in comment_text:
-                            return False, f"軽微な雷（{precipitation}mm）で過度な警戒アドバイス「{word}」を含む"
         
         # 通常の雨チェック（降水量レベルで判定）
         elif any(rain in weather_desc for rain in ["雨", "rain"]):
@@ -234,10 +165,11 @@ class WeatherCommentValidator:
                                     weather_data: WeatherForecast) -> Tuple[bool, str]:
         """温度条件に基づく検証"""
         temp = weather_data.temperature
+        temp_thresholds = self.thresholds["temperature"]
         
-        if temp >= 30:
+        if temp >= temp_thresholds["hot"]:
             forbidden = self.temperature_forbidden_words["hot"]["forbidden"]
-        elif temp < 12:
+        elif temp < temp_thresholds["cold"]:
             forbidden = self.temperature_forbidden_words["cold"]["forbidden"]
         else:
             forbidden = self.temperature_forbidden_words["mild"]["forbidden"]
@@ -252,21 +184,21 @@ class WeatherCommentValidator:
                                   weather_data: WeatherForecast) -> Tuple[bool, str]:
         """湿度条件に基づく検証"""
         humidity = weather_data.humidity
+        humidity_thresholds = self.thresholds["humidity"]
         
-        # 高湿度時（80%以上）の乾燥関連コメントを除外
-        if humidity >= 80:
-            dry_words = ["乾燥注意", "乾燥対策", "乾燥しやすい", "乾燥した空気", 
-                        "からっと", "さっぱり", "湿度低下"]
-            for word in dry_words:
-                if word in comment_text:
-                    return False, f"高湿度（{humidity}%）で乾燥関連表現「{word}」を含む"
+        # 高湿度時の乾燥関連コメントを除外
+        if humidity >= humidity_thresholds["high"]:
+            if "high" in self.humidity_forbidden_words:
+                for word in self.humidity_forbidden_words["high"]["forbidden"]:
+                    if word in comment_text:
+                        return False, f"高湿度（{humidity}%）で乾燥関連表現「{word}」を含む"
         
-        # 低湿度時（30%未満）の除湿関連コメントを除外
-        if humidity < 30:
-            humid_words = ["除湿対策", "除湿", "ジメジメ", "湿気対策", "湿っぽい"]
-            for word in humid_words:
-                if word in comment_text:
-                    return False, f"低湿度（{humidity}%）で除湿関連表現「{word}」を含む"
+        # 低湿度時の除湿関連コメントを除外
+        if humidity < humidity_thresholds["low"]:
+            if "low" in self.humidity_forbidden_words:
+                for word in self.humidity_forbidden_words["low"]["forbidden"]:
+                    if word in comment_text:
+                        return False, f"低湿度（{humidity}%）で除湿関連表現「{word}」を含む"
         
         return True, "湿度条件OK"
     
@@ -313,27 +245,22 @@ class WeatherCommentValidator:
     
     def _check_regional_specifics(self, comment_text: str, location: str) -> Tuple[bool, str]:
         """地域特性に基づく検証"""
-        # 沖縄特有のチェック
-        if "沖縄" in location:
-            # 雪関連のコメントを除外
-            snow_words = ["雪", "雪景色", "粉雪", "新雪", "雪かき", "雪道", "雪が降る"]
-            for word in snow_words:
-                if word in comment_text:
-                    return False, f"沖縄で雪関連表現「{word}」は不適切"
-            
-            # 低温警告の闾値を緩和（沖縄は寒くならない）
-            strong_cold_words = ["極寒", "凍える", "凍結", "防寒対策必須"]
-            for word in strong_cold_words:
-                if word in comment_text:
-                    return False, f"沖縄で強い寒さ表現「{word}」は不適切"
-        
-        # 北海道特有のチェック
-        elif "北海道" in location:
-            # 高温警告の闾値を上げ（北海道は暑くなりにくい）
-            strong_heat_words = ["酷暑", "猛暑", "危険な暑さ", "熱帯夜"]
-            for word in strong_heat_words:
-                if word in comment_text:
-                    return False, f"北海道で強い暑さ表現「{word}」は不適切"
+        # 地域別設定から該当地域を検索
+        for region, config in self.regional_ng_expressions.items():
+            if region in location:
+                # 一般的な不適切表現チェック
+                if "inappropriate" in config:
+                    for word in config["inappropriate"]:
+                        if word in comment_text:
+                            return False, f"{region}で「{word}」は不適切"
+                
+                # 季節限定の不適切表現チェック（北海道の夏など）
+                import datetime
+                current_month = datetime.datetime.now().month
+                if "inappropriate_summer" in config and current_month in [6, 7, 8]:
+                    for word in config["inappropriate_summer"]:
+                        if word in comment_text:
+                            return False, f"{region}の夏季で「{word}」は不適切"
         
         return True, "地域特性OK"
     

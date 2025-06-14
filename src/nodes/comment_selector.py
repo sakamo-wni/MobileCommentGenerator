@@ -296,10 +296,24 @@ class CommentSelector:
         if not candidates:
             return None
         
-        # 簡易実装：最初の候補を返す（本来はLLMで選択）
         try:
-            selected_candidate = candidates[0]
+            # LLM選択用のプロンプトを構築
+            prompt = self._build_selection_prompt(
+                candidates, weather_data, location_name, target_datetime, comment_type
+            )
+            
+            # LLMで選択を実行
+            response = self.llm_manager.generate(prompt)
+            
+            # レスポンスから選択されたインデックスを抽出
+            selected_index = self._parse_llm_selection_response(response, len(candidates))
+            
+            # 選択された候補を取得
+            selected_candidate = candidates[selected_index]
             comment_text = selected_candidate['comment']
+            
+            logger.info(f"LLMが選択 - タイプ: {comment_type.value}, インデックス: {selected_index}, "
+                       f"コメント: '{comment_text}'")
             
             # PastCommentオブジェクトを作成
             return PastComment(
@@ -308,6 +322,88 @@ class CommentSelector:
                 weather_condition=selected_candidate.get('weather_condition'),
                 usage_count=selected_candidate.get('usage_count', 0)
             )
-        except (IndexError, KeyError) as e:
-            logger.error(f"コメント選択エラー: {e}")
+        except Exception as e:
+            logger.error(f"LLMコメント選択エラー: {e}")
+            # フォールバック：最初の候補を返す
+            if candidates:
+                selected_candidate = candidates[0]
+                return PastComment(
+                    comment_text=selected_candidate['comment'],
+                    comment_type=comment_type,
+                    weather_condition=selected_candidate.get('weather_condition'),
+                    usage_count=selected_candidate.get('usage_count', 0)
+                )
             return None
+    
+    def _build_selection_prompt(
+        self,
+        candidates: List[Dict[str, Any]],
+        weather_data: WeatherForecast,
+        location_name: str,
+        target_datetime: datetime,
+        comment_type: CommentType
+    ) -> str:
+        """LLMコメント選択用のプロンプトを構築"""
+        comment_type_str = "天気コメント" if comment_type == CommentType.WEATHER_COMMENT else "アドバイス"
+        
+        # 候補リストを文字列化
+        candidates_text = "\n".join(
+            f"{i}. {cand['comment']} (使用回数: {cand.get('usage_count', 0)})"
+            for i, cand in enumerate(candidates)
+        )
+        
+        # 天気情報を文字列化
+        weather_info = f"""
+        - 地点: {location_name}
+        - 日時: {target_datetime.strftime('%Y年%m月%d日 %H時')}
+        - 天気: {weather_data.weather_description}
+        - 気温: {weather_data.temperature}°C
+        - 湿度: {weather_data.humidity}%
+        - 風速: {weather_data.wind_speed}m/s
+        - 降水量: {weather_data.precipitation}mm
+        """
+        
+        prompt = f"""以下の天気情報に最も適した{comment_type_str}を選択してください。
+
+現在の天気情報:
+{weather_info}
+
+候補リスト:
+{candidates_text}
+
+選択基準:
+1. 天気条件との適合性（降水量、気温、風速など）
+2. 季節感の適切さ
+3. 時間帯との整合性
+4. 表現の自然さと親しみやすさ
+5. 過度な警戒表現を避ける（特に軽い雨の場合）
+
+最も適切な候補の番号（0から始まる）のみを回答してください。
+例: 2
+
+選択番号:"""
+        
+        return prompt
+    
+    def _parse_llm_selection_response(self, response: str, num_candidates: int) -> int:
+        """LLMのレスポンスから選択されたインデックスを抽出"""
+        try:
+            # レスポンスから数字を抽出
+            import re
+            numbers = re.findall(r'\d+', response.strip())
+            
+            if numbers:
+                selected_index = int(numbers[0])
+                # 範囲チェック
+                if 0 <= selected_index < num_candidates:
+                    return selected_index
+                else:
+                    logger.warning(f"LLMが範囲外のインデックスを選択: {selected_index}")
+                    return 0
+            else:
+                logger.warning(f"LLMレスポンスから数字が抽出できません: {response}")
+                return 0
+                
+        except Exception as e:
+            logger.error(f"LLMレスポンス解析エラー: {e}")
+            return 0

@@ -1,0 +1,32 @@
+# S3設定
+# このファイルには環境固有の設定を記載します
+# 実際の値は環境変数で上書きされることを想定しています
+
+s3:
+  # S3バケット名（環境変数S3_BUCKET_NAMEで上書き可能）
+  bucket_name: ${S3_BUCKET_NAME:-default-bucket-name}
+  
+  # S3プレフィックス（環境変数S3_PREFIXで上書き可能）
+  prefix: ${S3_PREFIX:-downloaded_jsonl_files_archive/}
+  
+  # リージョン（環境変数AWS_REGIONで上書き可能）
+  region: ${AWS_REGION:-ap-northeast-1}
+  
+  # コメント保存用プレフィックス
+  comments_prefix: ${S3_COMMENTS_PREFIX:-comments/}
+
+# AWSプロファイル設定
+aws:
+  # AWS_PROFILEが設定されていない場合は、IAMロールまたはデフォルト認証を使用
+  use_profile: ${USE_AWS_PROFILE:-false}
+  
+# データ管理設定
+data_management:
+  # forecast_cacheの保持日数
+  forecast_cache_retention_days: ${FORECAST_CACHE_RETENTION_DAYS:-30}
+  
+  # generation_historyの最大サイズ（MB）
+  generation_history_max_size_mb: ${GENERATION_HISTORY_MAX_SIZE_MB:-100}
+  
+  # generation_historyのアーカイブ間隔（日）
+  generation_history_archive_interval_days: ${GENERATION_HISTORY_ARCHIVE_DAYS:-7}

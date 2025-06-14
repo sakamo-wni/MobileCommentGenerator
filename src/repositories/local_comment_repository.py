@@ -8,6 +8,7 @@ from datetime import datetime
 
 from src.data.past_comment import PastComment, CommentType
 from src.data.weather_data import WeatherForecast
+from src.utils.exceptions import FileOperationError, DataError, DataValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,18 @@ class LocalCommentRepository:
                         )
                         comments.append(comment)
         
+        except FileNotFoundError as e:
+            logger.error(f"CSV file not found: {file_path}")
+            raise FileOperationError(f"CSV file not found: {file_path}") from e
+        except csv.Error as e:
+            logger.error(f"CSV parsing error in {file_path}: {e}")
+            raise DataValidationError(f"Invalid CSV format in {file_path}") from e
+        except ValueError as e:
+            logger.error(f"Data conversion error in {file_path}: {e}")
+            raise DataValidationError(f"Invalid data in CSV file {file_path}") from e
         except Exception as e:
-            logger.error(f"Error reading CSV file {file_path}: {e}")
+            logger.error(f"Unexpected error reading CSV file {file_path}: {type(e).__name__} - {e}")
+            raise FileOperationError(f"Failed to read CSV file {file_path}") from e
         
         return comments
     

@@ -1,26 +1,80 @@
 import json
 import logging
 import os
+import yaml
 from collections import Counter, defaultdict
+from typing import Optional
 
 import boto3
 import pandas as pd
+from botocore.exceptions import ClientError, NoCredentialsError
 
 # ロガー設定
 logger = logging.getLogger(__name__)
 
-# 🔑 AWSプロファイル名を環境変数から取得（デフォルトなし）
-aws_profile = os.getenv("AWS_PROFILE")
-if aws_profile:
-    session = boto3.Session(profile_name=aws_profile)
-else:
-    # デフォルト認証情報を使用
-    session = boto3.Session()
-s3 = session.client("s3")
+# 設定ファイルの読み込み
+def load_s3_config() -> dict:
+    """S3設定を読み込む（環境変数優先）"""
+    config_path = "config/s3_config.yaml"
+    config = {}
+    
+    # YAMLファイルが存在する場合は読み込む
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            logger.error(f"設定ファイルの読み込みエラー: {e}")
+    
+    # 環境変数で上書き
+    s3_config = config.get("s3", {})
+    bucket_name = os.getenv("S3_BUCKET_NAME", s3_config.get("bucket_name", ""))
+    prefix = os.getenv("S3_PREFIX", s3_config.get("prefix", "downloaded_jsonl_files_archive/"))
+    
+    if not bucket_name:
+        raise ValueError("S3_BUCKET_NAMEが設定されていません。環境変数またはconfig/s3_config.yamlで設定してください。")
+    
+    return {
+        "bucket_name": bucket_name,
+        "prefix": prefix,
+        "region": os.getenv("AWS_REGION", s3_config.get("region", "ap-northeast-1")),
+    }
 
-# 📂 S3バケット情報
-BUCKET = "it-literacy-457604437098-ap-northeast-1"
-PREFIX = "downloaded_jsonl_files_archive/"
+# AWS認証情報の設定
+def create_s3_client():
+    """S3クライアントを作成（環境変数による認証）"""
+    try:
+        # AWS_PROFILEが設定されている場合はプロファイルを使用
+        aws_profile = os.getenv("AWS_PROFILE")
+        if aws_profile:
+            session = boto3.Session(profile_name=aws_profile)
+            logger.info(f"AWSプロファイル '{aws_profile}' を使用")
+        else:
+            # プロファイルが設定されていない場合は、IAMロールまたは環境変数の認証情報を使用
+            session = boto3.Session()
+            logger.info("デフォルトのAWS認証情報を使用")
+        
+        return session.client("s3")
+    except NoCredentialsError as e:
+        logger.error("AWS認証情報が見つかりません。環境変数またはIAMロールを確認してください。")
+        raise
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        logger.error(f"AWS APIエラー: {error_code} - {e}")
+        raise
+    except Exception as e:
+        logger.error(f"S3クライアントの作成に失敗: {type(e).__name__} - {e}")
+        raise
+
+# 設定の読み込み
+try:
+    s3_config = load_s3_config()
+    BUCKET = s3_config["bucket_name"]
+    PREFIX = s3_config["prefix"]
+    s3 = create_s3_client()
+except Exception as e:
+    logger.error(f"初期化エラー: {e}")
+    raise
 
 # 📁 出力フォルダ作成
 os.makedirs("output/analysis", exist_ok=True)
