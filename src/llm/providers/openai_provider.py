@@ -74,6 +74,10 @@ class OpenAIProvider(LLMProvider):
                 logger.info(f"Generated comment: {generated_comment}")
                 return generated_comment
 
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
+                error_message = str(e)
+                logger.error(f"Error in OpenAI API call: {error_message}")
+                raise
             except Exception as e:
                 error_message = str(e)
 
@@ -85,7 +89,7 @@ class OpenAIProvider(LLMProvider):
                         time.sleep(wait_time)
                         continue
 
-                logger.error(f"Error in OpenAI API call: {error_message}")
+                logger.error(f"Unexpected error in OpenAI API call: {error_message}")
                 raise
 
     def generate(self, prompt: str) -> str:
@@ -122,6 +126,10 @@ class OpenAIProvider(LLMProvider):
 
                 return generated_text
 
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
+                error_message = str(e)
+                logger.error(f"OpenAI API error: {error_message}")
+                raise
             except Exception as e:
                 error_message = str(e)
 
@@ -133,7 +141,7 @@ class OpenAIProvider(LLMProvider):
                         time.sleep(wait_time)
                         continue
 
-                logger.error(f"OpenAI API error: {error_message}")
+                logger.error(f"Unexpected OpenAI API error: {error_message}")
                 raise
 
 

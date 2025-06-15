@@ -131,9 +131,12 @@ class LLMManager:
 
         except LLMAPIError:
             raise
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Error generating text: {str(e)}")
             raise LLMAPIError(f"テキスト生成中にエラーが発生しました: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error generating text: {str(e)}")
+            raise LLMAPIError(f"テキスト生成中に予期しないエラーが発生しました: {str(e)}")
 
     def generate_comment(
         self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
@@ -171,9 +174,12 @@ class LLMManager:
 
         except LLMAPIError:
             raise
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Error generating comment: {str(e)}")
             raise LLMAPIError(f"コメント生成中にエラーが発生しました: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error generating comment: {str(e)}")
+            raise LLMAPIError(f"コメント生成中に予期しないエラーが発生しました: {str(e)}")
 
     def switch_provider(self, provider_name: str):
         """プロバイダーを切り替える"""

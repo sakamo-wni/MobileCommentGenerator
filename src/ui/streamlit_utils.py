@@ -11,6 +11,8 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+from src.utils.exceptions import FileOperationError, DataValidationError
+
 
 def load_locations() -> List[str]:
     """
@@ -57,9 +59,15 @@ def load_locations() -> List[str]:
                     "青森",
                     "盛岡",
                 ]
-    except Exception as e:
-        st.error(f"地点データの読み込みエラー: {str(e)}")
+    except FileNotFoundError as e:
+        st.warning(f"地点データファイルが見つかりません: {str(e)}")
         # エラー時のデフォルト地点
+        locations = ["東京", "大阪", "名古屋", "福岡", "札幌"]
+    except (IOError, OSError) as e:
+        st.error(f"地点データの読み込みエラー: {str(e)}")
+        raise FileOperationError(f"地点データの読み込みに失敗: {str(e)}")
+    except pd.errors.EmptyDataError:
+        st.error("地点データファイルが空です")
         locations = ["東京", "大阪", "名古屋", "福岡", "札幌"]
 
     return sorted(locations)
@@ -153,8 +161,12 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
         with open(history_file, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
 
-    except Exception as e:
+    except (IOError, OSError) as e:
         st.error(f"履歴保存エラー: {str(e)}")
+        raise FileOperationError(f"履歴の保存に失敗: {str(e)}")
+    except json.JSONDecodeError as e:
+        st.error(f"JSONデータの解析エラー: {str(e)}")
+        raise DataValidationError(f"履歴データの形式が無効: {str(e)}")
 
 
 def load_history() -> List[Dict[str, Any]]:
@@ -171,8 +183,10 @@ def load_history() -> List[Dict[str, Any]]:
             with open(history_file, "r", encoding="utf-8") as f:
                 history = json.load(f)
                 return history
-    except Exception as e:
+    except (IOError, OSError) as e:
         st.error(f"履歴読み込みエラー: {str(e)}")
+    except json.JSONDecodeError as e:
+        st.error(f"履歴データの形式が無効です: {str(e)}")
 
     return []
 
@@ -279,8 +293,11 @@ def export_history_csv(history: List[Dict[str, Any]]) -> str:
         df = pd.DataFrame(df_data)
         return df.to_csv(index=False, encoding="utf-8-sig")
 
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         st.error(f"CSV出力エラー: {str(e)}")
+        return ""
+    except pd.errors.EmptyDataError:
+        st.warning("出力する履歴データがありません")
         return ""
 
 
@@ -328,7 +345,7 @@ def get_statistics(history: List[Dict[str, Any]]) -> Dict[str, Any]:
             "latest_generation": latest_generation,
         }
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e:
         st.error(f"統計計算エラー: {str(e)}")
         return {}
 

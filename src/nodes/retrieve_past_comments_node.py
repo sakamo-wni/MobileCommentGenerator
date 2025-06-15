@@ -7,6 +7,7 @@ from typing import Dict, Any
 from src.data.past_comment import CommentType
 from src.data.weather_data import WeatherForecast
 from src.repositories.local_comment_repository import LocalCommentRepository
+from src.utils.exceptions import DataValidationError, FileOperationError, NodeExecutionError
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
         weather_data = state.weather_data
         
         if not location_name:
-            raise ValueError("location_name が指定されていません")
+            raise DataValidationError("location_name が指定されていません")
             
         # リポジトリ初期化
         repository = LocalCommentRepository()
@@ -73,7 +74,25 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"過去コメント取得完了: {len(past_comments)}件")
         return state
         
-    except Exception as e:
+    except FileNotFoundError as e:
+        logger.error(f"コメントファイルが見つかりません: {str(e)}")
+        
+        # ファイルが見つからない場合も処理を継続
+        state.past_comments = []
+        state.update_metadata("comment_retrieval_metadata", {
+            "error": str(e),
+            "error_type": "FileNotFoundError",
+            "total_comments": 0,
+            "retrieval_successful": False,
+            "suggestion": "output/ディレクトリにCSVファイルが存在することを確認してください"
+        })
+        return state
+    except (IOError, OSError) as e:
+        logger.error(f"ファイル読み込みエラー: {str(e)}")
+        raise FileOperationError(f"コメントファイルの読み込みに失敗: {str(e)}") from e
+    except DataValidationError:
+        raise
+    except ValueError as e:
         logger.error(f"過去コメント取得エラー: {str(e)}")
         
         # エラー時も処理を継続

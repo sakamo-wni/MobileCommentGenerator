@@ -105,11 +105,16 @@ class S3CommentRepository:
                     else:
                         logger.error(f"プロファイル '{profile_name}' の認証情報を取得できません")
                     self.s3_client = session.client("s3", region_name=region_name)
-                except Exception as e:
+                except (ValueError, KeyError, AttributeError) as e:
                     logger.error(
                         f"プロファイル '{profile_name}' でのセッション作成に失敗: {str(e)}"
                     )
                     raise S3ConnectionError(f"プロファイル '{profile_name}' でのセッション作成に失敗: {str(e)}")
+                except Exception as e:
+                    logger.error(
+                        f"プロファイル '{profile_name}' でのセッション作成に予期しないエラー: {str(e)}"
+                    )
+                    raise S3ConnectionError(f"プロファイル '{profile_name}' でのセッション作成に予期しないエラー: {str(e)}")
             elif aws_access_key_id and aws_secret_access_key:
                 self.s3_client = boto3.client(
                     "s3",
@@ -123,8 +128,10 @@ class S3CommentRepository:
 
         except (NoCredentialsError, PartialCredentialsError) as e:
             raise S3PermissionError(f"AWS認証情報が設定されていません: {str(e)}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             raise S3ConnectionError(f"S3クライアントの初期化に失敗: {str(e)}")
+        except Exception as e:
+            raise S3ConnectionError(f"S3クライアントの初期化に予期しないエラー: {str(e)}")
 
     def test_connection(self) -> bool:
         """S3接続をテスト
@@ -146,8 +153,11 @@ class S3CommentRepository:
             else:
                 logger.error(f"S3接続エラー: {str(e)}")
             return False
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"S3接続テストでエラー: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"S3接続テストで予期しないエラー: {str(e)}")
             return False
 
     def list_available_periods(self) -> List[str]:
@@ -335,8 +345,11 @@ class S3CommentRepository:
                 collection = self.fetch_comments_by_period(period, location, weather_condition)
                 all_comments.extend(collection.comments)
                 logger.info(f"期間 {period} から {len(collection.comments)} 件のコメントを取得")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"期間 {period} のデータ取得に失敗: {str(e)}")
+                continue
+            except Exception as e:
+                logger.warning(f"期間 {period} のデータ取得に予期しないエラー: {str(e)}")
                 continue
         
         # コレクション作成
@@ -433,7 +446,7 @@ class S3CommentRepository:
                                 month = int(period[4:6])
                                 # 月の15日をデフォルトとする
                                 weather_data["datetime"] = datetime(year, month, 15).isoformat()
-                            except:
+                            except (ValueError, TypeError):
                                 weather_data["datetime"] = datetime.now().isoformat()
                         else:
                             weather_data["datetime"] = datetime.now().isoformat()
@@ -455,7 +468,7 @@ class S3CommentRepository:
                     try:
                         weather_comment = PastComment.from_dict(weather_data, source_file)
                         comments.append(weather_comment)
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError, KeyError) as e:
                         logger.debug(f"Weather comment creation failed: {str(e)}")
 
                 # 2. adviceのコメントを作成（adviceが存在し、空でない場合）
@@ -473,7 +486,7 @@ class S3CommentRepository:
                                 month = int(period[4:6])
                                 # 月の15日をデフォルトとする
                                 advice_data["datetime"] = datetime(year, month, 15).isoformat()
-                            except:
+                            except (ValueError, TypeError):
                                 advice_data["datetime"] = datetime.now().isoformat()
                         else:
                             advice_data["datetime"] = datetime.now().isoformat()
@@ -484,7 +497,7 @@ class S3CommentRepository:
                     try:
                         advice_comment = PastComment.from_dict(advice_data, source_file)
                         comments.append(advice_comment)
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError, KeyError) as e:
                         logger.debug(f"Advice comment creation failed: {str(e)}")
 
             except json.JSONDecodeError as e:
@@ -493,8 +506,11 @@ class S3CommentRepository:
             except ValueError as e:
                 logger.warning(f"データ検証エラー {source_file}:{line_num}: {str(e)}")
                 continue
-            except Exception as e:
+            except (KeyError, TypeError, AttributeError) as e:
                 logger.warning(f"コメント解析エラー {source_file}:{line_num}: {str(e)}")
+                continue
+            except Exception as e:
+                logger.warning(f"コメント解析で予期しないエラー {source_file}:{line_num}: {str(e)}")
                 continue
 
         logger.info(f"JSONLファイル解析完了: {len(comments)}件 (総行数: {len(lines)})")
@@ -516,8 +532,10 @@ class S3CommentRepository:
                 try:
                     sample_collection = self.fetch_comments_by_period(latest_period)
                     sample_stats = sample_collection.get_statistics()
-                except Exception as e:
+                except (S3CommentRepositoryError, ValueError, TypeError) as e:
                     logger.warning(f"サンプル統計取得エラー: {str(e)}")
+                except Exception as e:
+                    logger.warning(f"サンプル統計取得で予期しないエラー: {str(e)}")
 
             return {
                 "bucket_name": self.bucket_name,
@@ -529,8 +547,11 @@ class S3CommentRepository:
                 "connection_status": "connected" if self.test_connection() else "disconnected",
             }
 
-        except Exception as e:
+        except (ClientError, S3CommentRepositoryError, ValueError, TypeError) as e:
             logger.error(f"統計情報取得エラー: {str(e)}")
+            return {"error": str(e), "connection_status": "error"}
+        except Exception as e:
+            logger.error(f"統計情報取得で予期しないエラー: {str(e)}")
             return {"error": str(e), "connection_status": "error"}
 
 
@@ -596,5 +617,7 @@ if __name__ == "__main__":
         else:
             print("❌ S3接続失敗")
 
-    except Exception as e:
+    except (S3Error, ValueError, TypeError) as e:
         print(f"❌ エラー: {str(e)}")
+    except Exception as e:
+        print(f"❌ 予期しないエラー: {str(e)}")

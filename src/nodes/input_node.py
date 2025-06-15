@@ -12,6 +12,7 @@ import pytz
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.location_manager import Location, LocationManager
 from src.config.weather_config import get_config
+from src.utils.exceptions import ValidationError, LocationValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def input_node(state: CommentGenerationState) -> CommentGenerationState:
         # 必須パラメータの検証
         location_name = state.location_name
         if not location_name:
-            raise ValueError("location_name（地点名）は必須パラメータです")
+            raise ValidationError("location_name（地点名）は必須パラメータです")
 
         # デフォルト値の設定
         target_datetime = state.target_datetime
@@ -78,7 +79,15 @@ def input_node(state: CommentGenerationState) -> CommentGenerationState:
         # メタデータに入力処理完了を記録
         state.update_metadata("input_processed", True)
 
-    except Exception as e:
+    except ValidationError as e:
+        logger.error(f"入力検証エラー: {str(e)}")
+        state.add_error(f"InputNode: {str(e)}", "input_node")
+        state.update_metadata("input_processed", False)
+    except LocationValidationError as e:
+        logger.error(f"地点情報エラー: {str(e)}")
+        state.add_error(f"InputNode: {str(e)}", "input_node")
+        state.update_metadata("input_processed", False)
+    except (ValueError, TypeError) as e:
         logger.error(f"入力処理中にエラー: {str(e)}")
         state.add_error(f"InputNode: {str(e)}", "input_node")
         state.update_metadata("input_processed", False)
@@ -175,10 +184,10 @@ def _validate_input_parameters(state: CommentGenerationState):
     # 地点名の検証
     location_name = state.location_name if state.location_name else ""
     if len(location_name) > 50:
-        raise ValueError("地点名は50文字以内で指定してください")
+        raise ValidationError("地点名は50文字以内で指定してください")
 
     if not location_name.replace(" ", "").replace("　", ""):
-        raise ValueError("地点名が空白のみです")
+        raise ValidationError("地点名が空白のみです")
 
     # 日時の検証
     target_datetime = state.target_datetime
@@ -197,7 +206,7 @@ def _validate_input_parameters(state: CommentGenerationState):
     valid_providers = ["openai", "gemini", "anthropic"]
     llm_provider = state.llm_provider.lower() if state.llm_provider else ""
     if llm_provider not in valid_providers:
-        raise ValueError(
+        raise ValidationError(
             f"無効なLLMプロバイダー: {llm_provider}。" f"有効な値: {', '.join(valid_providers)}"
         )
 

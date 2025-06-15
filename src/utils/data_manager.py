@@ -107,11 +107,13 @@ class DataManager:
                         deleted_files.append(csv_file.name)
                         logger.info(f"Deleted empty file: {csv_file.name}")
                         
-                except Exception as e:
-                    logger.error(f"Error processing {csv_file}: {type(e).__name__} - {e}")
+                except (IOError, OSError) as e:
+                    logger.error(f"I/O error processing {csv_file}: {type(e).__name__} - {e}")
+                except csv.Error as e:
+                    logger.error(f"CSV error processing {csv_file}: {type(e).__name__} - {e}")
                     
-        except Exception as e:
-            logger.error(f"Error cleaning forecast cache: {type(e).__name__} - {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error cleaning forecast cache: {type(e).__name__} - {e}")
             raise FileOperationError("Failed to clean forecast cache") from e
         
         result = {
@@ -173,7 +175,7 @@ class DataManager:
                     else:
                         # タイムスタンプがない場合は新しいエントリとして扱う
                         new_entries.append(entry)
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     logger.debug(f"Failed to parse timestamp: {e}")
                     new_entries.append(entry)
             
@@ -210,9 +212,12 @@ class DataManager:
             logger.info(f"Generation history archive complete: {result}")
             return result
             
-        except Exception as e:
-            logger.error(f"Error archiving generation history: {type(e).__name__} - {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error archiving generation history: {type(e).__name__} - {e}")
             raise FileOperationError("Failed to archive generation history") from e
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON error archiving generation history: {type(e).__name__} - {e}")
+            raise DataError("Invalid JSON format in generation history") from e
     
     def get_archive_list(self) -> List[Dict[str, Any]]:
         """アーカイブファイルのリストを取得
@@ -235,8 +240,8 @@ class DataManager:
             # 作成日時でソート（新しい順）
             archives.sort(key=lambda x: x["created"], reverse=True)
             
-        except Exception as e:
-            logger.error(f"Error listing archives: {type(e).__name__} - {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error listing archives: {type(e).__name__} - {e}")
             
         return archives
     
@@ -268,7 +273,7 @@ class DataManager:
                 archive_path.unlink()
                 deleted.append(archive_info["filename"])
                 logger.info(f"Deleted old archive: {archive_info['filename']}")
-            except Exception as e:
+            except (IOError, OSError) as e:
                 logger.error(f"Failed to delete {archive_info['filename']}: {e}")
         
         return {
@@ -312,8 +317,8 @@ class DataManager:
                 "total_size_mb": round(total_size_mb, 2),
                 "average_rows_per_file": round(total_rows / file_count, 2) if file_count > 0 else 0
             }
-        except Exception as e:
-            logger.error(f"Error getting forecast cache statistics: {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error getting forecast cache statistics: {e}")
             stats["forecast_cache"]["error"] = str(e)
         
         # generation_historyの統計
@@ -333,8 +338,11 @@ class DataManager:
                 }
             else:
                 stats["generation_history"] = {"exists": False}
-        except Exception as e:
-            logger.error(f"Error getting generation history statistics: {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error getting generation history statistics: {e}")
+            stats["generation_history"]["error"] = str(e)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON error getting generation history statistics: {e}")
             stats["generation_history"]["error"] = str(e)
         
         # アーカイブの統計

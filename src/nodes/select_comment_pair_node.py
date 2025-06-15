@@ -74,8 +74,12 @@ def select_comment_pair_node(state: CommentGenerationState) -> CommentGeneration
             "selected_advice_comment": pair.advice_comment.comment_text,
         })
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"コメントペア選択中にエラー: {e!s}")
+        state.add_error(f"SelectCommentPairNode: {e!s}", "select_comment_pair_node")
+        raise
+    except Exception as e:
+        logger.error(f"コメントペア選択中に予期しないエラー: {e!s}")
         state.add_error(f"SelectCommentPairNode: {e!s}", "select_comment_pair_node")
         raise
 

@@ -15,6 +15,8 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import logging
 from pathlib import Path
 
+from src.utils.exceptions import DataValidationError, LocationValidationError
+
 # ログ設定
 logger = logging.getLogger(__name__)
 
@@ -469,7 +471,7 @@ class LocationManager:
             logger.warning(f"CSVファイルが見つかりません: {self.csv_path}")
             self._load_default_locations()
             return len(self.locations)
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"地点データ読み込みエラー: {str(e)}")
             self._load_default_locations()
             return len(self.locations)

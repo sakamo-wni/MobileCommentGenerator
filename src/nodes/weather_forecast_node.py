@@ -19,6 +19,7 @@ from src.data.weather_trend import WeatherTrend
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
+from src.utils.exceptions import WeatherAPIError, LocationValidationError, NodeExecutionError
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -90,9 +91,15 @@ class WeatherForecastNode:
                 "error_message": None,
             }
 
-        except Exception as e:
-            logger.error(f"天気予報データ取得エラー: {e!s}")
-            return {**state, "error_message": f"天気予報データの取得に失敗しました: {e!s}"}
+        except WxTechAPIError as e:
+            logger.error(f"天気API エラー: {e!s}")
+            return {**state, "error_message": f"天気APIエラー: {e!s}"}
+        except LocationValidationError as e:
+            logger.error(f"地点検証エラー: {e!s}")
+            return {**state, "error_message": f"地点の検証エラー: {e!s}"}
+        except ValueError as e:
+            logger.error(f"値エラー: {e!s}")
+            return {**state, "error_message": f"入力値エラー: {e!s}"}
 
     async def _fetch_weather_data(
         self,
@@ -117,7 +124,7 @@ class WeatherForecastNode:
                         if search_results:
                             location_obj = search_results[0]
                         else:
-                            raise ValueError(f"地点「{location}」が見つかりません")
+                            raise LocationValidationError(f"地点「{location}」が見つかりません")
 
                     return await client.get_forecast_async(
                         location_obj.latitude,
@@ -130,13 +137,15 @@ class WeatherForecastNode:
                     lat, lon = location
                     return await client.get_forecast_async(lat, lon, forecast_hours=72)
 
-                raise ValueError("無効な地点情報です")
+                raise LocationValidationError("無効な地点情報です")
 
         except WxTechAPIError as e:
             logger.error(f"WxTech API エラー: {e!s}")
+            raise WeatherAPIError(f"天気API通信エラー: {e!s}") from e
+        except LocationValidationError:
             raise
-        except Exception as e:
-            logger.error(f"天気予報データ取得エラー: {e!s}")
+        except ValueError as e:
+            logger.error(f"値エラー: {e!s}")
             raise
 
     def _filter_forecasts_by_hours(

@@ -65,8 +65,8 @@ class LocalCommentRepository:
         except ValueError as e:
             logger.error(f"Data conversion error in {file_path}: {e}")
             raise DataValidationError(f"Invalid data in CSV file {file_path}") from e
-        except Exception as e:
-            logger.error(f"Unexpected error reading CSV file {file_path}: {type(e).__name__} - {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error reading CSV file {file_path}: {type(e).__name__} - {e}")
             raise FileOperationError(f"Failed to read CSV file {file_path}") from e
         
         return comments

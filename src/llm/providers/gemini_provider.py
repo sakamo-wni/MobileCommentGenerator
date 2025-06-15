@@ -71,8 +71,11 @@ class GeminiProvider(LLMProvider):
             logger.info(f"Generated comment: {generated_comment}")
             return generated_comment
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error in Gemini API call: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in Gemini API call: {str(e)}")
             raise
 
     def generate(self, prompt: str) -> str:
@@ -101,8 +104,11 @@ class GeminiProvider(LLMProvider):
 
             return generated_text
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Gemini API error: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected Gemini API error: {str(e)}")
             raise
 
 

@@ -224,7 +224,7 @@ def run_comment_generation(
         }
     except WorkflowError:
         raise
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         import logging
 
         logger = logging.getLogger(__name__)
@@ -240,6 +240,13 @@ def run_comment_generation(
             error_msg = f"LLMエラー: {error_msg}"
 
         raise WorkflowError(error_msg)
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"ワークフロー実行で予期しないエラー: {str(e)}", exc_info=True)
+
+        raise WorkflowError(f"予期しないエラーが発生しました: {str(e)}")
 
 
 # エクスポート

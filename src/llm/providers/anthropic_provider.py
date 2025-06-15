@@ -63,8 +63,11 @@ class AnthropicProvider(LLMProvider):
             logger.info(f"Generated comment: {generated_comment}")
             return generated_comment
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error in Anthropic API call: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in Anthropic API call: {str(e)}")
             raise
 
     def generate(self, prompt: str) -> str:
@@ -92,8 +95,11 @@ class AnthropicProvider(LLMProvider):
 
             return generated_text
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Anthropic API error: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected Anthropic API error: {str(e)}")
             raise
 
 

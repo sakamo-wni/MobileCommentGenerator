@@ -235,8 +235,9 @@ class ForecastCache:
             retention_days = config.weather.forecast_cache_retention_days
             self._cleanup_old_data(location_name, days=retention_days)
             
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"予報データの保存に失敗: {e}")
+            raise CacheError(f"予報データの保存に失敗: {e}")
     
     def get_forecast_at_time(self, location_name: str, target_datetime: datetime, 
                            tolerance_hours: int = 3) -> Optional[ForecastCacheEntry]:
@@ -278,7 +279,7 @@ class ForecastCache:
             
         except CacheError:
             raise
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"予報データの取得に失敗: {e}")
             raise CacheError(f"予報データの取得に失敗: {e}")
     
@@ -347,8 +348,11 @@ class ForecastCache:
                 result["daily_range"] = max_temp - min_temp
                 logger.info(f"日較差: {result['daily_range']:.1f}℃")
             
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"気温差の計算に失敗: {e}")
+        except CacheError:
+            # キャッシュエラーは再スローしない（結果をNoneのまま返す）
+            logger.warning("キャッシュからのデータ取得に失敗しました")
         
         return result
     
@@ -397,8 +401,9 @@ class ForecastCache:
                             
         except FileNotFoundError:
             pass  # ファイルが存在しない場合は空のリストを返す
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"キャッシュファイルの読み込みに失敗: {e}")
+            raise CacheError(f"キャッシュファイルの読み込みに失敗: {e}")
         
         return entries
     
@@ -434,8 +439,11 @@ class ForecastCache:
                 removed_count = len(entries) - len(valid_entries)
                 logger.info(f"古いキャッシュデータを削除: {location_name} ({removed_count}件)")
                 
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"キャッシュクリーンアップに失敗: {e}")
+            # クリーンアップの失敗は警告のみ（処理を続行）
+        except ValueError as e:
+            logger.error(f"データ解析エラー: {e}")
 
 
 # グローバルキャッシュインスタンス

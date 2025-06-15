@@ -11,6 +11,7 @@ import json
 
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.forecast_cache import ForecastCache
+from src.utils.exceptions import NodeExecutionError, DataValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
                 forecast = cache.get_forecast_at_time(location_name, future_time)
                 if forecast:
                     available_count += 1
-            except:
+            except Exception:
                 pass
         
         logger.info(f"利用可能な未来予報データ: {available_count}件")
@@ -72,7 +73,7 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
                     logger.debug(f"未来予報取得成功: {label} at {future_time}")
                 else:
                     logger.warning(f"未来予報データなし: {label} at {future_time}")
-            except Exception as e:
+            except (IOError, OSError, ValueError) as e:
                 logger.warning(f"未来の予報取得エラー ({label}): {e}")
         
         # 過去の予報データ（12時間前から現在まで、3時間ごと）
@@ -93,7 +94,7 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
                         "temperature": forecast.temperature,
                         "precipitation": forecast.precipitation
                     })
-            except Exception as e:
+            except (IOError, OSError, ValueError) as e:
                 logger.warning(f"過去の予報取得エラー ({label}): {e}")
         
         # データが取得できた場合のみ統計情報を追加
@@ -108,7 +109,7 @@ def _get_weather_timeline(location_name: str, base_datetime: datetime) -> Dict[s
                 "weather_pattern": _analyze_weather_pattern(all_forecasts)
             }
     
-    except Exception as e:
+    except (IOError, OSError, ValueError) as e:
         logger.error(f"天気タイムライン取得エラー: {e}")
         timeline_data["error"] = str(e)
     
@@ -169,7 +170,7 @@ def output_node(state: CommentGenerationState) -> CommentGenerationState:
             if isinstance(execution_start, str):
                 try:
                     execution_start = datetime.fromisoformat(execution_start.replace("Z", "+00:00"))
-                except:
+                except (ValueError, TypeError):
                     execution_start = None
 
             # datetime型の場合のみ計算
@@ -209,8 +210,13 @@ def output_node(state: CommentGenerationState) -> CommentGenerationState:
 
         state.update_metadata("output_processed", True)
 
-    except Exception as e:
-        logger.error(f"出力処理中にエラー: {str(e)}")
+    except ValueError as e:
+        logger.error(f"出力処理中の値エラー: {str(e)}")
+        state.errors = state.errors + [f"OutputNode: {str(e)}"]
+        state.update_metadata("output_processed", False)
+        raise NodeExecutionError(f"出力処理中にエラー: {str(e)}")
+    except (IOError, OSError) as e:
+        logger.error(f"出力処理中のI/Oエラー: {str(e)}")
         state.errors = state.errors + [f"OutputNode: {str(e)}"]
         state.update_metadata("output_processed", False)
 
@@ -283,7 +289,7 @@ def _determine_final_comment(state: CommentGenerationState) -> str:
 
     if not final_comment:
         # コメントが生成できなかった場合はエラー
-        raise ValueError(
+        raise DataValidationError(
             "コメントの生成に失敗しました。LLMまたは過去データから適切なコメントを取得できませんでした。"
         )
     
@@ -428,7 +434,7 @@ def _create_generation_metadata(
                     timeline_data = _get_weather_timeline(location_name, weather_datetime)
                     weather_info["weather_timeline"] = timeline_data
                     logger.info(f"時系列データを追加: 過去{len(timeline_data.get('past_forecasts', []))}件、未来{len(timeline_data.get('future_forecasts', []))}件")
-                except Exception as e:
+                except (IOError, OSError, ValueError) as e:
                     logger.warning(f"時系列データ取得エラー: {e}")
                     weather_info["weather_timeline"] = {"error": str(e)}
         

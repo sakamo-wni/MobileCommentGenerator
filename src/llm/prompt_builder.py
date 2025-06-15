@@ -10,6 +10,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from dataclasses import dataclass
 
+from src.utils.exceptions import DataValidationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -157,7 +159,7 @@ class CommentPromptBuilder:
             logger.debug(f"プロンプト構築完了 - 長さ: {len(prompt)}文字")
             return prompt
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"プロンプト構築エラー: {str(e)}")
             return self._get_fallback_prompt(location, weather_data)
 
@@ -243,7 +245,7 @@ class CommentPromptBuilder:
                 season = "冬"
 
             return self.templates.seasonal_adjustments.get(season, "")
-        except:
+        except (ValueError, TypeError):
             return ""
 
     def _get_time_specific_guidance(self, current_time: str) -> str:
@@ -262,7 +264,7 @@ class CommentPromptBuilder:
                 time_period = "夜"
 
             return self.templates.time_specific.get(time_period, "")
-        except:
+        except (ValueError, TypeError):
             return ""
 
     def _get_fallback_prompt(self, location: str, weather_data) -> str:
@@ -295,8 +297,8 @@ class CommentPromptBuilder:
         try:
             return template.format(**format_vars)
         except KeyError as e:
-            logger.error(f"テンプレート変数不足: {str(e)}")
-            return self._get_fallback_prompt(kwargs.get("location", ""), weather_data)
+            logger.error(f"テンプレートキーエラー: {str(e)}")
+            raise DataValidationError(f"プロンプトテンプレートに不足キーがあります: {str(e)}") from e
 
 
 def create_simple_prompt(weather_description: str, temperature: str, location: str = "") -> str:

@@ -134,12 +134,18 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
 
     except (DataNotFoundError, LLMAPIError):
         raise
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Error in generate_comment_node: {str(e)}")
         state.add_error(str(e), "generate_comment")
 
         # エラーを再発生させて適切に処理
         raise LLMAPIError(f"コメント生成中にエラーが発生しました: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in generate_comment_node: {str(e)}")
+        state.add_error(str(e), "generate_comment")
+
+        # エラーを再発生させて適切に処理
+        raise LLMAPIError(f"コメント生成中に予期しないエラーが発生しました: {str(e)}")
 
 
 def _get_ng_words() -> List[str]:
@@ -166,8 +172,23 @@ def _get_ng_words() -> List[str]:
             "やばい",
             "最悪",
         ]
-    except Exception as e:
+    except (yaml.YAMLError, ValueError, TypeError) as e:
         logger.error(f"Error loading NG words config: {e}")
+        # フォールバック
+        return [
+            "災害",
+            "危険",
+            "注意",
+            "警告",
+            "絶対",
+            "必ず",
+            "間違いない",
+            "くそ",
+            "やばい",
+            "最悪",
+        ]
+    except Exception as e:
+        logger.error(f"Unexpected error loading NG words config: {e}")
         # フォールバック
         return [
             "災害",
@@ -283,7 +304,7 @@ def _analyze_temperature_differences(temperature_differences: Dict[str, Optional
         elif current_temp <= temp_cool:
             analysis["commentary"].append("涼しい気温")
         
-    except (ValueError, TypeError, AttributeError) as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.warning(f"気温差分析中にエラー: {type(e).__name__}: {e}")
     except Exception as e:
         logger.error(f"気温差分析中に予期しないエラー: {type(e).__name__}: {e}", exc_info=True)

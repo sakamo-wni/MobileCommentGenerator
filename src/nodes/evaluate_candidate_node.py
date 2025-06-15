@@ -14,6 +14,7 @@ from src.data.weather_data import WeatherForecast
 from src.data.evaluation_criteria import EvaluationContext, EvaluationCriteria
 from src.data.past_comment import PastComment
 from src.algorithms.comment_evaluator import CommentEvaluator
+from src.utils.exceptions import DataValidationError, NodeExecutionError
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,10 @@ def evaluate_candidate_node(state: CommentGenerationState) -> CommentGenerationS
         user_preferences = getattr(state, "user_preferences", {})
 
         if not selected_pair_data:
-            raise ValueError("選択されたコメントペアが存在しません")
+            raise DataValidationError("選択されたコメントペアが存在しません")
 
         if not weather_data_dict:
-            raise ValueError("天気データが利用できません")
+            raise DataValidationError("天気データが利用できません")
 
         # データの復元
         comment_pair = _restore_comment_pair(selected_pair_data)
@@ -114,7 +115,11 @@ def evaluate_candidate_node(state: CommentGenerationState) -> CommentGenerationS
             },
         )
 
-    except Exception as e:
+    except DataValidationError as e:
+        logger.error(f"データ検証エラー: {str(e)}")
+        state.add_error(f"EvaluateCandidateNode: {str(e)}", "evaluate_candidate_node")
+        raise NodeExecutionError(f"評価ノード実行エラー: {str(e)}") from e
+    except (ValueError, TypeError) as e:
         logger.error(f"コメント評価中にエラー: {str(e)}")
         state.add_error(f"EvaluateCandidateNode: {str(e)}", "evaluate_candidate_node")
 
