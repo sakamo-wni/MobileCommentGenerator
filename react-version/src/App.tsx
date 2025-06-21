@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Cloud, Sparkles, Sun, Moon } from 'lucide-react';
+import { Cloud, Sparkles, Sun, Moon, ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
 import type { Location, GeneratedComment } from '@mobile-comment-generator/shared';
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
 import { GeneratedCommentDisplay } from './components/GeneratedComment';
 import { WeatherDataDisplay } from './components/WeatherData';
+import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { REGIONS } from './constants/regions';
@@ -15,6 +16,8 @@ interface BatchResult {
   comment?: string;
   error?: string;
   metadata?: any;
+  weather?: any;
+  adviceComment?: string;
 }
 
 // Constants for batch mode
@@ -41,6 +44,7 @@ function App() {
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [generatedComment, setGeneratedComment] = useState<GeneratedComment | null>(null);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
 
   const { generateComment, loading, error, clearError } = useApi();
   const { theme, toggleTheme } = useTheme();
@@ -55,6 +59,7 @@ function App() {
     clearError();
     setGeneratedComment(null);
     setBatchResults([]);
+    setExpandedLocations(new Set());
     
     try {
       if (isBatchMode) {
@@ -83,7 +88,9 @@ function App() {
                 success: true,
                 location: locationName,
                 comment: result.comment,
-                metadata: result.metadata
+                metadata: result.metadata,
+                weather: result.weather,
+                adviceComment: result.adviceComment
               };
             } catch (error: any) {
               return {
@@ -114,6 +121,18 @@ function App() {
   const handleCopyComment = (text: string) => {
     navigator.clipboard?.writeText(text);
     console.log('Copied:', text);
+  };
+
+  const toggleLocationExpanded = (location: string) => {
+    setExpandedLocations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(location)) {
+        newSet.delete(location);
+      } else {
+        newSet.add(location);
+      }
+      return newSet;
+    });
   };
 
   const currentTime = new Date().toLocaleString('ja-JP', {
@@ -265,40 +284,12 @@ function App() {
                   
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
-                      <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                        {result.success ? (
-                          <div>
-                            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg p-3 mb-3">
-                              <div className="flex items-center text-green-700 dark:text-green-300 mb-2">
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                <span className="font-medium">{result.location} - 生成完了</span>
-                              </div>
-                              <div className="text-green-800 dark:text-green-200">
-                                {result.comment}
-                              </div>
-                            </div>
-                            
-                            <button
-                              onClick={() => result.comment && handleCopyComment(result.comment)}
-                              className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                            >
-                              コピー
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-3">
-                            <div className="flex items-center text-red-700 dark:text-red-300 mb-1">
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                              </svg>
-                              <span className="font-medium">{result.location} - 生成失敗</span>
-                            </div>
-                            <div className="text-red-600 dark:text-red-400 text-sm">
-                              {result.error}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <BatchResultItem
+                        key={index}
+                        result={result}
+                        isExpanded={expandedLocations.has(result.location)}
+                        onToggleExpanded={() => toggleLocationExpanded(result.location)}
+                      />
                     ))}
                   </div>
                 </div>
