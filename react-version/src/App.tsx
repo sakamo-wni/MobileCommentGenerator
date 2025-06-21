@@ -308,7 +308,10 @@ function App() {
               {/* 天気データ */}
               {!isBatchMode && generatedComment?.weather && (
                 <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                  <WeatherDataDisplay weather={generatedComment.weather} />
+                  <WeatherDataDisplay 
+                    weather={generatedComment.weather} 
+                    metadata={generatedComment.metadata}
+                  />
                 </div>
               )}
 

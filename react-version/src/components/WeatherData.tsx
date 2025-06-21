@@ -1,14 +1,59 @@
 import React from 'react';
-import { Cloud, Thermometer, Droplets, Wind, Gauge, TrendingUp } from 'lucide-react';
+import { Cloud, Thermometer, Droplets, Wind, Gauge, TrendingUp, Clock, CloudRain, Info } from 'lucide-react';
 import type { WeatherData } from '@mobile-comment-generator/shared';
+import { WeatherTimeline } from './WeatherTimeline';
 
 interface WeatherDataProps {
   weather: WeatherData | null;
+  metadata?: {
+    weather_forecast_time?: string;
+    weather_timeline?: {
+      summary?: {
+        weather_pattern: string;
+        temperature_range: string;
+        max_precipitation: string;
+      };
+      past_forecasts?: Array<{
+        label: string;
+        time: string;
+        weather: string;
+        temperature: number;
+        precipitation: number;
+      }>;
+      future_forecasts?: Array<{
+        label: string;
+        time: string;
+        weather: string;
+        temperature: number;
+        precipitation: number;
+      }>;
+      error?: string;
+    };
+    selected_weather_comment?: string;
+    selected_advice_comment?: string;
+  };
   className?: string;
 }
 
+const formatDateTime = (dateString: string | undefined) => {
+  if (!dateString) return '不明';
+  try {
+    const date = new Date(dateString.replace('Z', '+00:00'));
+    return date.toLocaleString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
+
 export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
   weather,
+  metadata,
   className = '',
 }) => {
   if (!weather) {
@@ -24,6 +69,29 @@ export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* 予報基準時刻 */}
+      {metadata?.weather_forecast_time && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">予報基準時刻</span>
+          </div>
+          <div className="text-blue-700 dark:text-blue-300 font-medium">
+            {formatDateTime(metadata.weather_forecast_time)}
+          </div>
+          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
+          </div>
+        </div>
+      )}
+
+      {/* Weather Timeline - 4時間予報データ */}
+      {metadata?.weather_timeline && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+          <WeatherTimeline timeline={metadata.weather_timeline} />
+        </div>
+      )}
+
       {/* 現在の天気 */}
       <div className="bg-app-surface border border-app-border rounded-lg p-6 shadow-sm">
         <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -79,7 +147,7 @@ export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
       {/* 予報データ */}
       {forecast && forecast.length > 0 && (
         <div className="bg-app-surface border border-app-border rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">天気予報</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">基本天気予報</h3>
           
           <div className="space-y-3">
             {forecast.slice(0, 5).map((item, index) => (
@@ -136,6 +204,36 @@ export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
           </div>
 
           <p className="mt-3 text-gray-700 dark:text-gray-300">{trend.description}</p>
+        </div>
+      )}
+
+      {/* Selected Comments */}
+      {(metadata?.selected_weather_comment || metadata?.selected_advice_comment) && (
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Info className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <h3 className="text-lg font-semibold text-purple-800 dark:text-purple-200">選択されたコメント</h3>
+          </div>
+          {metadata.selected_weather_comment && (
+            <div className="mb-3">
+              <div className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">
+                <strong>天気コメント:</strong>
+              </div>
+              <div className="text-purple-800 dark:text-purple-200">
+                {metadata.selected_weather_comment}
+              </div>
+            </div>
+          )}
+          {metadata.selected_advice_comment && (
+            <div>
+              <div className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">
+                <strong>アドバイスコメント:</strong>
+              </div>
+              <div className="text-purple-800 dark:text-purple-200">
+                {metadata.selected_advice_comment}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
