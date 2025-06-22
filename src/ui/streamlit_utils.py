@@ -232,7 +232,9 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
         "timestamp": datetime.now().isoformat(),
         "location": location,
         "llm_provider": llm_provider,
+        "comment": result.get("final_comment", ""),  # APIと互換性のため comment フィールドも追加
         "final_comment": result.get("final_comment", ""),
+        "advice_comment": result.get("generation_metadata", {}).get("selection_metadata", {}).get("selected_advice_comment", ""),
         "success": result.get("success", False),
         "generation_metadata": result.get("generation_metadata", {}),
         "error": result.get("error", None),

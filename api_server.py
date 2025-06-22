@@ -46,11 +46,13 @@ class CommentGenerationRequest(BaseModel):
     location: str
     llm_provider: str = "gemini"
     target_datetime: Optional[str] = None
+    exclude_previous: Optional[bool] = False
 
 class CommentGenerationResponse(BaseModel):
     success: bool
     location: str
     comment: Optional[str] = None
+    advice_comment: Optional[str] = None
     error: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -119,7 +121,8 @@ def generate_comment(request: CommentGenerationRequest):
         result = run_comment_generation(
             location_name=request.location,
             target_datetime=target_dt,
-            llm_provider=request.llm_provider
+            llm_provider=request.llm_provider,
+            exclude_previous=request.exclude_previous
         )
         
         logger.info(f"Generation result: success={result.get('success', False)}")
@@ -128,6 +131,7 @@ def generate_comment(request: CommentGenerationRequest):
         success = result.get('success', False)
         comment = result.get('final_comment', '')
         error = result.get('error', None)
+        advice_comment = result.get('generation_metadata', {}).get('selection_metadata', {}).get('selected_advice_comment', '')
         
         # Extract metadata
         metadata = None
@@ -159,6 +163,7 @@ def generate_comment(request: CommentGenerationRequest):
             success=success,
             location=request.location,
             comment=comment,
+            advice_comment=advice_comment,
             error=error,
             metadata=metadata
         )

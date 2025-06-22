@@ -51,10 +51,42 @@ def select_comment_pair_node(state: CommentGenerationState) -> CommentGeneration
         validator = WeatherCommentValidator()
         selector = CommentSelector(llm_manager, validator)
         
+        # 前回のコメントを除外するかどうかを確認
+        exclude_previous = getattr(state, 'exclude_previous', False)
+        logger.info(f"🔄 exclude_previous フラグ: {exclude_previous}")
+        previous_weather_comment = None
+        previous_advice_comment = None
+        
+        if exclude_previous:
+            # 前回の生成履歴から除外すべきコメントを取得
+            from src.ui.streamlit_utils import load_history
+            try:
+                history = load_history()
+                logger.info(f"🔄 再生成モード - 履歴読み込み結果: {len(history) if history else 0}件")
+                if history:
+                    # 同じ地点の最新の履歴を取得
+                    location_history = [h for h in history if h.get('location') == location_name]
+                    logger.info(f"🔄 {location_name}の履歴: {len(location_history)}件")
+                    if location_history:
+                        latest = location_history[-1]
+                        previous_weather_comment = latest.get('comment')
+                        previous_advice_comment = latest.get('advice_comment')
+                        logger.info(f"🔄 前回のコメントを除外対象として設定:")
+                        logger.info(f"🔄   天気コメント: '{previous_weather_comment}'")
+                        logger.info(f"🔄   アドバイス: '{previous_advice_comment}'")
+                    else:
+                        logger.info(f"🔄 {location_name}の履歴が見つかりません")
+                else:
+                    logger.info("🔄 履歴ファイルが空または存在しません")
+            except Exception as e:
+                logger.warning(f"🔄 履歴の読み込みに失敗しましたが、処理を続行します: {e}")
+        
         # 最適なコメントペアを選択
         pair = selector.select_optimal_comment_pair(
             weather_comments, advice_comments, weather_data, 
-            location_name, target_datetime, state
+            location_name, target_datetime, state,
+            exclude_weather_comment=previous_weather_comment,
+            exclude_advice_comment=previous_advice_comment
         )
 
         if not pair:

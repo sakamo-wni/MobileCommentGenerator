@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { CheckCircle, ChevronDown, ChevronUp, Copy, Clock, Info } from 'lucide-react';
+import { CheckCircle, ChevronDown, ChevronUp, Copy, Clock, Info, RotateCcw } from 'lucide-react';
 import type { WeatherMetadata } from '@mobile-comment-generator/shared';
 import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { WeatherDataDisplay } from './WeatherData';
@@ -17,6 +17,8 @@ interface BatchResultItemProps {
   };
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
 const formatDateTime = (dateString: string | undefined) => {
@@ -39,6 +41,8 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
   result,
   isExpanded,
   onToggleExpanded,
+  onRegenerate,
+  isRegenerating = false,
 }) => {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   
@@ -81,13 +85,29 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
               <CheckCircle className="w-5 h-5 mr-2" />
               <span className="font-medium">{result.location}</span>
             </div>
-            <button
-              onClick={onToggleExpanded}
-              className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              <span>詳細情報</span>
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+            <div className="flex items-center space-x-2">
+              {onRegenerate && (
+                <button
+                  onClick={onRegenerate}
+                  disabled={isRegenerating}
+                  className={`flex items-center space-x-1 px-2 py-1 rounded text-xs transition-colors ${
+                    isRegenerating
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-800/50'
+                  }`}
+                >
+                  <RotateCcw className={`w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}`} />
+                  <span>{isRegenerating ? '再生成中...' : '再生成'}</span>
+                </button>
+              )}
+              <button
+                onClick={onToggleExpanded}
+                className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                <span>詳細情報</span>
+                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           
           <div className="space-y-3">

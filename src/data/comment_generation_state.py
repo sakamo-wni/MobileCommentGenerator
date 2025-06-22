@@ -23,6 +23,7 @@ class CommentGenerationState:
     location_name: str
     target_datetime: datetime
     llm_provider: str = "openai"
+    exclude_previous: bool = False
 
     # ===== 中間データ =====
     location: Optional[Any] = None  # Location オブジェクト

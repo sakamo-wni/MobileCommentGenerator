@@ -154,6 +154,7 @@ def run_comment_generation(
     location_name: str,
     target_datetime: Optional[datetime] = None,
     llm_provider: str = "openai",
+    exclude_previous: bool = False,
     **kwargs,
 ) -> Dict[str, Any]:
     """
@@ -163,6 +164,7 @@ def run_comment_generation(
         location_name: 地点名
         target_datetime: 対象日時（デフォルト: 現在時刻）
         llm_provider: LLMプロバイダー（openai/gemini/anthropic）
+        exclude_previous: 前回生成と同じコメントを除外するかどうか
         **kwargs: その他のオプション
 
     Returns:
@@ -178,6 +180,7 @@ def run_comment_generation(
         "location_name": location_name,
         "target_datetime": target_datetime or (datetime.now() + timedelta(hours=forecast_hours_ahead)),
         "llm_provider": llm_provider,
+        "exclude_previous": exclude_previous,
         "retry_count": 0,
         "errors": [],
         "warnings": [],
