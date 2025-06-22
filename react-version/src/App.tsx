@@ -20,6 +20,10 @@ interface BatchResult {
   adviceComment?: string;
 }
 
+interface RegeneratingState {
+  [location: string]: boolean;
+}
+
 // Constants for batch mode
 const MAX_BATCH_LOCATIONS = 30;
 const WARN_BATCH_LOCATIONS = 20;
@@ -45,6 +49,8 @@ function App() {
   const [generatedComment, setGeneratedComment] = useState<GeneratedComment | null>(null);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+  const [regeneratingStates, setRegeneratingStates] = useState<RegeneratingState>({});
+  const [isRegeneratingSingle, setIsRegeneratingSingle] = useState(false);
 
   const { generateComment, loading, error, clearError } = useApi();
   const { theme, toggleTheme } = useTheme();
@@ -133,6 +139,77 @@ function App() {
       }
       return newSet;
     });
+  };
+
+  const handleRegenerateSingle = async () => {
+    if (!selectedLocation) return;
+    
+    setIsRegeneratingSingle(true);
+    clearError();
+    
+    try {
+      const result = await generateComment(selectedLocation, {
+        llmProvider,
+        excludePrevious: true,
+      });
+      setGeneratedComment(result);
+    } catch (err) {
+      console.error('Failed to regenerate comment:', err);
+    } finally {
+      setIsRegeneratingSingle(false);
+    }
+  };
+
+  const handleRegenerateBatch = async (locationName: string) => {
+    setRegeneratingStates(prev => ({ ...prev, [locationName]: true }));
+    
+    try {
+      const locationInfo = getLocationInfo(locationName);
+      const locationObj: Location = {
+        id: locationName,
+        name: locationName,
+        prefecture: locationInfo.prefecture,
+        region: locationInfo.region
+      };
+      
+      const result = await generateComment(locationObj, {
+        llmProvider,
+        excludePrevious: true,
+      });
+      
+      const newResult: BatchResult = {
+        success: true,
+        location: locationName,
+        comment: result.comment,
+        metadata: result.metadata,
+        weather: result.weather,
+        adviceComment: result.adviceComment
+      };
+      
+      setBatchResults(prev => 
+        prev.map(item => 
+          item.location === locationName ? newResult : item
+        )
+      );
+    } catch (error: any) {
+      const errorResult: BatchResult = {
+        success: false,
+        location: locationName,
+        error: error.message || 'コメント再生成に失敗しました'
+      };
+      
+      setBatchResults(prev => 
+        prev.map(item => 
+          item.location === locationName ? errorResult : item
+        )
+      );
+    } finally {
+      setRegeneratingStates(prev => {
+        const newState = { ...prev };
+        delete newState[locationName];
+        return newState;
+      });
+    }
   };
 
   const currentTime = new Date().toLocaleString('ja-JP', {
@@ -289,6 +366,8 @@ function App() {
                         result={result}
                         isExpanded={expandedLocations.has(result.location)}
                         onToggleExpanded={() => toggleLocationExpanded(result.location)}
+                        onRegenerate={() => handleRegenerateBatch(result.location)}
+                        isRegenerating={regeneratingStates[result.location] || false}
                       />
                     ))}
                   </div>
@@ -301,6 +380,8 @@ function App() {
                   <GeneratedCommentDisplay
                     comment={generatedComment}
                     onCopy={handleCopyComment}
+                    onRegenerate={generatedComment ? handleRegenerateSingle : undefined}
+                    isRegenerating={isRegeneratingSingle}
                   />
                 </div>
               )}

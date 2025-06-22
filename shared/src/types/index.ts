@@ -13,6 +13,7 @@ export interface GenerateSettings {
   llmProvider: 'openai' | 'gemini' | 'anthropic';
   temperature?: number;
   targetDateTime?: string;
+  excludePrevious?: boolean;
 }
 
 export interface GeneratedComment {

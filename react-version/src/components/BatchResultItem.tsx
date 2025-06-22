@@ -12,7 +12,8 @@ import {
   Calendar,
   TrendingUp,
   CloudRain,
-  Sun
+  Sun,
+  RotateCcw
 } from 'lucide-react';
 import type { WeatherMetadata } from '@mobile-comment-generator/shared';
 import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
@@ -31,6 +32,8 @@ interface BatchResultItemProps {
   };
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
 const formatDateTime = (dateString: string | undefined) => {
@@ -53,6 +56,8 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
   result,
   isExpanded,
   onToggleExpanded,
+  onRegenerate,
+  isRegenerating = false,
 }) => {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   
@@ -107,16 +112,32 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
               <p className="text-sm text-green-600 dark:text-green-400 font-medium">✨ 生成完了</p>
             </div>
           </div>
-          <button
-            onClick={onToggleExpanded}
-            className="group flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105"
-          >
-            <span className="font-medium">詳細情報</span>
-            {isExpanded ? 
-              <ChevronUp className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" /> : 
-              <ChevronDown className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
-            }
-          </button>
+          <div className="flex items-center space-x-2">
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className={`group flex items-center space-x-2 px-3 py-2 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 ${
+                  isRegenerating
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white hover:shadow-lg'
+                }`}
+              >
+                <RotateCcw className={`w-3 h-3 ${isRegenerating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} />
+                <span className="text-xs font-medium">{isRegenerating ? '再生成中...' : '再生成'}</span>
+              </button>
+            )}
+            <button
+              onClick={onToggleExpanded}
+              className="group flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105"
+            >
+              <span className="font-medium">詳細情報</span>
+              {isExpanded ? 
+                <ChevronUp className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" /> : 
+                <ChevronDown className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+              }
+            </button>
+          </div>
         </div>
         
         {/* Comments */}

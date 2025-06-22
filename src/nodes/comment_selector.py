@@ -33,7 +33,9 @@ class CommentSelector:
         weather_data: WeatherForecast, 
         location_name: str, 
         target_datetime: datetime,
-        state: Optional[CommentGenerationState] = None
+        state: Optional[CommentGenerationState] = None,
+        exclude_weather_comment: Optional[str] = None,
+        exclude_advice_comment: Optional[str] = None
     ) -> Optional[CommentPair]:
         """最適なコメントペアを選択"""
         
@@ -44,6 +46,19 @@ class CommentSelector:
         filtered_advice = self.validator.get_weather_appropriate_comments(
             advice_comments, weather_data, CommentType.ADVICE, limit=100
         )
+        
+        # 除外対象のコメントを削除
+        if exclude_weather_comment:
+            original_count = len(filtered_weather)
+            filtered_weather = [c for c in filtered_weather 
+                             if c.comment_text.strip() != exclude_weather_comment.strip()]
+            logger.info(f"天気コメントから前回の生成結果を除外: '{exclude_weather_comment}' (除外前: {original_count}件 → 除外後: {len(filtered_weather)}件)")
+            
+        if exclude_advice_comment:
+            original_count = len(filtered_advice)
+            filtered_advice = [c for c in filtered_advice 
+                             if c.comment_text.strip() != exclude_advice_comment.strip()]
+            logger.info(f"アドバイスコメントから前回の生成結果を除外: '{exclude_advice_comment}' (除外前: {original_count}件 → 除外後: {len(filtered_advice)}件)")
         
         logger.info(f"フィルタリング結果 - 天気: {len(weather_comments)} -> {len(filtered_weather)}")
         logger.info(f"フィルタリング結果 - アドバイス: {len(advice_comments)} -> {len(filtered_advice)}")
@@ -550,6 +565,16 @@ class CommentSelector:
         if len(candidates) == 1:
             logger.info(f"候補が1件のみ、そのまま選択: '{candidates[0]['comment']}'")
             return candidates[0]['comment_object']
+        
+        # 再生成時はランダム性を追加
+        if getattr(state, 'exclude_previous', False):
+            import random
+            # 上位候補からランダムに選択（上位30%または最低3件）
+            top_count = max(3, len(candidates) // 3)
+            top_candidates = candidates[:top_count]
+            selected = random.choice(top_candidates)
+            logger.info(f"再生成モード: 上位{top_count}件からランダム選択: '{selected['comment']}'")
+            return selected['comment_object']
         
         try:
             logger.info(f"LLM選択開始: {len(candidates)}件の候補から選択中...")
