@@ -12,27 +12,32 @@ import {
   ArrowRight,
   Clock
 } from 'lucide-react';
-import type { WeatherTimeline as WeatherTimelineType } from '@mobile-comment-generator/shared';
+import type { WeatherTimeline as WeatherTimelineType, TimelineForecast } from '@mobile-comment-generator/shared';
 
 interface WeatherTimelineProps {
   timeline: WeatherTimelineType;
 }
 
+interface ForecastListProps {
+  forecasts: TimelineForecast[];
+  gradientColor: string;
+}
+
 const getWeatherIcon = (weather: string) => {
   const weatherLower = weather.toLowerCase();
   if (weatherLower.includes('雨') || weatherLower.includes('rain')) {
-    return <CloudRain className="w-4 h-4" />;
+    return <CloudRain className="w-4 h-4" aria-label={`雨の天気: ${weather}`} />;
   }
   if (weatherLower.includes('雪') || weatherLower.includes('snow')) {
-    return <CloudSnow className="w-4 h-4" />;
+    return <CloudSnow className="w-4 h-4" aria-label={`雪の天気: ${weather}`} />;
   }
   if (weatherLower.includes('曇') || weatherLower.includes('cloud')) {
-    return <Cloud className="w-4 h-4" />;
+    return <Cloud className="w-4 h-4" aria-label={`曇りの天気: ${weather}`} />;
   }
   if (weatherLower.includes('晴') || weatherLower.includes('sun')) {
-    return <Sun className="w-4 h-4" />;
+    return <Sun className="w-4 h-4" aria-label={`晴れの天気: ${weather}`} />;
   }
-  return <Cloud className="w-4 h-4" />;
+  return <Cloud className="w-4 h-4" aria-label={`天気: ${weather}`} />;
 };
 
 const getWeatherColors = (weather: string) => {
@@ -75,6 +80,63 @@ const getWeatherColors = (weather: string) => {
     text: 'text-gray-600 dark:text-gray-400',
     icon: 'text-gray-500'
   };
+};
+
+const ForecastList: React.FC<ForecastListProps> = ({ forecasts, gradientColor }) => {
+  return (
+    <div className="space-y-3">
+      {forecasts.map((forecast, index) => {
+        const colors = getWeatherColors(forecast.weather);
+        const isLast = index === forecasts.length - 1;
+        
+        return (
+          <div key={forecast.time} className="relative">
+            <div className={`${colors.bg} ${colors.border} border rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] will-change-transform`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm border ${colors.border}`}>
+                    <div className={colors.icon}>
+                      {getWeatherIcon(forecast.weather)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono font-bold text-xs md:text-sm bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                        {forecast.label}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {forecast.time}
+                      </span>
+                    </div>
+                    <p className={`font-semibold text-sm md:text-base ${colors.text} mt-1`}>{forecast.weather}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="flex items-center space-x-1">
+                      <Thermometer className="w-3 h-3 text-red-400" />
+                      <span className="font-bold text-red-600 dark:text-red-400">{forecast.temperature}°C</span>
+                    </div>
+                    {forecast.precipitation > 0 && (
+                      <div className="flex items-center space-x-1 mt-1">
+                        <Droplets className="w-3 h-3 text-blue-400" />
+                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{forecast.precipitation}mm</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {!isLast && (
+              <div className={`absolute left-8 top-full w-0.5 h-3 bg-gradient-to-b from-${gradientColor}-300 to-transparent transform -translate-x-1/2`}></div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 export const WeatherTimeline: React.FC<WeatherTimelineProps> = ({ timeline }) => {
@@ -150,58 +212,7 @@ export const WeatherTimeline: React.FC<WeatherTimelineProps> = ({ timeline }) =>
           </div>
           
           <div className="p-6">
-            <div className="space-y-3">
-              {timeline.past_forecasts.map((forecast, index) => {
-                const colors = getWeatherColors(forecast.weather);
-                const isLast = index === timeline.past_forecasts!.length - 1;
-                
-                return (
-                  <div key={forecast.time} className="relative">
-                    <div className={`${colors.bg} ${colors.border} border rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02]`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm border ${colors.border}`}>
-                            <div className={colors.icon}>
-                              {getWeatherIcon(forecast.weather)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-mono font-bold text-sm bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
-                                {forecast.label}
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {forecast.time}
-                              </span>
-                            </div>
-                            <p className={`font-semibold ${colors.text} mt-1`}>{forecast.weather}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <div className="flex items-center space-x-1">
-                              <Thermometer className="w-3 h-3 text-red-400" />
-                              <span className="font-bold text-red-600 dark:text-red-400">{forecast.temperature}°C</span>
-                            </div>
-                            {forecast.precipitation > 0 && (
-                              <div className="flex items-center space-x-1 mt-1">
-                                <Droplets className="w-3 h-3 text-blue-400" />
-                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{forecast.precipitation}mm</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {!isLast && (
-                      <div className="absolute left-8 top-full w-0.5 h-3 bg-gradient-to-b from-orange-300 to-transparent transform -translate-x-1/2"></div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <ForecastList forecasts={timeline.past_forecasts} gradientColor="orange" />
           </div>
         </div>
       )}
@@ -222,58 +233,7 @@ export const WeatherTimeline: React.FC<WeatherTimelineProps> = ({ timeline }) =>
           </div>
           
           <div className="p-6">
-            <div className="space-y-3">
-              {timeline.future_forecasts.map((forecast, index) => {
-                const colors = getWeatherColors(forecast.weather);
-                const isLast = index === timeline.future_forecasts!.length - 1;
-                
-                return (
-                  <div key={forecast.time} className="relative">
-                    <div className={`${colors.bg} ${colors.border} border rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02]`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm border ${colors.border}`}>
-                            <div className={colors.icon}>
-                              {getWeatherIcon(forecast.weather)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-mono font-bold text-sm bg-white/80 dark:bg-gray-800/80 px-2 py-1 rounded text-gray-700 dark:text-gray-300">
-                                {forecast.label}
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {forecast.time}
-                              </span>
-                            </div>
-                            <p className={`font-semibold ${colors.text} mt-1`}>{forecast.weather}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <div className="flex items-center space-x-1">
-                              <Thermometer className="w-3 h-3 text-red-400" />
-                              <span className="font-bold text-red-600 dark:text-red-400">{forecast.temperature}°C</span>
-                            </div>
-                            {forecast.precipitation > 0 && (
-                              <div className="flex items-center space-x-1 mt-1">
-                                <Droplets className="w-3 h-3 text-blue-400" />
-                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{forecast.precipitation}mm</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {!isLast && (
-                      <div className="absolute left-8 top-full w-0.5 h-3 bg-gradient-to-b from-emerald-300 to-transparent transform -translate-x-1/2"></div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <ForecastList forecasts={timeline.future_forecasts} gradientColor="emerald" />
           </div>
         </div>
       )}

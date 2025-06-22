@@ -15,7 +15,7 @@ import {
   Sun,
   RotateCcw
 } from 'lucide-react';
-import type { WeatherMetadata } from '@mobile-comment-generator/shared';
+import type { WeatherMetadata, WeatherData } from '@mobile-comment-generator/shared';
 import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { WeatherDataDisplay } from './WeatherData';
 import { WeatherTimeline } from './WeatherTimeline';
@@ -27,7 +27,7 @@ interface BatchResultItemProps {
     comment?: string;
     error?: string;
     metadata?: WeatherMetadata;
-    weather?: any;
+    weather?: WeatherData;
     adviceComment?: string;
   };
   isExpanded: boolean;
@@ -96,7 +96,7 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
   }
   
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-white to-green-50/30 dark:from-gray-800 dark:to-green-900/10 border border-green-200 dark:border-gray-700 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+    <div className="relative overflow-hidden bg-gradient-to-br from-white to-green-50/30 dark:from-gray-800 dark:to-green-900/10 border border-green-200 dark:border-gray-700 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02] will-change-transform">
       {/* Success indicator stripe */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500"></div>
       
@@ -220,31 +220,31 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
               {/* Quick Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {result.metadata.temperature !== undefined && (
-                  <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
-                    <Thermometer className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                  <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-700 rounded-xl p-3 md:p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                    <Thermometer className="w-5 h-5 md:w-6 md:h-6 text-red-500 mx-auto mb-2" />
                     <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">気温</p>
-                    <p className="text-xl font-bold text-red-800 dark:text-red-200">{result.metadata.temperature}°C</p>
+                    <p className="text-lg md:text-xl font-bold text-red-800 dark:text-red-200">{result.metadata.temperature}°C</p>
                   </div>
                 )}
                 {result.metadata.weather_condition && (
-                  <div className="bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border border-sky-200 dark:border-sky-700 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
-                    <Sun className="w-6 h-6 text-sky-500 mx-auto mb-2" />
+                  <div className="bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border border-sky-200 dark:border-sky-700 rounded-xl p-3 md:p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                    <Sun className="w-5 h-5 md:w-6 md:h-6 text-sky-500 mx-auto mb-2" />
                     <p className="text-xs font-medium text-sky-700 dark:text-sky-300 mb-1">天気</p>
-                    <p className="text-sm font-bold text-sky-800 dark:text-sky-200">{result.metadata.weather_condition}</p>
+                    <p className="text-xs md:text-sm font-bold text-sky-800 dark:text-sky-200">{result.metadata.weather_condition}</p>
                   </div>
                 )}
                 {result.metadata.wind_speed !== undefined && (
-                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-700 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
-                    <Wind className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-700 rounded-xl p-3 md:p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                    <Wind className="w-5 h-5 md:w-6 md:h-6 text-emerald-500 mx-auto mb-2" />
                     <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-1">風速</p>
-                    <p className="text-xl font-bold text-emerald-800 dark:text-emerald-200">{result.metadata.wind_speed}m/s</p>
+                    <p className="text-lg md:text-xl font-bold text-emerald-800 dark:text-emerald-200">{result.metadata.wind_speed}m/s</p>
                   </div>
                 )}
                 {result.metadata.humidity !== undefined && (
-                  <div className="bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 border border-cyan-200 dark:border-cyan-700 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
-                    <Droplets className="w-6 h-6 text-cyan-500 mx-auto mb-2" />
+                  <div className="bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 border border-cyan-200 dark:border-cyan-700 rounded-xl p-3 md:p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                    <Droplets className="w-5 h-5 md:w-6 md:h-6 text-cyan-500 mx-auto mb-2" />
                     <p className="text-xs font-medium text-cyan-700 dark:text-cyan-300 mb-1">湿度</p>
-                    <p className="text-xl font-bold text-cyan-800 dark:text-cyan-200">{result.metadata.humidity}%</p>
+                    <p className="text-lg md:text-xl font-bold text-cyan-800 dark:text-cyan-200">{result.metadata.humidity}%</p>
                   </div>
                 )}
               </div>
