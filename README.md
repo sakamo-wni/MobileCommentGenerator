@@ -6,47 +6,47 @@
 
 ```
 MobileCommentGenerator/
-├── src/                                             # バックエンドソースコード
-│   ├── workflows/                                   # LangGraphワークフロー実装
-│   ├── nodes/                                       # 各処理ノードの実装
-│   ├── llm/                                         # LLMプロバイダー統合
-│   ├── data/                                        # データモデル・管理
-│   ├── apis/                                        # 外部API統合
-│   └── utils/                                       # ユーティリティ関数
-├── frontend/                                        # Nuxt.js 3 フロントエンド（Vue版）
-│   ├── pages/                                       # ページコンポーネント
-│   ├── components/                                  # UIコンポーネント
-│   ├── composables/                                 # Composition API
-│   └── nuxt.config.ts                               # Nuxt設定
-├── react-version/                                   # React版フロントエンド（新規）
-│   ├── src/                                         # Reactソースコード
-│   ├── public/                                      # 静的ファイル
-│   └── vite.config.ts                               # Vite設定
-├── shared/                                          # 共通ロジック・型定義
-│   ├── types/                                       # 共通型定義
-│   ├── api/                                         # APIクライアント
-│   ├── composables/                                 # 共通ロジック
-│   └── utils/                                       # 共通ユーティリティ
-├── tests/                                           # テストスイート
-├── docs/                                            # ドキュメント
-├── examples/                                        # 使用例
-├── config/                                          # 設定ファイル
-├── app.py                                           # Streamlit UI
-├── api_server.py                                    # FastAPI サーバー
-├── enhanced_comment_generator.py                    # スタンドアロン版生成器
-├── .github/                                         # GitHub Actions CI/CD
-│   └── workflows/                                   # ワークフロー定義
-├── pnpm-workspace.yaml                              # pnpmモノレポ設定
-├── uv.lock                                          # uvロックファイル
-├── requirements.txt                                 # 従来の依存関係ファイル
-├── pytest.ini                                       # pytest設定
-├── mypy.ini                                         # mypy設定
-├── Makefile                                         # ビルド・実行スクリプト
-├── setup.sh                                         # セットアップスクリプト
-└── README.md                                        # このファイル
+├── src/                                    # バックエンドソースコード
+│   ├── workflows/                          # LangGraphワークフロー実装
+│   ├── nodes/                              # 各処理ノードの実装
+│   ├── llm/                                # LLMプロバイダー統合
+│   ├── data/                               # データモデル・管理
+│   ├── apis/                               # 外部API統合
+│   └── utils/                              # ユーティリティ関数
+├── frontend/                               # Nuxt.js 3 フロントエンド（Vue版）
+│   ├── pages/                              # ページコンポーネント
+│   ├── components/                         # UIコンポーネント
+│   ├── composables/                        # Composition API
+│   └── nuxt.config.ts                      # Nuxt設定
+├── react-version/                          # React版フロントエンド（新規）
+│   ├── src/                                # Reactソースコード
+│   ├── public/                             # 静的ファイル
+│   └── vite.config.ts                      # Vite設定
+├── shared/                                 # 共通ロジック・型定義
+│   ├── types/                              # 共通型定義
+│   ├── api/                                # APIクライアント
+│   ├── composables/                        # 共通ロジック
+│   └── utils/                              # 共通ユーティリティ
+├── tests/                                  # テストスイート
+├── docs/                                   # ドキュメント
+├── examples/                               # 使用例
+├── config/                                 # 設定ファイル
+├── app.py                                  # Streamlit UI
+├── api_server.py                           # FastAPI サーバー
+├── enhanced_comment_generator.py           # スタンドアロン版生成器
+├── .github/                                # GitHub Actions CI/CD
+│   └── workflows/                          # ワークフロー定義
+├── pnpm-workspace.yaml                     # pnpmモノレポ設定
+├── uv.lock                                 # uvロックファイル
+├── requirements.txt                        # 従来の依存関係ファイル
+├── pytest.ini                              # pytest設定
+├── mypy.ini                                # mypy設定
+├── Makefile                                # ビルド・実行スクリプト
+├── setup.sh                                # セットアップスクリプト
+└── README.md                               # このファイル
 ```
 
-## 🔠️ 主要特徴
+## 🌟 主要特徴
 
 - **LangGraphワークフロー**: 状態管理とエラーハンドリングロジックを体系的に実装
 - **マルチLLMプロバイダー**: OpenAI/Gemini/Anthropic対応  
@@ -58,26 +58,81 @@ MobileCommentGenerator/
 - **天気予報キャッシュ**: 効率的な天気データ管理とキャッシュ機能
 - **モノレポ構成**: pnpmワークスペースによる効率的な依存管理
 
-## 🔈 現在の進捗状況
+## 🔄 LangGraphワークフロー
+
+以下はMobileCommentGeneratorの正確なワークフロー構造です：
+
+```mermaid
+graph TB
+    Start([開始]) --> input[InputNode<br/>入力検証・初期化]
+    
+    input --> fetch_forecast[FetchForecastNode<br/>天気予報取得]
+    
+    fetch_forecast --> retrieve_comments[RetrieveCommentsNode<br/>過去コメント取得]
+    
+    retrieve_comments --> select_pair[SelectCommentPairNode<br/>LLMによる適応的ペア選択]
+    
+    select_pair --> should_evaluate{評価すべきか？<br/>should_evaluate}
+    
+    should_evaluate -->|evaluate| evaluate_candidate[EvaluateCandidateNode<br/>候補評価]
+    should_evaluate -->|generate| generate_comment[GenerateCommentNode<br/>コメント生成]
+    
+    evaluate_candidate --> should_retry{リトライ必要？<br/>should_retry}
+    
+    should_retry -->|retry<br/>最大5回| select_pair
+    should_retry -->|continue| generate_comment
+    
+    generate_comment --> output[OutputNode<br/>出力整形]
+    
+    output --> End([終了])
+    
+    style input fill:#e1f5fe
+    style fetch_forecast fill:#f3e5f5
+    style retrieve_comments fill:#e8f5e9
+    style select_pair fill:#fff3e0
+    style evaluate_candidate fill:#fce4ec
+    style generate_comment fill:#fff8e1
+    style output fill:#e0f2f1
+    
+    style should_evaluate fill:#ffebee
+    style should_retry fill:#ffebee
+```
+
+### ワークフローの詳細説明
+
+1. **InputNode**: 入力パラメータの検証と初期状態の設定
+2. **FetchForecastNode**: WxTech APIから天気予報データを取得（12時間周期）
+3. **RetrieveCommentsNode**: S3から過去のコメントデータを取得
+4. **SelectCommentPairNode**: LLMが天気に基づいて最適なコメントペアを選択
+5. **EvaluateCandidateNode**: 選択されたペアの評価（評価基準に基づく検証）
+6. **GenerateCommentNode**: 最終的なコメント生成
+7. **OutputNode**: 生成結果の整形と出力
+
+### 条件分岐
+
+- **should_evaluate**: LLMプロバイダーが設定されていない場合は評価をスキップ
+- **should_retry**: 評価が失敗した場合、最大5回までリトライ
+
+## 📈 現在の進捗状況
 
 ### ✅ Phase 1: 基盤システム（100%完了）
 - [x] **地点データ管理システム**: CSV読み込み・検索・条件取得機能
 - [x] **天気予報API機能**: WxTech API統合（12時間周期データ対応）
-- [x] **過去コメント取得**: enhanced50.csvベースのデータ解析・類似度選抜検討
+- [x] **過去コメント取得**: enhanced50.csvベースのデータ解析・類似度選抜検証
 - [x] **LLM統合**: マルチプロバイダー対応（OpenAI/Gemini/Anthropic）
 
 ### ✅ Phase 2: LangGraph ワークフロー（100%完了）
 - [x] **SelectCommentPairNode**: コメント類似度選抜ベースによる適応選抜
 - [x] **EvaluateCandidateNode**: 複数の評価基準による検証
-- [x] **基盤ワークフロー**: 実装済みノードでの頑健実装
+- [x] **基盤ワークフロー**: 実装済みノードでの順健実装
 - [x] **InputNode/OutputNode**: 本実装完了
 - [x] **GenerateCommentNode**: LLM統合実装
 - [x] **統合テスト**: エンドtoエンドテスト状態管理
 
 ### ✅ Phase 3: Streamlit UI（100%完了）
-- [x] **基盤UI実装**: 地点選抜・LLMプロバイダー選抜・コメント生成
+- [x] **基礎UI実装**: 地点選択・LLMプロバイダー選択・コメント生成
 - [x] **詳細情報表示**: 現在・予報天気データ・詳細情報表示
-- [x] **バッチ出力**: 複数地点一覧出力機能
+- [x] **バッチ出力**: 複数地点一括出力機能
 - [x] **CSV出力**: 生成結果のエクスポート機能
 - [x] **エラーハンドリング**: ユーザーフレンドリーなエラー表示
 
@@ -86,7 +141,7 @@ MobileCommentGenerator/
 - [x] **プロジェクト進捗の明確化**: frontend/とsrc/の責任分担明確化
 - [x] **API実装**: FastAPI RESTful APIエンドポイント完成
 - [x] **統合ドキュメント**: フロントエンド・バックエンド連携ガイド
-- [x] **UIコンポーネント**: 地点選抜・設定・結果表示の完全実装
+- [x] **UIコンポーネント**: 地点選択・設定・結果表示の完全実装
 
 ### 🚧 Phase 5: デプロイメント（0%完了）
 - [ ] **AWSデプロイメント**: Lambda/ECS・CloudWatch統合
@@ -140,7 +195,7 @@ docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/mobile-comment-generator
 
 ## 🔥 React版追加実装ガイド
 
-既存のNuxt.js 3版に彩響を与えずにReact版を追加する詳細な手順を以下に示します。
+既存のNuxt.js 3版に影響を与えずにReact版を追加する詳細な手順を以下に示します。
 
 ### 📋 設計思想
 
@@ -895,7 +950,7 @@ pnpm dev:all
 
 #### APIサーバー
 ```bash
-# FastAPIサーバー起動（ポート8000）
+# FastAPIサーバー起動（ポート3001）
 uv run ./start_api.sh
 ```
 
@@ -1016,13 +1071,13 @@ pnpm --filter @mobile-comment-generator/shared build
 **重複パターンの検出:**
 - 完全同一の重複検出
 - 重複キーワード並び（「にわか雨がちらつく」「にわか雨に注意」等）
-- 類似表現パターンマッチング（「雨が心配」→「雨にご注意」「雨に気をつけて」等）
+- 類似表現パターンマッチング（「雨が心配」↔「雨にご注意」「雨に気をつけて」等）
 - 頻度観測における高頻出語彙検出（70%以上の文字共通性など）
 
 **代替選抜機能:**
 - 重複検出時の自動代替ペア選抜
 - 最大10回の候補重複検測機能
-- カテゴリエバーション（複数パターンがある場合）
+- カテゴリベーション（複数パターンがある場合）
 - フォールバック機能での効率的な代替利用
 
 **改善例:**
@@ -1047,52 +1102,6 @@ pnpm --filter @mobile-comment-generator/shared build
 
 🚨 生成されたコメントが地点・天気情報に忠実に適応し変化することを確認
 
-## 📌 ワークフロー構成
-
-以下は、LangGraphワークフローの正確な構成を示すMermaid図です：
-
-```mermaid
-graph TD
-    Start([Start]) --> input[input<br/>入力検証・初期化]
-    input --> fetch_forecast[fetch_forecast<br/>天気予報取得]
-    fetch_forecast --> retrieve_comments[retrieve_comments<br/>過去コメント取得]
-    retrieve_comments --> select_pair[select_pair<br/>コメントペア選択]
-    
-    select_pair --> evaluate{評価実行?}
-    evaluate -->|LLMプロバイダー<br/>未設定| generate[generate<br/>コメント生成]
-    evaluate -->|評価実行| evaluate_node[evaluate<br/>候補評価]
-    
-    evaluate_node --> retry{リトライ判定}
-    retry -->|リトライ必要<br/>かつ上限未満| select_pair
-    retry -->|リトライ不要<br/>または上限到達| generate
-    
-    generate --> output[output<br/>結果整形・出力]
-    output --> End([End])
-    
-    style input fill:#f9f,stroke:#333,stroke-width:2px
-    style fetch_forecast fill:#bbf,stroke:#333,stroke-width:2px
-    style retrieve_comments fill:#bbf,stroke:#333,stroke-width:2px
-    style select_pair fill:#bfb,stroke:#333,stroke-width:2px
-    style evaluate_node fill:#fbf,stroke:#333,stroke-width:2px
-    style generate fill:#ffb,stroke:#333,stroke-width:2px
-    style output fill:#f9f,stroke:#333,stroke-width:2px
-```
-
-### ワークフローノード説明
-
-1. **input**: 入力パラメータの検証と状態初期化
-2. **fetch_forecast**: WxTech APIから天気予報データを取得
-3. **retrieve_comments**: S3から過去のコメントデータを取得
-4. **select_pair**: LLMを使用して最適なコメントペアを選択
-5. **evaluate**: 選択されたペアの評価（現在はスキップ設定）
-6. **generate**: LLMを使用して最終的なコメントを生成
-7. **output**: 生成結果の整形と出力
-
-### 条件分岐
-
-- **評価実行判定**: LLMプロバイダーが設定されていない場合は評価をスキップ
-- **リトライ判定**: 評価が不合格の場合、最大5回までリトライ
-
 ## 📝 フロントエンド構成
 
 ### フロントエンド機能詳細
@@ -1102,7 +1111,7 @@ graph TD
 | **pages/index.vue** | メインページ | 全体レイアウト・状態管理・API連携機能 |
 | **app.vue** | アプリケーション全体のレイアウト | グローバルスタイル・共通レイアウト |
 | **components/LocationSelection.vue** | 地点選択コンポーネント | 地域リスト・検索機能・フィルタリング機能 |
-| **components/GenerateSettings.vue** | 設定コンポーネント | LLMプロバイダー選抜・生成オプション設定 |
+| **components/GenerateSettings.vue** | 設定コンポーネント | LLMプロバイダー選択・生成オプション設定 |
 | **components/GeneratedComment.vue** | 結果表示コンポーネント | 生成コメント・履歴・コピー機能 |
 | **components/WeatherData.vue** | 天気データコンポーネント | 現在・予報天気データ・詳細情報表示 |
 | **composables/useApi.ts** | API層 | REST通信・エラーハンドリング・ローディング状態管理 |
@@ -1144,7 +1153,7 @@ export const useApi = () => {
 - **レスポンシブ**: モバイル・タブレット対応
 
 #### GenerateSettings.vue
-- **LLMプロバイダー選抜**: OpenAI・Gemini・Anthropic
+- **LLMプロバイダー選択**: OpenAI・Gemini・Anthropic
 - **API設定表示**: 温度パラメータ・生成オプション設定
 - **プロンプト設定**: カスタムプロンプトテンプレート
 
@@ -1159,7 +1168,7 @@ export const useApi = () => {
 - **気象パラメータ**: 湿度・気圧・風向風速・警戒情報
 - **注意報**: 悪天候設定
 
-## 🔖 使用方法
+## 📖 使用方法
 
 ### Nuxt.jsフロントエンド（推奨）
 
@@ -1181,7 +1190,7 @@ pnpm dev:react
 ```
 
 1. ブラウザで http://localhost:5173 を開く
-2. 地点選抜から希望の地点を選抜
+2. 地点選択から希望の地点を選択
 3. 生成設定でLLMプロバイダーを選択
 4. 「コメント生成」ボタンをクリック
 5. 生成されたコメントと天気情報を確認
@@ -1245,17 +1254,17 @@ chmod +x setup.sh
 ./setup.sh dev
 
 # メンテナンス
-make clean           # 一時ファイル削除
-uv sync              # 依存更新
+make clean               # 一時ファイル削除
+uv sync                  # 依存更新
 
 # ログ表示
-tail -f logs/llm_generation.log    # LLMジェネレーションログ
+tail -f logs/llm_generation.log   # LLMジェネレーションログ
 
 # ヘルプ
 make help
 ```
 
-## 📕 API設定
+## 📗 API設定
 
 ### 必須設定
 `.env`ファイルでLLMプロバイダーのAPIキーを設定:
@@ -1278,7 +1287,7 @@ AWS_ACCESS_KEY_ID=your_aws_access_key_id
 AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 ```
 
-## 🕐️ 天気予報時刻の設定
+## 🕑 天気予報時刻の設定
 
 システムは**翌朝9:00-18:00（JST）の時間帯**から天気に基づいてコメントを生成します。設定された時刻は日本標準時間（JST）です。
 
@@ -1298,7 +1307,7 @@ AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 
 🚨 生成されたコメントが地点・天気情報に忠実に適応し変化することを確認
 
-## 🔔 コントリビューション
+## 📔 コントリビューション
 
 1. Issueを作成で問題報告・機能要望
 2. Fork & Pull Requestでの貢献
