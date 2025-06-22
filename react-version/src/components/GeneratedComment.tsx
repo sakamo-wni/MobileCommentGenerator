@@ -1,6 +1,7 @@
 import React from 'react';
 import { Copy, MessageSquare, Clock, MapPin, CheckCircle } from 'lucide-react';
 import type { GeneratedComment } from '@mobile-comment-generator/shared';
+import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { clsx } from 'clsx';
 
 interface GeneratedCommentProps {
@@ -22,8 +23,8 @@ export const GeneratedCommentDisplay: React.FC<GeneratedCommentProps> = ({
       setCopiedText(type);
       onCopy?.(text);
       
-      // 2秒後にリセット
-      setTimeout(() => setCopiedText(null), 2000);
+      // 定数を使用してタイムアウト時間を統一
+      setTimeout(() => setCopiedText(null), COPY_FEEDBACK_DURATION);
     } catch (err) {
       console.error('Failed to copy text:', err);
     }

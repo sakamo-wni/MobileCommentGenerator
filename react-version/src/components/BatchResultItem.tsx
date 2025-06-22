@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { CheckCircle, ChevronDown, ChevronUp, Copy, Clock, Info } from 'lucide-react';
+import type { WeatherMetadata } from '@mobile-comment-generator/shared';
+import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { WeatherDataDisplay } from './WeatherData';
 import { WeatherTimeline } from './WeatherTimeline';
 
@@ -9,37 +11,7 @@ interface BatchResultItemProps {
     location: string;
     comment?: string;
     error?: string;
-    metadata?: {
-      temperature?: number;
-      weather_condition?: string;
-      wind_speed?: number;
-      humidity?: number;
-      weather_forecast_time?: string;
-      weather_timeline?: {
-        summary?: {
-          weather_pattern: string;
-          temperature_range: string;
-          max_precipitation: string;
-        };
-        past_forecasts?: Array<{
-          label: string;
-          time: string;
-          weather: string;
-          temperature: number;
-          precipitation: number;
-        }>;
-        future_forecasts?: Array<{
-          label: string;
-          time: string;
-          weather: string;
-          temperature: number;
-          precipitation: number;
-        }>;
-        error?: string;
-      };
-      selected_weather_comment?: string;
-      selected_advice_comment?: string;
-    };
+    metadata?: WeatherMetadata;
     weather?: any;
     adviceComment?: string;
   };
@@ -70,15 +42,15 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
 }) => {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   
-  const handleCopyWithFeedback = async (text: string, type: string) => {
+  const handleCopyWithFeedback = useCallback(async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedText(type);
-      setTimeout(() => setCopiedText(null), 2000);
+      setTimeout(() => setCopiedText(null), COPY_FEEDBACK_DURATION);
     } catch (err) {
       console.error('Failed to copy text:', err);
     }
-  };
+  }, []);
   
   if (!result.success) {
     return (

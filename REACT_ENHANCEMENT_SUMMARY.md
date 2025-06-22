@@ -62,6 +62,30 @@ Vue版UIと同様に、React版UIでコメント選択に使用した予報4時�
 - ✅ ダークモード対応
 - ✅ アクセシビリティ配慮
 
+## 🔧 改善提案の実装（第2版）
+
+### 1. 型定義の共通化 ✅
+- `shared/src/types/index.ts` に `WeatherMetadata`、`WeatherTimeline`、`TimelineForecast` 型を追加
+- `BatchResultItem.tsx` と `WeatherData.tsx` で重複していた型定義を削除
+- 共通型定義を使用することでメンテナンス性向上
+
+### 2. パフォーマンス最適化 ✅
+- `BatchResultItem.tsx` で `useCallback` を使用して `handleCopyWithFeedback` をメモ化
+- 再レンダリング時の不要な関数再生成を防止
+- パフォーマンス向上とメモリ使用量の最適化
+
+### 3. アクセシビリティの向上 ✅
+- `WeatherTimeline.tsx` に包括的なアクセシビリティ属性を追加:
+  - `role="region"` でセクション区分を明確化
+  - `aria-label` でスクリーンリーダー用の説明を追加
+  - `role="list"` と `role="listitem"` でリスト構造を明示
+  - `aria-hidden="true"` で装飾アイコンを適切に隠蔽
+
+### 4. 定数の抽出 ✅
+- `COPY_FEEDBACK_DURATION = 2000` 定数を `shared/src/types/index.ts` に追加
+- `BatchResultItem.tsx` と `GeneratedComment.tsx` で統一使用
+- ハードコーディングされた値を定数化してメンテナンス性向上
+
 ## 🎨 UI/UX の特徴
 
 ### デザインシステム
@@ -109,12 +133,15 @@ npm run dev
 
 ```
 react-version/src/components/
-├── WeatherTimeline.tsx        # 新規作成
-├── WeatherData.tsx           # 大幅更新
-├── BatchResultItem.tsx       # 大幅更新
-├── GeneratedComment.tsx      # 既存（変更なし）
+├── WeatherTimeline.tsx        # 新規作成（第2版で型・アクセシビリティ改善）
+├── WeatherData.tsx           # 大幅更新（第2版で型共通化）
+├── BatchResultItem.tsx       # 大幅更新（第2版でuseCallback・型共通化）
+├── GeneratedComment.tsx      # 第2版で定数使用に更新
 ├── LocationSelection.tsx     # 既存（変更なし）
 └── GenerateSettings.tsx      # 既存（変更なし）
+
+shared/src/types/
+└── index.ts                  # 第2版で型定義・定数追加
 ```
 
 ## 🎯 Vue版との機能対等性
@@ -128,21 +155,25 @@ react-version/src/components/
 | エラーハンドリング | ✅ | ✅ |
 | レスポンシブデザイン | ✅ | ✅ |
 | ダークモード | ✅ | ✅ |
+| アクセシビリティ | ✅ | ✅ (第2版で強化) |
+| 型安全性 | ✅ | ✅ (第2版で強化) |
+| パフォーマンス | ✅ | ✅ (第2版で最適化) |
 
 ## 🚫 変更対象外
 
 以下には一切変更を加えていません：
 - Vue版UI (`frontend/` ディレクトリ)
 - バックエンドAPI (`api_server.py`, `app.py` など)
-- 共有パッケージの既存機能
+- 共有パッケージの既存機能（型定義・定数追加のみ）
 
 ## 🎉 完了状況
 
-✅ **全ての要件を満たした実装が完了**
+✅ **全ての要件と改善提案を満たした実装が完了**
 - 新しいブランチでの開発
 - Vue版同等の4時間予報データ表示
 - 最新のモダンなReact実装
+- コード品質向上（型共通化、パフォーマンス最適化、アクセシビリティ向上、定数抽出）
 - ビルド&動作確認済み
 - Vue版・バックエンド無変更
 
-これで、React版UIでもVue版と同様に、コメント選択に使用した予報4時間分のデータが美しく表示されるようになりました！
+これで、React版UIでもVue版と同様に、コメント選択に使用した予報4時間分のデータが美しく表示され、さらにコード品質も大幅に向上しました！
