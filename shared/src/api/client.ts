@@ -60,6 +60,7 @@ export class ApiClient {
       location: settings.location.name,
       llm_provider: settings.llmProvider,
       target_datetime: settings.targetDateTime,
+      exclude_previous: settings.excludePrevious || false,
     };
     
     const response = await this.client.post('/api/generate', apiRequest);
@@ -69,7 +70,7 @@ export class ApiClient {
     return {
       id: `comment-${Date.now()}`,
       comment: apiResponse.comment || '',
-      adviceComment: apiResponse.metadata?.selected_advice_comment,
+      adviceComment: apiResponse.advice_comment || apiResponse.metadata?.selected_advice_comment,
       weather: {
         current: {
           temperature: apiResponse.metadata?.temperature || 0,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, MessageSquare, Clock, MapPin, CheckCircle } from 'lucide-react';
+import { Copy, MessageSquare, Clock, MapPin, CheckCircle, RotateCcw } from 'lucide-react';
 import type { GeneratedComment } from '@mobile-comment-generator/shared';
 import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { clsx } from 'clsx';
@@ -7,12 +7,16 @@ import { clsx } from 'clsx';
 interface GeneratedCommentProps {
   comment: GeneratedComment | null;
   onCopy?: (text: string) => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
   className?: string;
 }
 
 export const GeneratedCommentDisplay: React.FC<GeneratedCommentProps> = ({
   comment,
   onCopy,
+  onRegenerate,
+  isRegenerating = false,
   className = '',
 }) => {
   const [copiedText, setCopiedText] = React.useState<string | null>(null);
@@ -48,27 +52,44 @@ export const GeneratedCommentDisplay: React.FC<GeneratedCommentProps> = ({
             <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
             天気コメント
           </h3>
-          <button
-            onClick={() => handleCopy(comment.comment, 'main')}
-            className={clsx(
-              'flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors',
-              copiedText === 'main'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          <div className="flex items-center space-x-2">
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className={clsx(
+                  'flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors',
+                  isRegenerating
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-800/50'
+                )}
+              >
+                <RotateCcw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                <span>{isRegenerating ? '再生成中...' : '再生成'}</span>
+              </button>
             )}
-          >
-            {copiedText === 'main' ? (
-              <>
-                <CheckCircle className="w-4 h-4" />
-                <span>コピー済み</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                <span>コピー</span>
-              </>
-            )}
-          </button>
+            <button
+              onClick={() => handleCopy(comment.comment, 'main')}
+              className={clsx(
+                'flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors',
+                copiedText === 'main'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              )}
+            >
+              {copiedText === 'main' ? (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>コピー済み</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>コピー</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
         <p className="text-gray-800 dark:text-gray-100 text-lg leading-relaxed">{comment.comment}</p>
       </div>
