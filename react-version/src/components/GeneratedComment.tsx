@@ -1,8 +1,9 @@
 import React from 'react';
-import { Copy, MessageSquare, Clock, MapPin, CheckCircle, RotateCcw } from 'lucide-react';
+import { Copy, MessageSquare, Clock, MapPin, CheckCircle, RotateCcw, TrendingUp } from 'lucide-react';
 import type { GeneratedComment } from '@mobile-comment-generator/shared';
 import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { clsx } from 'clsx';
+import { WeatherTimeline } from './WeatherTimeline';
 
 interface GeneratedCommentProps {
   comment: GeneratedComment | null;
@@ -125,6 +126,24 @@ export const GeneratedCommentDisplay: React.FC<GeneratedCommentProps> = ({
             </button>
           </div>
           <p className="text-blue-800 dark:text-blue-300 text-lg leading-relaxed">{comment.adviceComment}</p>
+        </div>
+      )}
+
+      {/* Weather Timeline */}
+      {comment.metadata?.weather_timeline && (
+        <div className="bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 dark:from-slate-900/50 dark:via-gray-900/50 dark:to-zinc-900/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-r from-slate-600 to-gray-600 p-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-white" />
+              </div>
+              <h4 className="text-lg font-bold text-white">🌦️ 詳細天気予報データ</h4>
+            </div>
+            <p className="text-sm text-slate-200 mt-1">コメント選択に使用した予報データ</p>
+          </div>
+          <div className="p-6">
+            <WeatherTimeline timeline={comment.metadata.weather_timeline} />
+          </div>
         </div>
       )}
 

@@ -83,6 +83,7 @@ export class ApiClient {
         },
         forecast: [],
       },
+      metadata: apiResponse.metadata, // 完全なmetadataを含める（weather_timelineを含む）
       timestamp: new Date().toISOString(),
       confidence: apiResponse.success ? 0.9 : 0.1,
       location: settings.location,
