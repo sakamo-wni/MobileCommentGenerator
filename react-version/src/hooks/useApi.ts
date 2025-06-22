@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { GenerateSettings, GeneratedComment, Location } from '@mobile-comment-generator/shared';
-import { createWeatherCommentComposable } from '@mobile-comment-generator/shared/composables';
+import { createWeatherCommentComposable } from '@mobile-comment-generator/shared';
 
 export const useApi = () => {
   const [loading, setLoading] = useState(false);

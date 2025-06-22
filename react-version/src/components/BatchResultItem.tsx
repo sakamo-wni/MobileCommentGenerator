@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { CheckCircle, ChevronDown, ChevronUp, Copy } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { CheckCircle, ChevronDown, ChevronUp, Copy, Clock, Info } from 'lucide-react';
+import type { WeatherMetadata } from '@mobile-comment-generator/shared';
+import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
 import { WeatherDataDisplay } from './WeatherData';
+import { WeatherTimeline } from './WeatherTimeline';
 
 interface BatchResultItemProps {
   result: {
@@ -8,13 +11,29 @@ interface BatchResultItemProps {
     location: string;
     comment?: string;
     error?: string;
-    metadata?: any;
+    metadata?: WeatherMetadata;
     weather?: any;
     adviceComment?: string;
   };
   isExpanded: boolean;
   onToggleExpanded: () => void;
 }
+
+const formatDateTime = (dateString: string | undefined) => {
+  if (!dateString) return '不明';
+  try {
+    const date = new Date(dateString.replace('Z', '+00:00'));
+    return date.toLocaleString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
 
 export const BatchResultItem: React.FC<BatchResultItemProps> = ({
   result,
@@ -23,15 +42,15 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
 }) => {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   
-  const handleCopyWithFeedback = async (text: string, type: string) => {
+  const handleCopyWithFeedback = useCallback(async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedText(type);
-      setTimeout(() => setCopiedText(null), 2000);
+      setTimeout(() => setCopiedText(null), COPY_FEEDBACK_DURATION);
     } catch (err) {
       console.error('Failed to copy text:', err);
     }
-  };
+  }, []);
   
   if (!result.success) {
     return (
@@ -134,9 +153,100 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
           </div>
         </div>
         
-        {isExpanded && result.weather && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800">
-            <WeatherDataDisplay weather={result.weather} />
+        {isExpanded && (
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            {/* Weather metadata details */}
+            {result.metadata && (
+              <div className="p-6 space-y-6">
+                {/* Basic weather stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {result.metadata.temperature !== undefined && (
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">気温</div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{result.metadata.temperature}°C</div>
+                    </div>
+                  )}
+                  {result.metadata.weather_condition && (
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">天気</div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{result.metadata.weather_condition}</div>
+                    </div>
+                  )}
+                  {result.metadata.wind_speed !== undefined && (
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">風速</div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{result.metadata.wind_speed}m/s</div>
+                    </div>
+                  )}
+                  {result.metadata.humidity !== undefined && (
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">湿度</div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{result.metadata.humidity}%</div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Forecast base time */}
+                {result.metadata.weather_forecast_time && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">予報基準時刻</span>
+                    </div>
+                    <div className="text-blue-700 dark:text-blue-300 font-medium">
+                      {formatDateTime(result.metadata.weather_forecast_time)}
+                    </div>
+                    <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
+                    </div>
+                  </div>
+                )}
+
+                {/* Weather Timeline */}
+                {result.metadata.weather_timeline && (
+                  <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-6">
+                    <WeatherTimeline timeline={result.metadata.weather_timeline} />
+                  </div>
+                )}
+
+                {/* Selected Comments */}
+                {(result.metadata.selected_weather_comment || result.metadata.selected_advice_comment) && (
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-6">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Info className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <h4 className="text-lg font-semibold text-purple-800 dark:text-purple-200">選択されたコメント</h4>
+                    </div>
+                    {result.metadata.selected_weather_comment && (
+                      <div className="mb-3">
+                        <div className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">
+                          <strong>天気:</strong>
+                        </div>
+                        <div className="text-purple-800 dark:text-purple-200">
+                          {result.metadata.selected_weather_comment}
+                        </div>
+                      </div>
+                    )}
+                    {result.metadata.selected_advice_comment && (
+                      <div>
+                        <div className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">
+                          <strong>アドバイス:</strong>
+                        </div>
+                        <div className="text-purple-800 dark:text-purple-200">
+                          {result.metadata.selected_advice_comment}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Fallback weather display if no metadata */}
+            {result.weather && !result.metadata && (
+              <div className="p-4">
+                <WeatherDataDisplay weather={result.weather} />
+              </div>
+            )}
           </div>
         )}
       </div>
