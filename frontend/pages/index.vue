@@ -9,40 +9,17 @@
           <!-- Left Panel: Settings -->
           <div class="lg:col-span-1">
             <GenerationSettings
-              :is-batch-mode="isBatchMode"
-              :selected-location="selectedLocation"
-              :selected-locations="selectedLocations"
-              :selected-provider="selectedProvider"
-              :locations="locations"
-              :locations-loading="locationsLoading"
-              :provider-options="providerOptions"
-              :providers-loading="providersLoading"
-              :generating="generating"
               :current-time="currentTime"
-              @update:isBatchMode="isBatchMode = $event"
-              @update:selectedLocation="selectedLocation = $event"
-              @update:selectedLocations="selectedLocations = $event"
-              @update:selectedProvider="selectedProvider = $event"
-              @generate="generateComment"
-              @select-all="selectAllLocations"
-              @clear-all="clearAllLocations"
-              @select-region="selectRegionLocations"
             />
             
             <GenerationHistory
-              :history="history"
               class="mt-6"
             />
           </div>
           
           <!-- Right Panel: Results -->
           <div class="lg:col-span-2 space-y-6">
-            <GenerationResults
-              :generating="generating"
-              :is-batch-mode="isBatchMode"
-              :result="result"
-              :results="results"
-            />
+            <GenerationResults />
             
             <WeatherData
               :weather-data="selectedWeatherData"
@@ -62,46 +39,26 @@
 <script setup lang="ts">
 // Import composables and utilities
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { getLocationsByRegion } from '~/constants/regions'
+import { storeToRefs } from 'pinia'
+import { useLocationStore } from '~/stores/location'
+import { useCommentStore } from '~/stores/comment'
+import { useSettingsStore } from '~/stores/settings'
 
-// Runtime config
-const config = useRuntimeConfig()
-const apiBaseUrl = config.public.apiBaseUrl || 'http://localhost:8000'
+// Initialize stores
+const locationStore = useLocationStore()
+const commentStore = useCommentStore()
+const settingsStore = useSettingsStore()
 
-// State management
-const isBatchMode = ref(false)
-const selectedLocation = ref('東京')
-const selectedLocations = ref<string[]>([])
-const selectedProvider = ref({ label: 'Google Gemini', value: 'gemini' })
-const generating = ref(false)
-const result = ref(null)
-const results = ref([])
-const history = ref([])
-const locations = ref([])
-const locationsLoading = ref(false)
-const providersLoading = ref(false)
+// State from stores
+const { isBatchMode, selectedLocation, selectedLocations, locations } = storeToRefs(locationStore)
+const { generating, result, results, history } = storeToRefs(commentStore)
+const { selectedProvider, providers } = storeToRefs(settingsStore)
+
+// Local state
 const currentTime = ref('')
 const selectedWeatherIndex = ref(0) // For selecting which weather data to show in batch mode
 
-// Provider options
-const providerOptions = ref([
-  { label: 'OpenAI GPT', value: 'openai' },
-  { label: 'Google Gemini', value: 'gemini' },
-  { label: 'Anthropic Claude', value: 'anthropic' }
-])
-
 // Computed properties
-const canGenerate = computed(() => {
-  const hasLocation = isBatchMode.value 
-    ? selectedLocations.value.length > 0
-    : !!selectedLocation.value
-  
-  const hasProvider = !!selectedProvider.value
-  const notGenerating = !generating.value
-  
-  return hasLocation && hasProvider && notGenerating
-})
-
 const selectedWeatherData = computed(() => {
   if (!isBatchMode.value) {
     return result.value
@@ -114,194 +71,7 @@ const selectedWeatherData = computed(() => {
   return null
 })
 
-// Methods
-const generateComment = async () => {
-  if (!canGenerate.value) return
-  
-  generating.value = true
-  
-  try {
-    if (isBatchMode.value && selectedLocations.value.length > 0) {
-      // Batch mode: Process multiple locations with parallel processing
-      results.value = []
-      selectedWeatherIndex.value = 0
-      
-      // Process in chunks for better performance
-      const CONCURRENT_LIMIT = 3
-      for (let i = 0; i < selectedLocations.value.length; i += CONCURRENT_LIMIT) {
-        const chunk = selectedLocations.value.slice(i, i + CONCURRENT_LIMIT)
-        
-        const chunkPromises = chunk.map(async (location) => {
-          try {
-            const response = await $fetch(`${apiBaseUrl}/api/generate`, {
-              method: 'POST',
-              body: {
-                location: location,
-                llm_provider: selectedProvider.value.value,
-                target_datetime: new Date().toISOString(),
-                exclude_previous: false
-              }
-            })
-            return response
-          } catch (error) {
-            console.error(`Failed to generate for ${location}:`, error)
-            let errorMessage = 'Unknown error'
-            if (error.name === 'AbortError') {
-              errorMessage = 'タイムアウトしました（5秒以上）'
-            } else if (error.message) {
-              errorMessage = error.message
-            }
-            
-            return {
-              success: false,
-              location: location,
-              error: `生成エラー: ${errorMessage}`,
-              comment: null,
-              advice_comment: null,
-              metadata: null
-            }
-          }
-        })
-        
-        // Wait for all requests in the chunk to complete
-        const chunkResults = await Promise.allSettled(chunkPromises)
-        const processedResults = chunkResults.map((result, index) => {
-          if (result.status === 'fulfilled') {
-            return result.value
-          } else {
-            return {
-              success: false,
-              location: chunk[index],
-              error: '生成エラー: Promise rejected',
-              comment: null,
-              advice_comment: null,
-              metadata: null
-            }
-          }
-        })
-        
-        results.value.push(...processedResults)
-      }
-      
-      // Add batch to history
-      const successCount = results.value.filter(r => r.success).length
-      history.value.unshift({
-        timestamp: new Date().toISOString(),
-        location: `${selectedLocations.value.length}地点 (成功: ${successCount})`,
-        provider: selectedProvider.value?.label || 'Unknown',
-        success: successCount > 0
-      })
-    } else {
-      // Single mode
-      const response = await $fetch(`${apiBaseUrl}/api/generate`, {
-        method: 'POST',
-        body: {
-          location: selectedLocation.value,
-          llm_provider: selectedProvider.value.value,
-          target_datetime: new Date().toISOString(),
-          exclude_previous: false
-        }
-      })
-      
-      result.value = response
-      
-      // Add to history
-      history.value.unshift({
-        timestamp: new Date().toISOString(),
-        location: selectedLocation.value,
-        provider: selectedProvider.value?.label || 'Unknown',
-        success: response.success
-      })
-    }
-    
-  } catch (error) {
-    console.error('Generation failed:', error)
-    if (isBatchMode.value) {
-      // In batch mode, errors should have been handled per location
-      // This catch is for unexpected errors
-      if (results.value.length === 0) {
-        results.value = [{
-          success: false,
-          error: 'バッチ処理の開始に失敗しました',
-          location: '不明'
-        }]
-      }
-    } else {
-      result.value = {
-        success: false,
-        error: 'Generation failed',
-        location: selectedLocation.value
-      }
-    }
-  } finally {
-    generating.value = false
-  }
-}
-
-const selectAllLocations = () => {
-  selectedLocations.value = [...locations.value]
-}
-
-const clearAllLocations = () => {
-  selectedLocations.value = []
-}
-
-const selectRegionLocations = (region: string) => {
-  const regionLocations = getLocationsByRegion(region)
-  const newSelections = regionLocations.filter(loc => locations.value.includes(loc))
-  
-  // Toggle region selection
-  const allSelected = newSelections.every(loc => selectedLocations.value.includes(loc))
-  if (allSelected) {
-    selectedLocations.value = selectedLocations.value.filter(loc => !newSelections.includes(loc))
-  } else {
-    selectedLocations.value = [...new Set([...selectedLocations.value, ...newSelections])]
-  }
-}
-
-const loadLocations = async () => {
-  console.log('Starting loadLocations...')
-  locationsLoading.value = true
-  
-  try {
-    console.log('Attempting to fetch from /api/locations...')
-    // Add timeout to prevent hanging indefinitely
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-    
-    const response = await $fetch(`${apiBaseUrl}/api/locations`, {
-      signal: controller.signal
-    })
-    clearTimeout(timeoutId)
-    
-    console.log('API response received:', response)
-    locations.value = response.locations || []
-  } catch (error) {
-    let errorMessage = '地点データの取得に失敗しました'
-    if (error.name === 'AbortError') {
-      errorMessage = 'API接続がタイムアウトしました（5秒以上）'
-      console.error('API request timeout')
-    } else {
-      console.error('Failed to load locations:', error)
-    }
-    
-    console.log('Using fallback location list...')
-    locations.value = [
-      '札幌', '函館', '旭川', '青森', '秋田', '盛岡', '山形', '仙台', '福島',
-      '新潟', '富山', '金沢', '福井', '水戸', '宇都宮', '前橋', 'さいたま',
-      '千葉', '東京', '横浜', '甲府', '長野', '岐阜', '静岡', '名古屋', '津',
-      '大津', '京都', '大阪', '神戸', '奈良', '和歌山', '鳥取', '松江',
-      '岡山', '広島', '山口', '徳島', '高松', '松山', '高知', '福岡',
-      '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '那覇'
-    ]
-    
-    // TODO: ユーザーに通知を表示する仕組みを追加
-  } finally {
-    console.log('Setting locationsLoading to false, locations count:', locations.value.length)
-    locationsLoading.value = false
-  }
-}
-
+// Methods - Keep only local methods that aren't handled by stores
 const updateCurrentTime = () => {
   const now = new Date()
   currentTime.value = now.toLocaleString('ja-JP', {
@@ -318,16 +88,9 @@ const updateCurrentTime = () => {
 let timeUpdateInterval: NodeJS.Timeout | null = null
 
 // Lifecycle
-onMounted(async () => {
+onMounted(() => {
   updateCurrentTime()
   timeUpdateInterval = setInterval(updateCurrentTime, 1000)
-  
-  await loadLocations()
-  
-  // Set default selections
-  if (locations.value.length > 0) {
-    selectedLocation.value = locations.value[0]
-  }
 })
 
 onUnmounted(() => {
@@ -340,10 +103,10 @@ onUnmounted(() => {
 // Watch for batch mode changes
 watch(isBatchMode, (newValue) => {
   if (newValue) {
-    result.value = null
+    commentStore.clearResults()
   } else {
-    results.value = []
-    selectedLocations.value = []
+    commentStore.clearResults()
+    locationStore.deselectAllLocations()
   }
 })
 </script>

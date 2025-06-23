@@ -132,16 +132,15 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useLocationStore } from '~/stores/location'
+import { useCommentStore } from '~/stores/comment'
 
-interface Props {
-  generating: boolean
-  isBatchMode: boolean
-  result: any
-  results: any[]
-}
+const locationStore = useLocationStore()
+const commentStore = useCommentStore()
 
-const props = defineProps<Props>()
+const { isBatchMode } = storeToRefs(locationStore)
+const { generating, result, results } = storeToRefs(commentStore)
 
 const formatDateTime = (dateString: any) => {
   if (!dateString) return '不明'

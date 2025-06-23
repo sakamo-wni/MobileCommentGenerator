@@ -8,9 +8,9 @@
     <select 
       v-if="!isBatchMode"
       :value="selectedLocation"
-      @change="$emit('update:selectedLocation', $event.target.value)"
+      @change="locationStore.selectedLocation = ($event.target as HTMLSelectElement).value"
       class="form-select"
-      :disabled="locationsLoading"
+      :disabled="false"
     >
       <option value="">地点を選択...</option>
       <option v-for="location in locations" :key="location" :value="location">
@@ -24,7 +24,7 @@
       <div class="space-y-2">
         <div class="flex flex-wrap gap-2">
           <AppButton 
-            @click="$emit('selectAll')"
+            @click="locationStore.selectAllLocations()"
             size="xs" 
             variant="outline"
             icon="heroicons:check-circle"
@@ -33,7 +33,7 @@
             🌍 全地点選択
           </AppButton>
           <AppButton 
-            @click="$emit('clearAll')"
+            @click="locationStore.deselectAllLocations()"
             size="xs" 
             variant="outline"
             icon="heroicons:x-circle"
@@ -48,7 +48,7 @@
           <AppButton 
             v-for="region in availableRegions"
             :key="region"
-            @click="$emit('selectRegion', region)" 
+            @click="selectRegion(region)" 
             size="xs" 
             :variant="isRegionSelected(region) ? 'primary' : 'outline'"
           >
@@ -63,7 +63,7 @@
         :value="selectedLocations"
         @change="updateSelectedLocations($event)"
         class="form-select h-32"
-        :disabled="locationsLoading"
+        :disabled="false"
       >
         <option v-for="location in locations" :key="location" :value="location">
           {{ location }}
@@ -79,27 +79,18 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, computed } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { REGIONS, getLocationsByRegion, SIMPLIFIED_REGIONS } from '~/constants/regions'
+import { useLocationStore } from '~/stores/location'
 
-interface Props {
-  isBatchMode: boolean
-  selectedLocation: string
-  selectedLocations: string[]
-  locations: string[]
-  locationsLoading: boolean
-}
-
-interface Emits {
-  'update:selectedLocation': [value: string]
-  'update:selectedLocations': [value: string[]]
-  'selectAll': []
-  'clearAll': []
-  'selectRegion': [region: string]
-}
-
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
+const locationStore = useLocationStore()
+const { 
+  isBatchMode, 
+  selectedLocation, 
+  selectedLocations, 
+  locations 
+} = storeToRefs(locationStore)
 
 // Get available regions from SIMPLIFIED_REGIONS for UI display
 const availableRegions = computed(() => Object.keys(SIMPLIFIED_REGIONS))
@@ -107,11 +98,25 @@ const availableRegions = computed(() => Object.keys(SIMPLIFIED_REGIONS))
 const updateSelectedLocations = (event: Event) => {
   const target = event.target as HTMLSelectElement
   const selected = Array.from(target.selectedOptions).map(option => option.value)
-  emit('update:selectedLocations', selected)
+  // Clear current selections and set new ones
+  locationStore.clearSelection()
+  for (const location of selected) {
+    locationStore.selectLocation(location)
+  }
 }
 
 const isRegionSelected = (region: string) => {
   const regionLocations = getLocationsByRegion(region)
-  return regionLocations.length > 0 && regionLocations.every(loc => props.selectedLocations.includes(loc))
+  return regionLocations.length > 0 && regionLocations.every(loc => selectedLocations.value.includes(loc))
+}
+
+// 地域選択機能
+const selectRegion = (region: string) => {
+  const regionLocations = getLocationsByRegion(region)
+  for (const location of regionLocations) {
+    if (locations.value.includes(location) && !selectedLocations.value.includes(location)) {
+      locationStore.selectLocation(location)
+    }
+  }
 }
 </script>
