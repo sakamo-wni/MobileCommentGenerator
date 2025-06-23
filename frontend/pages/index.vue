@@ -122,41 +122,65 @@ const generateComment = async () => {
   
   try {
     if (isBatchMode.value && selectedLocations.value.length > 0) {
-      // Batch mode: Process multiple locations
+      // Batch mode: Process multiple locations with parallel processing
       results.value = []
       selectedWeatherIndex.value = 0
       
-      for (const location of selectedLocations.value) {
-        try {
-          const response = await $fetch(`${apiBaseUrl}/api/generate`, {
-            method: 'POST',
-            body: {
-              location: location,
-              llm_provider: selectedProvider.value.value,
-              target_datetime: new Date().toISOString(),
-              exclude_previous: false
+      // Process in chunks for better performance
+      const CONCURRENT_LIMIT = 3
+      for (let i = 0; i < selectedLocations.value.length; i += CONCURRENT_LIMIT) {
+        const chunk = selectedLocations.value.slice(i, i + CONCURRENT_LIMIT)
+        
+        const chunkPromises = chunk.map(async (location) => {
+          try {
+            const response = await $fetch(`${apiBaseUrl}/api/generate`, {
+              method: 'POST',
+              body: {
+                location: location,
+                llm_provider: selectedProvider.value.value,
+                target_datetime: new Date().toISOString(),
+                exclude_previous: false
+              }
+            })
+            return response
+          } catch (error) {
+            console.error(`Failed to generate for ${location}:`, error)
+            let errorMessage = 'Unknown error'
+            if (error.name === 'AbortError') {
+              errorMessage = 'タイムアウトしました（5秒以上）'
+            } else if (error.message) {
+              errorMessage = error.message
             }
-          })
-          
-          results.value.push(response)
-        } catch (error) {
-          console.error(`Failed to generate for ${location}:`, error)
-          let errorMessage = 'Unknown error'
-          if (error.name === 'AbortError') {
-            errorMessage = 'タイムアウトしました（5秒以上）'
-          } else if (error.message) {
-            errorMessage = error.message
+            
+            return {
+              success: false,
+              location: location,
+              error: `生成エラー: ${errorMessage}`,
+              comment: null,
+              advice_comment: null,
+              metadata: null
+            }
           }
-          
-          results.value.push({
-            success: false,
-            location: location,
-            error: `生成エラー: ${errorMessage}`,
-            comment: null,
-            advice_comment: null,
-            metadata: null
-          })
-        }
+        })
+        
+        // Wait for all requests in the chunk to complete
+        const chunkResults = await Promise.allSettled(chunkPromises)
+        const processedResults = chunkResults.map((result, index) => {
+          if (result.status === 'fulfilled') {
+            return result.value
+          } else {
+            return {
+              success: false,
+              location: chunk[index],
+              error: '生成エラー: Promise rejected',
+              comment: null,
+              advice_comment: null,
+              metadata: null
+            }
+          }
+        })
+        
+        results.value.push(...processedResults)
       }
       
       // Add batch to history

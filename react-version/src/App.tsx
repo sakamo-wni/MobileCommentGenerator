@@ -15,8 +15,8 @@ interface BatchResult {
   location: string;
   comment?: string;
   error?: string;
-  metadata?: any;
-  weather?: any;
+  metadata?: Record<string, unknown>;
+  weather?: Record<string, unknown>;
   adviceComment?: string;
 }
 
