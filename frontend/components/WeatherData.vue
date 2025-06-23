@@ -136,11 +136,12 @@
 
 <script setup lang="ts">
 import { defineProps } from 'vue'
+import type { CommentGenerationResult, WeatherForecast } from '~/types'
 
 interface Props {
-  weatherData?: any
+  weatherData?: CommentGenerationResult | null
   isBatchMode?: boolean
-  batchResults?: any[]
+  batchResults?: CommentGenerationResult[]
   selectedIndex?: number
 }
 
@@ -164,7 +165,7 @@ const formatDateTime = (dateString: string) => {
   }
 }
 
-const getDateFromForecast = (forecast: any) => {
+const getDateFromForecast = (forecast: WeatherForecast) => {
   if (!forecast || !forecast.time) return ''
   try {
     // "06/24 09:00" format

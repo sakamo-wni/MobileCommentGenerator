@@ -10,7 +10,7 @@ import type {
 
 export const useApi = () => {
   const config = useRuntimeConfig()
-  const baseURL = 'http://localhost:8000' // Direct API URL
+  const baseURL = config.public.apiBaseUrl || 'http://localhost:8000'
 
   // Health check
   const checkHealth = async (): Promise<boolean> => {

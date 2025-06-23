@@ -61,8 +61,12 @@
 
 <script setup lang="ts">
 // Import composables and utilities
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getLocationsByRegion } from '~/constants/regions'
+
+// Runtime config
+const config = useRuntimeConfig()
+const apiBaseUrl = config.public.apiBaseUrl || 'http://localhost:8000'
 
 // State management
 const isBatchMode = ref(false)
@@ -88,10 +92,14 @@ const providerOptions = ref([
 
 // Computed properties
 const canGenerate = computed(() => {
-  return ((isBatchMode.value && selectedLocations.value.length > 0) || 
-         (!isBatchMode.value && selectedLocation.value)) && 
-         selectedProvider.value && 
-         !generating.value
+  const hasLocation = isBatchMode.value 
+    ? selectedLocations.value.length > 0
+    : !!selectedLocation.value
+  
+  const hasProvider = !!selectedProvider.value
+  const notGenerating = !generating.value
+  
+  return hasLocation && hasProvider && notGenerating
 })
 
 const selectedWeatherData = computed(() => {
@@ -120,7 +128,7 @@ const generateComment = async () => {
       
       for (const location of selectedLocations.value) {
         try {
-          const response = await $fetch('http://localhost:8000/api/generate', {
+          const response = await $fetch(`${apiBaseUrl}/api/generate`, {
             method: 'POST',
             body: {
               location: location,
@@ -133,10 +141,17 @@ const generateComment = async () => {
           results.value.push(response)
         } catch (error) {
           console.error(`Failed to generate for ${location}:`, error)
+          let errorMessage = 'Unknown error'
+          if (error.name === 'AbortError') {
+            errorMessage = 'タイムアウトしました（5秒以上）'
+          } else if (error.message) {
+            errorMessage = error.message
+          }
+          
           results.value.push({
             success: false,
             location: location,
-            error: `生成エラー: ${error.message || 'Unknown error'}`,
+            error: `生成エラー: ${errorMessage}`,
             comment: null,
             advice_comment: null,
             metadata: null
@@ -154,7 +169,7 @@ const generateComment = async () => {
       })
     } else {
       // Single mode
-      const response = await $fetch('http://localhost:8000/api/generate', {
+      const response = await $fetch(`${apiBaseUrl}/api/generate`, {
         method: 'POST',
         body: {
           location: selectedLocation.value,
@@ -230,7 +245,7 @@ const loadLocations = async () => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
     
-    const response = await $fetch('http://localhost:8000/api/locations', {
+    const response = await $fetch(`${apiBaseUrl}/api/locations`, {
       signal: controller.signal
     })
     clearTimeout(timeoutId)
@@ -238,7 +253,14 @@ const loadLocations = async () => {
     console.log('API response received:', response)
     locations.value = response.locations || []
   } catch (error) {
-    console.error('Failed to load locations:', error)
+    let errorMessage = '地点データの取得に失敗しました'
+    if (error.name === 'AbortError') {
+      errorMessage = 'API接続がタイムアウトしました（5秒以上）'
+      console.error('API request timeout')
+    } else {
+      console.error('Failed to load locations:', error)
+    }
+    
     console.log('Using fallback location list...')
     locations.value = [
       '札幌', '函館', '旭川', '青森', '秋田', '盛岡', '山形', '仙台', '福島',
@@ -248,6 +270,8 @@ const loadLocations = async () => {
       '岡山', '広島', '山口', '徳島', '高松', '松山', '高知', '福岡',
       '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '那覇'
     ]
+    
+    // TODO: ユーザーに通知を表示する仕組みを追加
   } finally {
     console.log('Setting locationsLoading to false, locations count:', locations.value.length)
     locationsLoading.value = false
@@ -266,16 +290,26 @@ const updateCurrentTime = () => {
   })
 }
 
+// Time update interval reference
+let timeUpdateInterval: NodeJS.Timeout | null = null
+
 // Lifecycle
 onMounted(async () => {
   updateCurrentTime()
-  setInterval(updateCurrentTime, 1000)
+  timeUpdateInterval = setInterval(updateCurrentTime, 1000)
   
   await loadLocations()
   
   // Set default selections
   if (locations.value.length > 0) {
     selectedLocation.value = locations.value[0]
+  }
+})
+
+onUnmounted(() => {
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval)
+    timeUpdateInterval = null
   }
 })
 
