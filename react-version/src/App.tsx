@@ -61,18 +61,18 @@ function App() {
     } else {
       if (!selectedLocation) return;
     }
-    
+
     clearError();
     setGeneratedComment(null);
     setBatchResults([]);
     setExpandedLocations(new Set());
-    
+
     try {
       if (isBatchMode) {
         // Batch generation
         const BATCH_SIZE = 3;
         const results: BatchResult[] = [];
-        
+
         for (let i = 0; i < selectedLocations.length; i += BATCH_SIZE) {
           const chunk = selectedLocations.slice(i, i + BATCH_SIZE);
           const chunkPromises = chunk.map(async (locationName: string) => {
@@ -85,11 +85,11 @@ function App() {
                 prefecture: locationInfo.prefecture,
                 region: locationInfo.region
               };
-              
+
               const result = await generateComment(locationObj, {
                 llmProvider,
               });
-              
+
               return {
                 success: true,
                 location: locationName,
@@ -110,7 +110,7 @@ function App() {
           const chunkResults = await Promise.all(chunkPromises);
           results.push(...chunkResults);
         }
-        
+
         setBatchResults(results);
       } else {
         // Single location generation
@@ -143,10 +143,10 @@ function App() {
 
   const handleRegenerateSingle = async () => {
     if (!selectedLocation) return;
-    
+
     setIsRegeneratingSingle(true);
     clearError();
-    
+
     try {
       const result = await generateComment(selectedLocation, {
         llmProvider,
@@ -162,7 +162,7 @@ function App() {
 
   const handleRegenerateBatch = async (locationName: string) => {
     setRegeneratingStates(prev => ({ ...prev, [locationName]: true }));
-    
+
     try {
       const locationInfo = getLocationInfo(locationName);
       const locationObj: Location = {
@@ -171,12 +171,12 @@ function App() {
         prefecture: locationInfo.prefecture,
         region: locationInfo.region
       };
-      
+
       const result = await generateComment(locationObj, {
         llmProvider,
         excludePrevious: true,
       });
-      
+
       const newResult: BatchResult = {
         success: true,
         location: locationName,
@@ -185,9 +185,9 @@ function App() {
         weather: result.weather,
         adviceComment: result.adviceComment
       };
-      
-      setBatchResults(prev => 
-        prev.map(item => 
+
+      setBatchResults(prev =>
+        prev.map(item =>
           item.location === locationName ? newResult : item
         )
       );
@@ -197,9 +197,9 @@ function App() {
         location: locationName,
         error: error.message || 'コメント再生成に失敗しました'
       };
-      
-      setBatchResults(prev => 
-        prev.map(item => 
+
+      setBatchResults(prev =>
+        prev.map(item =>
           item.location === locationName ? errorResult : item
         )
       );
@@ -317,8 +317,8 @@ function App() {
                   type="button"
                   onClick={handleGenerateComment}
                   disabled={
-                    (isBatchMode && selectedLocations.length === 0) ||
-                    (!isBatchMode && !selectedLocation) ||
+                    ((isBatchMode && selectedLocations.length === 0) ||
+                    (!isBatchMode && !selectedLocation)) ||
                     loading
                   }
                   className="w-full flex items-center justify-center space-x-2 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -355,10 +355,10 @@ function App() {
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">一括生成結果</h2>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    成功: {batchResults.filter(r => r.success).length}件 / 
+                    成功: {batchResults.filter(r => r.success).length}件 /
                     全体: {batchResults.length}件
                   </div>
-                  
+
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
                       <BatchResultItem
@@ -389,8 +389,8 @@ function App() {
               {/* 天気データ */}
               {!isBatchMode && generatedComment?.weather && (
                 <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                  <WeatherDataDisplay 
-                    weather={generatedComment.weather} 
+                  <WeatherDataDisplay
+                    weather={generatedComment.weather}
                     metadata={generatedComment.metadata}
                   />
                 </div>
@@ -405,7 +405,7 @@ function App() {
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                       左側のパネルから{isBatchMode ? '地点（複数選択可）' : '地点'}とプロバイダーを選択して、「{isBatchMode ? '一括' : ''}コメント生成」ボタンをクリックしてください
                     </div>
-                    
+
                     {/* Sample Comments */}
                     <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-left">
                       <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">サンプルコメント:</div>
