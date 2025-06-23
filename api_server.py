@@ -36,9 +36,9 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,  # セキュリティ強化: 認証情報を無効化
+    allow_methods=["GET", "POST"],  # セキュリティ強化: 必要なメソッドのみ許可
+    allow_headers=["Content-Type", "Authorization"],  # セキュリティ強化: 必要なヘッダーのみ許可
 )
 
 # Pydantic models

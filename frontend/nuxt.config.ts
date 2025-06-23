@@ -31,12 +31,15 @@ export default defineNuxtConfig({
     }
   },
 
-  // 開発サーバープロキシ設定
-  nitro: {
-    devProxy: {
-      '/api': {
-        target: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
-        changeOrigin: true
+  // Vite proxy configuration
+  vite: {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
+        }
       }
     }
   },
