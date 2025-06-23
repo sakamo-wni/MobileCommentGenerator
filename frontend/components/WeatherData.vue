@@ -3,7 +3,7 @@
     <template #header>
       <div class="flex items-center justify-between">
         <div class="flex items-center">
-          <Icon name="heroicons:cloud-sun" class="w-5 h-5 mr-2" />
+          <Icon name="heroicons:cloud" class="w-5 h-5 mr-2" />
           <h2 class="text-lg font-semibold">天気予報データ</h2>
         </div>
         

@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   
   // UI Framework
   modules: [
+    '@pinia/nuxt',
     '@unocss/nuxt',
     '@vueuse/nuxt', 
     '@nuxt/icon'

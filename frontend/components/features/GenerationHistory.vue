@@ -33,13 +33,11 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useCommentStore } from '~/stores/comment'
 
-interface Props {
-  history: any[]
-}
-
-const props = defineProps<Props>()
+const commentStore = useCommentStore()
+const { history } = storeToRefs(commentStore)
 
 const formatDate = (timestamp: any) => {
   if (!timestamp) return '不明'
