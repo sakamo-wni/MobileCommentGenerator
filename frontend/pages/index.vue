@@ -36,12 +36,20 @@
           </div>
           
           <!-- Right Panel: Results -->
-          <div class="lg:col-span-2">
+          <div class="lg:col-span-2 space-y-6">
             <GenerationResults
               :generating="generating"
               :is-batch-mode="isBatchMode"
               :result="result"
               :results="results"
+            />
+            
+            <WeatherData
+              :weather-data="selectedWeatherData"
+              :is-batch-mode="isBatchMode"
+              :batch-results="results"
+              :selected-index="selectedWeatherIndex"
+              @update:selectedIndex="selectedWeatherIndex = $event"
             />
           </div>
           
@@ -54,12 +62,13 @@
 <script setup lang="ts">
 // Import composables and utilities
 import { ref, computed, onMounted, watch } from 'vue'
+import { getLocationsByRegion } from '~/constants/regions'
 
 // State management
 const isBatchMode = ref(false)
-const selectedLocation = ref('')
+const selectedLocation = ref('東京')
 const selectedLocations = ref<string[]>([])
-const selectedProvider = ref(null)
+const selectedProvider = ref({ label: 'Google Gemini', value: 'gemini' })
 const generating = ref(false)
 const result = ref(null)
 const results = ref([])
@@ -68,21 +77,33 @@ const locations = ref([])
 const locationsLoading = ref(false)
 const providersLoading = ref(false)
 const currentTime = ref('')
+const selectedWeatherIndex = ref(0) // For selecting which weather data to show in batch mode
 
 // Provider options
 const providerOptions = ref([
-  { label: 'OpenAI GPT-4', value: 'openai-gpt4' },
-  { label: 'OpenAI GPT-3.5', value: 'openai-gpt35' },
-  { label: 'Anthropic Claude', value: 'anthropic-claude' },
-  { label: 'Google Gemini', value: 'google-gemini' }
+  { label: 'OpenAI GPT', value: 'openai' },
+  { label: 'Google Gemini', value: 'gemini' },
+  { label: 'Anthropic Claude', value: 'anthropic' }
 ])
 
 // Computed properties
 const canGenerate = computed(() => {
-  return (isBatchMode.value && selectedLocations.value.length > 0) || 
-         (!isBatchMode.value && selectedLocation.value) && 
+  return ((isBatchMode.value && selectedLocations.value.length > 0) || 
+         (!isBatchMode.value && selectedLocation.value)) && 
          selectedProvider.value && 
          !generating.value
+})
+
+const selectedWeatherData = computed(() => {
+  if (!isBatchMode.value) {
+    return result.value
+  }
+  
+  if (results.value.length > 0 && selectedWeatherIndex.value < results.value.length) {
+    return results.value[selectedWeatherIndex.value]
+  }
+  
+  return null
 })
 
 // Methods
@@ -92,34 +113,80 @@ const generateComment = async () => {
   generating.value = true
   
   try {
-    const response = await $fetch('/api/generate', {
-      method: 'POST',
-      body: {
-        isBatchMode: isBatchMode.value,
-        location: selectedLocation.value,
-        locations: selectedLocations.value,
-        provider: selectedProvider.value
+    if (isBatchMode.value && selectedLocations.value.length > 0) {
+      // Batch mode: Process multiple locations
+      results.value = []
+      selectedWeatherIndex.value = 0
+      
+      for (const location of selectedLocations.value) {
+        try {
+          const response = await $fetch('http://localhost:8000/api/generate', {
+            method: 'POST',
+            body: {
+              location: location,
+              llm_provider: selectedProvider.value.value,
+              target_datetime: new Date().toISOString(),
+              exclude_previous: false
+            }
+          })
+          
+          results.value.push(response)
+        } catch (error) {
+          console.error(`Failed to generate for ${location}:`, error)
+          results.value.push({
+            success: false,
+            location: location,
+            error: `生成エラー: ${error.message || 'Unknown error'}`,
+            comment: null,
+            advice_comment: null,
+            metadata: null
+          })
+        }
       }
-    })
-    
-    if (isBatchMode.value) {
-      results.value = response.results
+      
+      // Add batch to history
+      const successCount = results.value.filter(r => r.success).length
+      history.value.unshift({
+        timestamp: new Date().toISOString(),
+        location: `${selectedLocations.value.length}地点 (成功: ${successCount})`,
+        provider: selectedProvider.value?.label || 'Unknown',
+        success: successCount > 0
+      })
     } else {
+      // Single mode
+      const response = await $fetch('http://localhost:8000/api/generate', {
+        method: 'POST',
+        body: {
+          location: selectedLocation.value,
+          llm_provider: selectedProvider.value.value,
+          target_datetime: new Date().toISOString(),
+          exclude_previous: false
+        }
+      })
+      
       result.value = response
+      
+      // Add to history
+      history.value.unshift({
+        timestamp: new Date().toISOString(),
+        location: selectedLocation.value,
+        provider: selectedProvider.value?.label || 'Unknown',
+        success: response.success
+      })
     }
-    
-    // Add to history
-    history.value.unshift({
-      timestamp: new Date().toISOString(),
-      location: isBatchMode.value ? 'Multiple' : selectedLocation.value,
-      provider: selectedProvider.value.label,
-      success: isBatchMode.value ? response.results.some(r => r.success) : response.success
-    })
     
   } catch (error) {
     console.error('Generation failed:', error)
     if (isBatchMode.value) {
-      results.value = []
+      // In batch mode, errors should have been handled per location
+      // This catch is for unexpected errors
+      if (results.value.length === 0) {
+        results.value = [{
+          success: false,
+          error: 'バッチ処理の開始に失敗しました',
+          location: '不明'
+        }]
+      }
     } else {
       result.value = {
         success: false,
@@ -141,21 +208,7 @@ const clearAllLocations = () => {
 }
 
 const selectRegionLocations = (region: string) => {
-  const regionMap: Record<string, string[]> = {
-    '北海道': ['札幌', '函館', '旭川'],
-    '東北': ['青森', '秋田', '盛岡', '山形', '仙台', '福島'],
-    '北陸': ['新潟', '富山', '金沢', '福井'],
-    '関東': ['水戸', '宇都宮', '前橋', 'さいたま', '千葉', '東京', '横浜'],
-    '甲信': ['甲府', '長野'],
-    '東海': ['岐阜', '静岡', '名古屋', '津'],
-    '近畿': ['大津', '京都', '大阪', '神戸', '奈良', '和歌山'],
-    '中国': ['鳥取', '松江', '岡山', '広島', '山口'],
-    '四国': ['徳島', '高松', '松山', '高知'],
-    '九州': ['福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島'],
-    '沖縄': ['那覇']
-  }
-  
-  const regionLocations = regionMap[region] || []
+  const regionLocations = getLocationsByRegion(region)
   const newSelections = regionLocations.filter(loc => locations.value.includes(loc))
   
   // Toggle region selection
@@ -177,7 +230,7 @@ const loadLocations = async () => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
     
-    const response = await $fetch('/api/locations', {
+    const response = await $fetch('http://localhost:8000/api/locations', {
       signal: controller.signal
     })
     clearTimeout(timeoutId)

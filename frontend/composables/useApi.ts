@@ -10,7 +10,7 @@ import type {
 
 export const useApi = () => {
   const config = useRuntimeConfig()
-  const baseURL = config.public.apiBaseUrl || 'http://localhost:8000'
+  const baseURL = 'http://localhost:8000' // Direct API URL
 
   // Health check
   const checkHealth = async (): Promise<boolean> => {
@@ -65,20 +65,13 @@ export const useApi = () => {
     weatherData?: WeatherData
   ): Promise<ApiResponse<GeneratedComment[]>> => {
     try {
-      const data = await $fetch<GeneratedComment[]>(`${baseURL}/api/generate-comment`, {
+      const data = await $fetch<GeneratedComment[]>(`${baseURL}/api/generate`, {
         method: 'POST',
         body: {
-          locations,
-          target_datetime: new Date().toISOString(),
+          location: locations[0], // Backend expects single location string
           llm_provider: 'gemini',
-          generation_settings: {
-            include_emoji: settings.includeEmoji,
-            include_advice: settings.includeAdvice,
-            polite_form: settings.politeForm,
-            method: settings.method,
-            count: settings.count
-          },
-          weather_data: weatherData
+          target_datetime: new Date().toISOString(),
+          exclude_previous: false
         }
       })
       return { success: true, data }
