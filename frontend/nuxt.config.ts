@@ -7,8 +7,14 @@ export default defineNuxtConfig({
   modules: [
     '@unocss/nuxt',
     '@vueuse/nuxt', 
-    '@nuxt/icon'
+    '@nuxt/icon',
+    '@pinia/nuxt'
   ],
+  
+  // Pinia設定
+  pinia: {
+    storesDirs: ['./stores/**']
+  },
   css: ['@unocss/reset/tailwind.css'],
 
   components: [
