@@ -11,16 +11,20 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@nuxt/icon": "^1.0.0",
+    "@unocss/nuxt": "^0.58.9",
+    "@unocss/preset-typography": "^66.2.3",
+    "@unocss/preset-uno": "^66.2.3",
+    "@vueuse/nuxt": "^10.7.0",
     "nuxt": "^3.17.4",
+    "unocss": "^66.2.3",
     "vue": "^3.5.16",
     "vue-router": "^4.5.1",
-    "@nuxt/ui": "^2.14.0",
-    "@headlessui/vue": "^1.7.16",
-    "@heroicons/vue": "^2.0.18"
+    "vue-tsc": "^2.0.0"
   },
   "devDependencies": {
+    "@iconify-json/heroicons": "^1.2.2",
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.0",
-    "vue-tsc": "^1.8.0"
+    "typescript": "^5.3.0"
   }
 }

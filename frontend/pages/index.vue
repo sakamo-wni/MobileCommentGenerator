@@ -1,775 +1,130 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center">
-            <UIcon name="i-heroicons-sun" class="w-8 h-8 text-yellow-500 mr-3" />
-            <h1 class="text-xl font-bold text-gray-900">天気コメント生成システム</h1>
-          </div>
-          <UBadge color="blue" variant="subtle">
-            Version 1.0.0
-          </UBadge>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <AppHeader />
+    
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div class="px-4 py-6 sm:px-0">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <!-- Left Panel: Settings -->
           <div class="lg:col-span-1">
-            <UCard>
-              <template #header>
-                <div class="flex items-center">
-                  <UIcon name="i-heroicons-cog-6-tooth" class="w-5 h-5 mr-2" />
-                  <h2 class="text-lg font-semibold">設定</h2>
-                </div>
-              </template>
-
-              <!-- Batch Mode Toggle -->
-              <div class="mb-6">
-                <UFormGroup label="生成モード" class="mb-4">
-                  <div class="p-4 border-2 border-gray-200 rounded-lg bg-white hover:border-blue-300 transition-colors">
-                    <div class="flex items-center justify-between">
-                      <div class="flex-1">
-                        <div class="text-lg font-semibold text-gray-900 mb-1">
-                          {{ isBatchMode ? '🌏 一括生成モード' : '📍 単一地点モード' }}
-                        </div>
-                        <div class="text-sm text-gray-600">
-                          {{ isBatchMode ? '複数地点を同時に生成します' : '1つの地点のみ生成します' }}
-                        </div>
-                      </div>
-                      <div class="relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out"
-                           :class="isBatchMode ? 'bg-blue-500' : 'bg-gray-300'"
-                           @click="isBatchMode = !isBatchMode">
-                        <span class="pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                              :class="isBatchMode ? 'translate-x-6' : 'translate-x-0'">
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </UFormGroup>
-              </div>
-
-              <!-- Location Selection -->
-              <div class="mb-6">
-                <UFormGroup :label="isBatchMode ? '地点選択（複数選択可）' : '地点選択'" class="mb-4">
-                  <!-- Single location mode -->
-                  <USelectMenu
-                    v-if="!isBatchMode"
-                    v-model="selectedLocation"
-                    :options="locations"
-                    placeholder="地点を選択..."
-                    :loading="locationsLoading"
-                    searchable
-                  />
-                  
-                  <!-- Batch mode -->
-                  <div v-else class="space-y-3">
-                    <!-- Quick select buttons -->
-                    <div class="space-y-2">
-                      <div class="flex flex-wrap gap-2">
-                        <UButton 
-                          @click="selectAllLocations"
-                          size="xs" 
-                          variant="outline"
-                          icon="i-heroicons-check-circle"
-                          color="green"
-                        >
-                          🌍 全地点選択
-                        </UButton>
-                        <UButton 
-                          @click="clearAllLocations"
-                          size="xs" 
-                          variant="outline"
-                          icon="i-heroicons-x-circle"
-                          color="red"
-                        >
-                          クリア
-                        </UButton>
-                      </div>
-                      
-                      <div class="text-xs font-medium text-gray-700 mb-1">地域選択:</div>
-                      <div class="flex flex-wrap gap-1">
-                        <UButton 
-                          v-for="region in ['北海道', '東北', '北陸', '関東', '甲信', '東海', '近畿', '中国', '四国', '九州', '沖縄']"
-                          :key="region"
-                          @click="selectRegionLocations(region)" 
-                          size="xs" 
-                          :variant="isRegionSelected(region) ? 'solid' : 'outline'"
-                          :color="isRegionSelected(region) ? 'primary' : 'gray'"
-                        >
-                          {{ region }}
-                        </UButton>
-                      </div>
-                    </div>
-                    
-                    <!-- Multiple select -->
-                    <USelectMenu
-                      v-model="selectedLocations"
-                      :options="locations"
-                      placeholder="地点を選択..."
-                      :loading="locationsLoading"
-                      multiple
-                      searchable
-                    />
-                    
-                    <!-- Selected count -->
-                    <div class="text-sm text-gray-600">
-                      選択中: {{ selectedLocations.length }}地点
-                    </div>
-                  </div>
-                </UFormGroup>
-              </div>
-
-              <!-- LLM Provider Selection -->
-              <div class="mb-6">
-                <UFormGroup label="LLMプロバイダー" class="mb-4">
-                  <USelectMenu
-                    v-model="selectedProvider"
-                    :options="providerOptions"
-                    placeholder="プロバイダーを選択..."
-                    :loading="providersLoading"
-                  />
-                </UFormGroup>
-              </div>
-
-              <!-- Weather Forecast Info -->
-              <div class="mb-6">
-                <UAlert
-                  color="blue"
-                  variant="subtle"
-                  title="天気予報の仕様"
-                  icon="i-heroicons-cloud"
-                >
-                  <template #description>
-                    <div class="text-sm space-y-1">
-                      <div>• 予報時刻: 翌日の9:00, 12:00, 15:00, 18:00（JST）</div>
-                      <div>• 優先順位: 雷・嵐 > 本降りの雨 > 猛暑日熱中症対策 > 雨 > 曇り > 晴れ</div>
-                    </div>
-                  </template>
-                </UAlert>
-              </div>
-
-              <!-- Current Time -->
-              <div class="mb-6">
-                <UAlert
-                  color="blue"
-                  variant="subtle"
-                  :title="`生成時刻: ${currentTime}`"
-                  icon="i-heroicons-clock"
-                />
-              </div>
-
-              <!-- Generate Button -->
-              <UButton
-                @click="generateComment"
-                :loading="generating"
-                :disabled="(isBatchMode && selectedLocations.length === 0) || (!isBatchMode && !selectedLocation) || !selectedProvider || generating"
-                color="primary"
-                size="lg"
-                block
-              >
-                <UIcon name="i-heroicons-sparkles" class="w-5 h-5 mr-2" />
-                {{ isBatchMode ? '一括コメント生成' : 'コメント生成' }}
-              </UButton>
-            </UCard>
-
-            <!-- History Panel -->
-            <UCard class="mt-6">
-              <template #header>
-                <div class="flex items-center">
-                  <UIcon name="i-heroicons-clock" class="w-5 h-5 mr-2" />
-                  <h2 class="text-lg font-semibold">生成履歴</h2>
-                </div>
-              </template>
-              
-              <div v-if="history.length === 0" class="text-center text-gray-500 py-4">
-                履歴がありません
-              </div>
-              
-              <div v-else class="space-y-3 max-h-64 overflow-y-auto">
-                <div
-                  v-for="(item, index) in history.slice(0, 5)"
-                  :key="index"
-                  class="p-3 bg-gray-50 rounded-lg"
-                >
-                  <div class="text-sm font-medium text-gray-900">
-                    {{ item.location || '不明な地点' }}
-                  </div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    {{ formatDate(item.timestamp) }}
-                  </div>
-                  <div class="text-sm text-gray-700 mt-2 line-clamp-2">
-                    {{ item.comment || item.final_comment || 'コメントなし' }}
-                  </div>
-                </div>
-              </div>
-            </UCard>
+            <GenerationSettings
+              :is-batch-mode="isBatchMode"
+              :selected-location="selectedLocation"
+              :selected-locations="selectedLocations"
+              :selected-provider="selectedProvider"
+              :locations="locations"
+              :locations-loading="locationsLoading"
+              :provider-options="providerOptions"
+              :providers-loading="providersLoading"
+              :generating="generating"
+              :current-time="currentTime"
+              @update:isBatchMode="isBatchMode = $event"
+              @update:selectedLocation="selectedLocation = $event"
+              @update:selectedLocations="selectedLocations = $event"
+              @update:selectedProvider="selectedProvider = $event"
+              @generate="generateComment"
+              @select-all="selectAllLocations"
+              @clear-all="clearAllLocations"
+              @select-region="selectRegionLocations"
+            />
+            
+            <GenerationHistory
+              :history="history"
+              class="mt-6"
+            />
           </div>
-
+          
           <!-- Right Panel: Results -->
           <div class="lg:col-span-2">
-            <UCard>
-              <template #header>
-                <div class="flex items-center">
-                  <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="w-5 h-5 mr-2" />
-                  <h2 class="text-lg font-semibold">生成結果</h2>
-                </div>
-              </template>
-
-              <!-- Loading State -->
-              <div v-if="generating" class="text-center py-12">
-                <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
-                <div class="text-lg font-medium text-gray-900">生成中...</div>
-                <div class="text-sm text-gray-500 mt-2">
-                  {{ isBatchMode 
-                    ? `${selectedLocations.length}地点のコメントを生成しています` 
-                    : `${selectedLocation} のコメントを生成しています` }}
-                </div>
-              </div>
-
-              <!-- Batch Results -->
-              <div v-else-if="isBatchMode && results.length > 0" class="space-y-4">
-                <div class="mb-4">
-                  <h3 class="text-lg font-semibold">一括生成結果</h3>
-                  <div class="text-sm text-gray-600">
-                    成功: {{ results.filter(r => r.success).length }}件 / 
-                    全体: {{ results.length }}件
-                  </div>
-                </div>
-                
-                <div v-for="(batchResult, index) in results" :key="index" class="border rounded-lg p-4">
-                  <div v-if="batchResult.success">
-                    <UAlert
-                      color="green"
-                      variant="subtle"
-                      :title="`${batchResult.location} - 生成完了`"
-                      icon="i-heroicons-check-circle"
-                      class="mb-3"
-                    />
-                    <div class="p-3 bg-green-50 rounded border border-green-200 mb-3">
-                      <div class="font-medium text-green-900 mb-1">{{ batchResult.location }}:</div>
-                      <div class="text-green-800">{{ batchResult.comment }}</div>
-                    </div>
-
-                    <!-- Detailed Information for Batch Results -->
-                    <div v-if="batchResult.metadata" class="mt-3">
-                      <UAccordion 
-                        :items="[{
-                          label: `${batchResult.location} の詳細情報`,
-                          icon: 'i-heroicons-information-circle',
-                          slot: `weather-details-${index}`
-                        }]"
-                      >
-                        <template #[`weather-details-${index}`]>
-                          <div class="p-4">
-                            <div class="grid grid-cols-2 gap-4 mb-4">
-                              <div v-if="batchResult.metadata.temperature !== undefined">
-                                <div class="text-sm font-medium text-gray-700">気温</div>
-                                <div class="text-lg">{{ batchResult.metadata.temperature }}°C</div>
-                              </div>
-                              <div v-if="batchResult.metadata.weather_condition">
-                                <div class="text-sm font-medium text-gray-700">天気</div>
-                                <div class="text-lg">{{ batchResult.metadata.weather_condition }}</div>
-                              </div>
-                              <div v-if="batchResult.metadata.wind_speed !== undefined">
-                                <div class="text-sm font-medium text-gray-700">風速</div>
-                                <div class="text-lg">{{ batchResult.metadata.wind_speed }}m/s</div>
-                              </div>
-                              <div v-if="batchResult.metadata.humidity !== undefined">
-                                <div class="text-sm font-medium text-gray-700">湿度</div>
-                                <div class="text-lg">{{ batchResult.metadata.humidity }}%</div>
-                              </div>
-                            </div>
-                            
-                            <div v-if="batchResult.metadata.weather_forecast_time" class="p-3 bg-blue-50 rounded mb-4">
-                              <div class="text-sm font-medium text-blue-700">予報基準時刻</div>
-                              <div class="text-blue-600">{{ formatDateTime(batchResult.metadata.weather_forecast_time) }}</div>
-                              <div class="text-xs text-blue-500 mt-1">
-                                この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
-                              </div>
-                            </div>
-
-                            <!-- Weather Timeline for Batch Results -->
-                            <div v-if="batchResult.metadata.weather_timeline" class="mb-4">
-                              <div class="text-sm font-medium text-gray-700 mb-3">時系列予報データ</div>
-                              
-                              <!-- Summary -->
-                              <div v-if="batchResult.metadata.weather_timeline.summary" class="p-3 bg-gray-50 rounded mb-3">
-                                <div class="text-xs font-medium text-gray-600 mb-1">概要</div>
-                                <div class="text-sm text-gray-700">
-                                  {{ batchResult.metadata.weather_timeline.summary.weather_pattern }} | 
-                                  気温範囲: {{ batchResult.metadata.weather_timeline.summary.temperature_range }} | 
-                                  最大降水量: {{ batchResult.metadata.weather_timeline.summary.max_precipitation }}
-                                </div>
-                              </div>
-
-                              <!-- Past Forecasts -->
-                              <div v-if="batchResult.metadata.weather_timeline.past_forecasts && batchResult.metadata.weather_timeline.past_forecasts.length > 0" class="mb-3">
-                                <div class="text-xs font-medium text-gray-600 mb-2">過去の推移（12時間前〜基準時刻）</div>
-                                <div class="grid grid-cols-1 gap-1">
-                                  <div v-for="forecast in batchResult.metadata.weather_timeline.past_forecasts" :key="forecast.time" 
-                                       class="flex justify-between items-center py-1 px-2 bg-orange-50 rounded text-xs">
-                                    <span class="font-mono">{{ forecast.label }}</span>
-                                    <span>{{ forecast.time }}</span>
-                                    <span class="font-medium">{{ forecast.weather }}</span>
-                                    <span>{{ forecast.temperature }}°C</span>
-                                    <span v-if="forecast.precipitation > 0" class="text-blue-600">{{ forecast.precipitation }}mm</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <!-- Future Forecasts -->
-                              <div v-if="batchResult.metadata.weather_timeline.future_forecasts && batchResult.metadata.weather_timeline.future_forecasts.length > 0">
-                                <div class="text-xs font-medium text-gray-600 mb-2">今後の予報（3〜12時間後）</div>
-                                <div class="grid grid-cols-1 gap-1">
-                                  <div v-for="forecast in batchResult.metadata.weather_timeline.future_forecasts" :key="forecast.time" 
-                                       class="flex justify-between items-center py-1 px-2 bg-green-50 rounded text-xs">
-                                    <span class="font-mono">{{ forecast.label }}</span>
-                                    <span>{{ forecast.time }}</span>
-                                    <span class="font-medium">{{ forecast.weather }}</span>
-                                    <span>{{ forecast.temperature }}°C</span>
-                                    <span v-if="forecast.precipitation > 0" class="text-blue-600">{{ forecast.precipitation }}mm</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <!-- Error Display -->
-                              <div v-if="batchResult.metadata.weather_timeline.error" class="p-2 bg-red-50 rounded text-xs text-red-600">
-                                時系列データ取得エラー: {{ batchResult.metadata.weather_timeline.error }}
-                              </div>
-                            </div>
-
-                            <!-- Selected Comments for Batch Results -->
-                            <div v-if="batchResult.metadata.selected_weather_comment || batchResult.metadata.selected_advice_comment" class="border-t pt-4">
-                              <div class="text-sm font-medium text-gray-700 mb-2">選択されたコメント:</div>
-                              <div v-if="batchResult.metadata.selected_weather_comment" class="text-sm text-gray-600 mb-1">
-                                <strong>天気:</strong> {{ batchResult.metadata.selected_weather_comment }}
-                              </div>
-                              <div v-if="batchResult.metadata.selected_advice_comment" class="text-sm text-gray-600">
-                                <strong>アドバイス:</strong> {{ batchResult.metadata.selected_advice_comment }}
-                              </div>
-                            </div>
-                          </div>
-                        </template>
-                      </UAccordion>
-                    </div>
-                  </div>
-                  <div v-else>
-                    <UAlert
-                      color="red"
-                      variant="subtle"
-                      :title="`${batchResult.location} - 生成失敗`"
-                      :description="batchResult.error"
-                      icon="i-heroicons-exclamation-triangle"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Single Result -->
-              <div v-else-if="!isBatchMode && result" class="space-y-4">
-                <!-- Success Result -->
-                <div v-if="result.success" class="space-y-4">
-                  <UAlert
-                    color="green"
-                    variant="subtle"
-                    :title="`${result.location} のコメント生成が完了しました`"
-                    icon="i-heroicons-check-circle"
-                  />
-                  
-                  <div class="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div class="text-lg font-medium text-green-900 mb-2">
-                      生成されたコメント:
-                    </div>
-                    <div class="text-green-800">
-                      {{ result.comment }}
-                    </div>
-                  </div>
-
-                  <!-- Weather Details -->
-                  <div v-if="result.metadata" class="mt-4">
-                    <UAccordion 
-                      :items="[{
-                        label: '詳細情報',
-                        icon: 'i-heroicons-information-circle',
-                        slot: 'weather-details'
-                      }]"
-                    >
-                      <template #weather-details>
-                        <div class="p-4">
-                          <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div v-if="result.metadata.temperature !== undefined">
-                              <div class="text-sm font-medium text-gray-700">気温</div>
-                              <div class="text-lg">{{ result.metadata.temperature }}°C</div>
-                            </div>
-                            <div v-if="result.metadata.weather_condition">
-                              <div class="text-sm font-medium text-gray-700">天気</div>
-                              <div class="text-lg">{{ result.metadata.weather_condition }}</div>
-                            </div>
-                            <div v-if="result.metadata.wind_speed !== undefined">
-                              <div class="text-sm font-medium text-gray-700">風速</div>
-                              <div class="text-lg">{{ result.metadata.wind_speed }}m/s</div>
-                            </div>
-                            <div v-if="result.metadata.humidity !== undefined">
-                              <div class="text-sm font-medium text-gray-700">湿度</div>
-                              <div class="text-lg">{{ result.metadata.humidity }}%</div>
-                            </div>
-                          </div>
-                          
-                          <div v-if="result.metadata.weather_forecast_time" class="p-3 bg-blue-50 rounded mb-4">
-                            <div class="text-sm font-medium text-blue-700">予報基準時刻</div>
-                            <div class="text-blue-600">{{ formatDateTime(result.metadata.weather_forecast_time) }}</div>
-                            <div class="text-xs text-blue-500 mt-1">
-                              この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
-                            </div>
-                          </div>
-
-                          <!-- Weather Timeline -->
-                          <div v-if="result.metadata.weather_timeline" class="mb-4">
-                            <div class="text-sm font-medium text-gray-700 mb-3">時系列予報データ</div>
-                            
-                            <!-- Summary -->
-                            <div v-if="result.metadata.weather_timeline.summary" class="p-3 bg-gray-50 rounded mb-3">
-                              <div class="text-xs font-medium text-gray-600 mb-1">概要</div>
-                              <div class="text-sm text-gray-700">
-                                {{ result.metadata.weather_timeline.summary.weather_pattern }} | 
-                                気温範囲: {{ result.metadata.weather_timeline.summary.temperature_range }} | 
-                                最大降水量: {{ result.metadata.weather_timeline.summary.max_precipitation }}
-                              </div>
-                            </div>
-
-                            <!-- Past Forecasts -->
-                            <div v-if="result.metadata.weather_timeline.past_forecasts && result.metadata.weather_timeline.past_forecasts.length > 0" class="mb-3">
-                              <div class="text-xs font-medium text-gray-600 mb-2">過去の推移（12時間前〜基準時刻）</div>
-                              <div class="grid grid-cols-1 gap-1">
-                                <div v-for="forecast in result.metadata.weather_timeline.past_forecasts" :key="forecast.time" 
-                                     class="flex justify-between items-center py-1 px-2 bg-orange-50 rounded text-xs">
-                                  <span class="font-mono">{{ forecast.label }}</span>
-                                  <span>{{ forecast.time }}</span>
-                                  <span class="font-medium">{{ forecast.weather }}</span>
-                                  <span>{{ forecast.temperature }}°C</span>
-                                  <span v-if="forecast.precipitation > 0" class="text-blue-600">{{ forecast.precipitation }}mm</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <!-- Future Forecasts -->
-                            <div v-if="result.metadata.weather_timeline.future_forecasts && result.metadata.weather_timeline.future_forecasts.length > 0">
-                              <div class="text-xs font-medium text-gray-600 mb-2">今後の予報（3〜12時間後）</div>
-                              <div class="grid grid-cols-1 gap-1">
-                                <div v-for="forecast in result.metadata.weather_timeline.future_forecasts" :key="forecast.time" 
-                                     class="flex justify-between items-center py-1 px-2 bg-green-50 rounded text-xs">
-                                  <span class="font-mono">{{ forecast.label }}</span>
-                                  <span>{{ forecast.time }}</span>
-                                  <span class="font-medium">{{ forecast.weather }}</span>
-                                  <span>{{ forecast.temperature }}°C</span>
-                                  <span v-if="forecast.precipitation > 0" class="text-blue-600">{{ forecast.precipitation }}mm</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <!-- Error Display -->
-                            <div v-if="result.metadata.weather_timeline.error" class="p-2 bg-red-50 rounded text-xs text-red-600">
-                              時系列データ取得エラー: {{ result.metadata.weather_timeline.error }}
-                            </div>
-                          </div>
-
-                          <!-- Selected Comments -->
-                          <div v-if="result.metadata.selected_weather_comment || result.metadata.selected_advice_comment" class="border-t pt-4">
-                            <div class="text-sm font-medium text-gray-700 mb-2">選択されたコメント:</div>
-                            <div v-if="result.metadata.selected_weather_comment" class="text-sm text-gray-600 mb-1">
-                              <strong>天気:</strong> {{ result.metadata.selected_weather_comment }}
-                            </div>
-                            <div v-if="result.metadata.selected_advice_comment" class="text-sm text-gray-600">
-                              <strong>アドバイス:</strong> {{ result.metadata.selected_advice_comment }}
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-                    </UAccordion>
-                  </div>
-                </div>
-
-                <!-- Error Result -->
-                <div v-else class="space-y-4">
-                  <UAlert
-                    color="red"
-                    variant="subtle"
-                    :title="`${result.location} のコメント生成に失敗しました`"
-                    :description="result.error"
-                    icon="i-heroicons-exclamation-triangle"
-                  />
-                </div>
-              </div>
-
-              <!-- Initial State -->
-              <div v-else class="text-center py-12">
-                <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <div class="text-lg font-medium text-gray-900">コメント生成の準備完了</div>
-                <div class="text-sm text-gray-500 mt-2">
-                  左側のパネルから地点とプロバイダーを選択して、「コメント生成」ボタンをクリックしてください
-                </div>
-                
-                <!-- Sample Comments -->
-                <div class="mt-8 p-4 bg-gray-50 rounded-lg text-left">
-                  <div class="text-sm font-medium text-gray-700 mb-4">サンプルコメント:</div>
-                  <div class="space-y-2 text-sm text-gray-600">
-                    <div><strong>晴れの日:</strong> 爽やかな朝ですね</div>
-                    <div><strong>雨の日:</strong> 傘をお忘れなく</div>
-                    <div><strong>曇りの日:</strong> 過ごしやすい一日です</div>
-                    <div><strong>雪の日:</strong> 足元にお気をつけて</div>
-                  </div>
-                </div>
-              </div>
-            </UCard>
+            <GenerationResults
+              :generating="generating"
+              :is-batch-mode="isBatchMode"
+              :result="result"
+              :results="results"
+            />
           </div>
+          
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick } from 'vue'
-import { REGIONS, getAllLocations, getLocationsByRegion, getLocationOrder } from '~/constants/regions'
+// Import composables and utilities
+import { ref, computed, onMounted, watch } from 'vue'
 
-// Development-only logging
-const devLog = (...args: any[]) => {
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.log(...args)
-  }
-}
-
-const BATCH_SIZE = 3
-const locationOrderMap = new Map(
-  getLocationOrder().map((loc, idx) => [loc, idx])
-)
-
-// Page meta
-useHead({
-  title: '天気コメント生成システム',
-  meta: [
-    { name: 'description', content: '天気に基づいたコメントを生成するシステム' }
-  ]
-})
-
-// Reactive state
+// State management
+const isBatchMode = ref(false)
 const selectedLocation = ref('')
-const selectedLocations = ref([])
-const selectedProvider = ref({ label: 'Google Gemini', value: 'gemini' })
+const selectedLocations = ref<string[]>([])
+const selectedProvider = ref(null)
 const generating = ref(false)
 const result = ref(null)
 const results = ref([])
-const locations = ref([])
-const providers = ref([])
 const history = ref([])
+const locations = ref([])
 const locationsLoading = ref(false)
 const providersLoading = ref(false)
-const isBatchMode = ref(false)
+const currentTime = ref('')
+
+// Provider options
+const providerOptions = ref([
+  { label: 'OpenAI GPT-4', value: 'openai-gpt4' },
+  { label: 'OpenAI GPT-3.5', value: 'openai-gpt35' },
+  { label: 'Anthropic Claude', value: 'anthropic-claude' },
+  { label: 'Google Gemini', value: 'google-gemini' }
+])
 
 // Computed properties
-const currentTime = computed(() => {
-  return new Date().toLocaleString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const canGenerate = computed(() => {
+  return (isBatchMode.value && selectedLocations.value.length > 0) || 
+         (!isBatchMode.value && selectedLocation.value) && 
+         selectedProvider.value && 
+         !generating.value
 })
 
-const locationOptions = computed(() => 
-  locations.value.map(location => ({
-    label: location,
-    value: location,
-    id: location
-  }))
-)
-
-const providerOptions = computed(() => 
-  providers.value.map(provider => ({
-    label: provider.name,
-    value: provider.id
-  }))
-)
-
-// API base URL
-const config = useRuntimeConfig()
-const apiBaseUrl = config.public.apiBaseUrl
-
-// API functions
-const fetchLocations = async () => {
-  locationsLoading.value = true
-  try {
-    const response = await $fetch(`${apiBaseUrl}/api/locations`)
-    locations.value = response.locations
-  } catch (error) {
-    console.error('Failed to fetch locations:', error)
-    // Fallback to region-based data
-    locations.value = getAllLocations()
-    devLog('Using region-based location data:', locations.value.length, 'locations')
-  } finally {
-    locationsLoading.value = false
-  }
-}
-
-const fetchProviders = async () => {
-  providersLoading.value = true
-  try {
-    const response = await $fetch(`${apiBaseUrl}/api/providers`)
-    providers.value = response.providers
-  } catch (error) {
-    console.error('Failed to fetch providers:', error)
-    // Fallback to mock data
-    providers.value = [
-      { id: 'gemini', name: 'Gemini', description: 'Google\'s Gemini AI' },
-      { id: 'openai', name: 'OpenAI GPT', description: 'OpenAI\'s GPT models' },
-      { id: 'anthropic', name: 'Claude', description: 'Anthropic\'s Claude AI' }
-    ]
-  } finally {
-    providersLoading.value = false
-  }
-}
-
-const fetchHistory = async () => {
-  try {
-    const response = await $fetch(`${apiBaseUrl}/api/history`)
-    history.value = response.history || []
-  } catch (error) {
-    console.error('Failed to fetch history:', error)
-    history.value = []
-  }
-}
-
+// Methods
 const generateComment = async () => {
-  // Determine locations to process
-  const locationsToProcessRaw = isBatchMode.value
-    ? selectedLocations.value
-    : selectedLocation.value ? [selectedLocation.value] : []
-
-  const locationsToProcess = [...locationsToProcessRaw].sort(
-    (a, b) =>
-      (locationOrderMap.get(a) ?? Infinity) -
-      (locationOrderMap.get(b) ?? Infinity)
-  )
-
-  const providerValue = selectedProvider.value?.value || selectedProvider.value
-  if (locationsToProcess.length === 0 || !providerValue) {
-    console.warn('Location or provider not selected:', { 
-      locations: locationsToProcess, 
-      provider: providerValue 
-    })
-    return
-  }
-
-  devLog('Starting comment generation:', {
-    locations: locationsToProcess,
-    provider: providerValue
-  })
+  if (!canGenerate.value) return
   
   generating.value = true
-  result.value = null
-  results.value = []
-
+  
   try {
-    if (isBatchMode.value) {
-      // Batch generation with limited concurrency
-      for (let i = 0; i < locationsToProcess.length; i += BATCH_SIZE) {
-        const chunk = locationsToProcess.slice(i, i + BATCH_SIZE)
-        const chunkPromises = chunk.map(async location => {
-          const requestBody = {
-            location: location,
-            llm_provider: selectedProvider.value.value || selectedProvider.value,
-            target_datetime: new Date().toISOString()
-          }
-
-          devLog('Request body for', location, ':', requestBody)
-
-          try {
-            const response = await $fetch(`${apiBaseUrl}/api/generate`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: requestBody
-            })
-            return response
-          } catch (error) {
-            return {
-              success: false,
-              location: location,
-              error: error.message || 'コメント生成に失敗しました'
-            }
-          }
-        })
-
-        const chunkResults = await Promise.all(chunkPromises)
-        results.value.push(...chunkResults)
-        await nextTick()
+    const response = await $fetch('/api/generate', {
+      method: 'POST',
+      body: {
+        isBatchMode: isBatchMode.value,
+        location: selectedLocation.value,
+        locations: selectedLocations.value,
+        provider: selectedProvider.value
       }
-
-      devLog('Batch generation results:', results.value)
-
-      // Refresh history
-      await fetchHistory()
-      
+    })
+    
+    if (isBatchMode.value) {
+      results.value = response.results
     } else {
-      // Single location generation
-      const requestBody = {
-        location: locationsToProcess[0],
-        llm_provider: selectedProvider.value.value || selectedProvider.value,
-        target_datetime: new Date().toISOString()
-      }
-      
-      devLog('Request body:', requestBody)
-      
-      const response = await $fetch(`${apiBaseUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: requestBody
-      })
-
-      devLog('Response received:', response)
       result.value = response
-      
-      // Refresh history if generation was successful
-      if (response.success) {
-        await fetchHistory()
-      }
     }
+    
+    // Add to history
+    history.value.unshift({
+      timestamp: new Date().toISOString(),
+      location: isBatchMode.value ? 'Multiple' : selectedLocation.value,
+      provider: selectedProvider.value.label,
+      success: isBatchMode.value ? response.results.some(r => r.success) : response.success
+    })
+    
   } catch (error) {
-    console.error('Failed to generate comment:', error)
-    
-    // Check if it's a network error
-    let errorMessage = 'コメント生成中にエラーが発生しました'
-    if (error.message?.includes('fetch')) {
-      errorMessage = 'APIサーバーに接続できません。サーバーが起動しているか確認してください。'
-    } else if (error.data?.detail) {
-      errorMessage = error.data.detail
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-    
+    console.error('Generation failed:', error)
     if (isBatchMode.value) {
-      results.value = [{
-        success: false,
-        location: '一括生成',
-        error: errorMessage
-      }]
+      results.value = []
     } else {
       result.value = {
         success: false,
-        location: locationsToProcess[0] || '不明な地点',
-        error: errorMessage
+        error: 'Generation failed',
+        location: selectedLocation.value
       }
     }
   } finally {
@@ -777,34 +132,6 @@ const generateComment = async () => {
   }
 }
 
-// Utility functions
-const formatDate = (timestamp) => {
-  if (!timestamp) return '不明'
-  return new Date(timestamp).toLocaleString('ja-JP', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const formatDateTime = (dateString) => {
-  if (!dateString) return '不明'
-  try {
-    const date = new Date(dateString.replace('Z', '+00:00'))
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return dateString
-  }
-}
-
-// Location selection helpers
 const selectAllLocations = () => {
   selectedLocations.value = [...locations.value]
 }
@@ -813,47 +140,99 @@ const clearAllLocations = () => {
   selectedLocations.value = []
 }
 
-const selectRegionLocations = (regionName: string) => {
-  const regionLocations = getLocationsByRegion(regionName)
+const selectRegionLocations = (region: string) => {
+  const regionMap: Record<string, string[]> = {
+    '北海道': ['札幌', '函館', '旭川'],
+    '東北': ['青森', '秋田', '盛岡', '山形', '仙台', '福島'],
+    '北陸': ['新潟', '富山', '金沢', '福井'],
+    '関東': ['水戸', '宇都宮', '前橋', 'さいたま', '千葉', '東京', '横浜'],
+    '甲信': ['甲府', '長野'],
+    '東海': ['岐阜', '静岡', '名古屋', '津'],
+    '近畿': ['大津', '京都', '大阪', '神戸', '奈良', '和歌山'],
+    '中国': ['鳥取', '松江', '岡山', '広島', '山口'],
+    '四国': ['徳島', '高松', '松山', '高知'],
+    '九州': ['福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島'],
+    '沖縄': ['那覇']
+  }
   
-  // Check if all locations from this region are already selected
-  const allSelected = regionLocations.every(loc => selectedLocations.value.includes(loc))
+  const regionLocations = regionMap[region] || []
+  const newSelections = regionLocations.filter(loc => locations.value.includes(loc))
   
+  // Toggle region selection
+  const allSelected = newSelections.every(loc => selectedLocations.value.includes(loc))
   if (allSelected) {
-    // Remove all locations from this region
-    selectedLocations.value = selectedLocations.value.filter(loc => !regionLocations.includes(loc))
+    selectedLocations.value = selectedLocations.value.filter(loc => !newSelections.includes(loc))
   } else {
-    // Add missing locations from this region
-    const newLocations = regionLocations.filter(loc => !selectedLocations.value.includes(loc))
-    selectedLocations.value = [...selectedLocations.value, ...newLocations]
+    selectedLocations.value = [...new Set([...selectedLocations.value, ...newSelections])]
   }
 }
 
-const isRegionSelected = (regionName: string) => {
-  const regionLocations = getLocationsByRegion(regionName)
-  return regionLocations.length > 0 && regionLocations.every(loc => selectedLocations.value.includes(loc))
+const loadLocations = async () => {
+  console.log('Starting loadLocations...')
+  locationsLoading.value = true
+  
+  try {
+    console.log('Attempting to fetch from /api/locations...')
+    // Add timeout to prevent hanging indefinitely
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    
+    const response = await $fetch('/api/locations', {
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    
+    console.log('API response received:', response)
+    locations.value = response.locations || []
+  } catch (error) {
+    console.error('Failed to load locations:', error)
+    console.log('Using fallback location list...')
+    locations.value = [
+      '札幌', '函館', '旭川', '青森', '秋田', '盛岡', '山形', '仙台', '福島',
+      '新潟', '富山', '金沢', '福井', '水戸', '宇都宮', '前橋', 'さいたま',
+      '千葉', '東京', '横浜', '甲府', '長野', '岐阜', '静岡', '名古屋', '津',
+      '大津', '京都', '大阪', '神戸', '奈良', '和歌山', '鳥取', '松江',
+      '岡山', '広島', '山口', '徳島', '高松', '松山', '高知', '福岡',
+      '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '那覇'
+    ]
+  } finally {
+    console.log('Setting locationsLoading to false, locations count:', locations.value.length)
+    locationsLoading.value = false
+  }
 }
 
-// Initialize on mount
-onMounted(async () => {
-  devLog('Component mounted, fetching initial data...')
-  
-  await Promise.all([
-    fetchLocations(),
-    fetchProviders(),
-    fetchHistory()
-  ])
-  
-  devLog('Initial data loaded:', {
-    locations: locations.value.length, 
-    providers: providers.value.length, 
-    history: history.value.length 
+const updateCurrentTime = () => {
+  const now = new Date()
+  currentTime.value = now.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
   })
+}
+
+// Lifecycle
+onMounted(async () => {
+  updateCurrentTime()
+  setInterval(updateCurrentTime, 1000)
+  
+  await loadLocations()
   
   // Set default selections
   if (locations.value.length > 0) {
     selectedLocation.value = locations.value[0]
-    devLog('Default location set:', selectedLocation.value)
+  }
+})
+
+// Watch for batch mode changes
+watch(isBatchMode, (newValue) => {
+  if (newValue) {
+    result.value = null
+  } else {
+    results.value = []
+    selectedLocations.value = []
   }
 })
 </script>
