@@ -28,7 +28,6 @@ export const useCommentStore = defineStore('comment', () => {
   const generateComment = async (params: GenerateParams) => {
     generating.value = true
     try {
-      const { $fetch } = useNuxtApp()
       
       if (params.isBatchMode && params.locations) {
         // バッチモード
@@ -140,10 +139,10 @@ export const useCommentStore = defineStore('comment', () => {
   
   return {
     // State
-    generating: readonly(generating),
-    result: readonly(result),
-    results: readonly(results),
-    history: readonly(history),
+    generating,
+    result,
+    results,
+    history,
     
     // Actions
     generateComment,

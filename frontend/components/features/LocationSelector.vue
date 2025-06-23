@@ -8,7 +8,7 @@
     <select 
       v-if="!isBatchMode"
       :value="selectedLocation"
-      @change="locationStore.selectedLocation = ($event.target as HTMLSelectElement).value"
+      @change="handleLocationChange"
       class="form-select"
       :disabled="false"
     >
@@ -108,6 +108,12 @@ const updateSelectedLocations = (event: Event) => {
 const isRegionSelected = (region: string) => {
   const regionLocations = getLocationsByRegion(region)
   return regionLocations.length > 0 && regionLocations.every(loc => selectedLocations.value.includes(loc))
+}
+
+// イベントハンドラー
+const handleLocationChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  selectedLocation.value = target.value
 }
 
 // 地域選択機能
