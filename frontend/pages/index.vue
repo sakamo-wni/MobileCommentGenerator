@@ -19,9 +19,9 @@
               :providers-loading="providersLoading"
               :generating="generating"
               :current-time="currentTime"
-              @update:isBatchMode="isBatchMode = $event"
-              @update:selectedLocation="selectedLocation = $event"
-              @update:selectedLocations="selectedLocations = $event"
+              @update:isBatchMode="locationStore.setBatchMode($event)"
+              @update:selectedLocation="locationStore.setSelectedLocation($event)"
+              @update:selectedLocations="locationStore.setSelectedLocations($event)"
               @update:selectedProvider="selectedProvider = $event"
               @generate="generateComment"
               @select-all="selectAllLocations"
@@ -62,23 +62,33 @@
 <script setup lang="ts">
 // Import composables and utilities
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { getLocationsByRegion } from '~/constants/regions'
+import { useCommentStore } from '~/stores/comment'
+import { useLocationStore } from '~/stores/location'
 
 // Runtime config
 const config = useRuntimeConfig()
 const apiBaseUrl = config.public.apiBaseUrl || 'http://localhost:8000'
 
-// State management
-const isBatchMode = ref(false)
-const selectedLocation = ref('東京')
-const selectedLocations = ref<string[]>([])
+// Pinia store initialization
+const commentStore = useCommentStore()
+const locationStore = useLocationStore()
+const { generating, result, results } = storeToRefs(commentStore)
+const { 
+  selectedLocation, 
+  selectedLocations, 
+  isBatchMode,
+  locations,
+  locationsLoading,
+  canGenerate 
+} = storeToRefs(locationStore)
+
+// State management (non-location related)
 const selectedProvider = ref({ label: 'Google Gemini', value: 'gemini' })
-const generating = ref(false)
-const result = ref(null)
-const results = ref([])
+// generating, result, results are now managed by commentStore
+// selectedLocation, selectedLocations, isBatchMode, locations, locationsLoading are now managed by locationStore
 const history = ref([])
-const locations = ref([])
-const locationsLoading = ref(false)
 const providersLoading = ref(false)
 const currentTime = ref('')
 const selectedWeatherIndex = ref(0) // For selecting which weather data to show in batch mode
@@ -90,16 +100,12 @@ const providerOptions = ref([
   { label: 'Anthropic Claude', value: 'anthropic' }
 ])
 
-// Computed properties
-const canGenerate = computed(() => {
-  const hasLocation = isBatchMode.value 
-    ? selectedLocations.value.length > 0
-    : !!selectedLocation.value
-  
+// Computed properties (updated to use locationStore canGenerate + provider check)
+const canGenerateWithProvider = computed(() => {
   const hasProvider = !!selectedProvider.value
   const notGenerating = !generating.value
   
-  return hasLocation && hasProvider && notGenerating
+  return locationStore.canGenerate && hasProvider && notGenerating
 })
 
 const selectedWeatherData = computed(() => {
@@ -116,20 +122,20 @@ const selectedWeatherData = computed(() => {
 
 // Methods
 const generateComment = async () => {
-  if (!canGenerate.value) return
+  if (!canGenerateWithProvider.value) return
   
-  generating.value = true
+  commentStore.setGenerating(true)
+  commentStore.clearResults()
   
   try {
-    if (isBatchMode.value && selectedLocations.value.length > 0) {
+    if (locationStore.isBatchMode && locationStore.selectedLocations.length > 0) {
       // Batch mode: Process multiple locations with parallel processing
-      results.value = []
       selectedWeatherIndex.value = 0
       
       // Process in chunks for better performance
       const CONCURRENT_LIMIT = 3
-      for (let i = 0; i < selectedLocations.value.length; i += CONCURRENT_LIMIT) {
-        const chunk = selectedLocations.value.slice(i, i + CONCURRENT_LIMIT)
+      for (let i = 0; i < locationStore.selectedLocations.length; i += CONCURRENT_LIMIT) {
+        const chunk = locationStore.selectedLocations.slice(i, i + CONCURRENT_LIMIT)
         
         const chunkPromises = chunk.map(async (location) => {
           try {
@@ -180,14 +186,15 @@ const generateComment = async () => {
           }
         })
         
-        results.value.push(...processedResults)
+        // Add results to store
+        processedResults.forEach(result => commentStore.addResult(result))
       }
       
       // Add batch to history
       const successCount = results.value.filter(r => r.success).length
       history.value.unshift({
         timestamp: new Date().toISOString(),
-        location: `${selectedLocations.value.length}地点 (成功: ${successCount})`,
+        location: `${locationStore.selectedLocations.length}地点 (成功: ${successCount})`,
         provider: selectedProvider.value?.label || 'Unknown',
         success: successCount > 0
       })
@@ -196,19 +203,19 @@ const generateComment = async () => {
       const response = await $fetch(`${apiBaseUrl}/api/generate`, {
         method: 'POST',
         body: {
-          location: selectedLocation.value,
+          location: locationStore.selectedLocation,
           llm_provider: selectedProvider.value.value,
           target_datetime: new Date().toISOString(),
           exclude_previous: false
         }
       })
       
-      result.value = response
+      commentStore.setResult(response)
       
       // Add to history
       history.value.unshift({
         timestamp: new Date().toISOString(),
-        location: selectedLocation.value,
+        location: locationStore.selectedLocation,
         provider: selectedProvider.value?.label || 'Unknown',
         success: response.success
       })
@@ -220,48 +227,39 @@ const generateComment = async () => {
       // In batch mode, errors should have been handled per location
       // This catch is for unexpected errors
       if (results.value.length === 0) {
-        results.value = [{
+        commentStore.addResult({
           success: false,
           error: 'バッチ処理の開始に失敗しました',
           location: '不明'
-        }]
+        })
       }
     } else {
-      result.value = {
+      commentStore.setResult({
         success: false,
         error: 'Generation failed',
         location: selectedLocation.value
-      }
+      })
     }
   } finally {
-    generating.value = false
+    commentStore.setGenerating(false)
   }
 }
 
 const selectAllLocations = () => {
-  selectedLocations.value = [...locations.value]
+  locationStore.selectAllLocations()
 }
 
 const clearAllLocations = () => {
-  selectedLocations.value = []
+  locationStore.clearAllLocations()
 }
 
 const selectRegionLocations = (region: string) => {
-  const regionLocations = getLocationsByRegion(region)
-  const newSelections = regionLocations.filter(loc => locations.value.includes(loc))
-  
-  // Toggle region selection
-  const allSelected = newSelections.every(loc => selectedLocations.value.includes(loc))
-  if (allSelected) {
-    selectedLocations.value = selectedLocations.value.filter(loc => !newSelections.includes(loc))
-  } else {
-    selectedLocations.value = [...new Set([...selectedLocations.value, ...newSelections])]
-  }
+  locationStore.selectRegionLocations(region)
 }
 
 const loadLocations = async () => {
   console.log('Starting loadLocations...')
-  locationsLoading.value = true
+  locationStore.setLocationsLoading(true)
   
   try {
     console.log('Attempting to fetch from /api/locations...')
@@ -275,7 +273,7 @@ const loadLocations = async () => {
     clearTimeout(timeoutId)
     
     console.log('API response received:', response)
-    locations.value = response.locations || []
+    locationStore.setLocations(response.locations || [])
   } catch (error) {
     let errorMessage = '地点データの取得に失敗しました'
     if (error.name === 'AbortError') {
@@ -286,19 +284,19 @@ const loadLocations = async () => {
     }
     
     console.log('Using fallback location list...')
-    locations.value = [
+    locationStore.setLocations([
       '札幌', '函館', '旭川', '青森', '秋田', '盛岡', '山形', '仙台', '福島',
       '新潟', '富山', '金沢', '福井', '水戸', '宇都宮', '前橋', 'さいたま',
       '千葉', '東京', '横浜', '甲府', '長野', '岐阜', '静岡', '名古屋', '津',
       '大津', '京都', '大阪', '神戸', '奈良', '和歌山', '鳥取', '松江',
       '岡山', '広島', '山口', '徳島', '高松', '松山', '高知', '福岡',
       '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '那覇'
-    ]
+    ])
     
     // TODO: ユーザーに通知を表示する仕組みを追加
   } finally {
-    console.log('Setting locationsLoading to false, locations count:', locations.value.length)
-    locationsLoading.value = false
+    console.log('Setting locationsLoading to false, locations count:', locationStore.locations.length)
+    locationStore.setLocationsLoading(false)
   }
 }
 
@@ -325,8 +323,8 @@ onMounted(async () => {
   await loadLocations()
   
   // Set default selections
-  if (locations.value.length > 0) {
-    selectedLocation.value = locations.value[0]
+  if (locationStore.locations.length > 0) {
+    locationStore.setSelectedLocation(locationStore.locations[0])
   }
 })
 
@@ -337,13 +335,12 @@ onUnmounted(() => {
   }
 })
 
-// Watch for batch mode changes
+// Watch for batch mode changes (comment/result clearing only - location clearing handled by store)
 watch(isBatchMode, (newValue) => {
   if (newValue) {
-    result.value = null
+    commentStore.setResult(null)
   } else {
-    results.value = []
-    selectedLocations.value = []
+    commentStore.setResults([])
   }
 })
 </script>
