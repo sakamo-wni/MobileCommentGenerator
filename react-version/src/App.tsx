@@ -69,15 +69,16 @@ function App() {
 
     try {
       if (isBatchMode) {
-        // Batch generation
-        const BATCH_SIZE = 3;
+        // Batch generation with improved parallel processing
+        const CONCURRENT_LIMIT = 3;
         const results: BatchResult[] = [];
 
-        for (let i = 0; i < selectedLocations.length; i += BATCH_SIZE) {
-          const chunk = selectedLocations.slice(i, i + BATCH_SIZE);
+        // Process all locations with controlled concurrency
+        for (let i = 0; i < selectedLocations.length; i += CONCURRENT_LIMIT) {
+          const chunk = selectedLocations.slice(i, i + CONCURRENT_LIMIT);
+          
           const chunkPromises = chunk.map(async (locationName: string) => {
             try {
-              // Create a location object for the API with correct prefecture and region
               const locationInfo = getLocationInfo(locationName);
               const locationObj: Location = {
                 id: locationName,
@@ -98,17 +99,28 @@ function App() {
                 weather: result.weather,
                 adviceComment: result.adviceComment
               };
-            } catch (error: any) {
+            } catch (error) {
               return {
                 success: false,
                 location: locationName,
-                error: error.message || 'コメント生成に失敗しました'
+                error: error instanceof Error ? error.message : 'コメント生成に失敗しました'
               };
             }
           });
 
-          const chunkResults = await Promise.all(chunkPromises);
-          results.push(...chunkResults);
+          // Use Promise.allSettled for better error handling
+          const chunkResults = await Promise.allSettled(chunkPromises);
+          const processedResults = chunkResults.map(result => 
+            result.status === 'fulfilled' 
+              ? result.value 
+              : {
+                  success: false,
+                  location: 'unknown',
+                  error: 'Promise rejected'
+                }
+          );
+          
+          results.push(...processedResults);
         }
 
         setBatchResults(results);
@@ -191,11 +203,11 @@ function App() {
           item.location === locationName ? newResult : item
         )
       );
-    } catch (error: any) {
+    } catch (error) {
       const errorResult: BatchResult = {
         success: false,
         location: locationName,
-        error: error.message || 'コメント再生成に失敗しました'
+        error: error instanceof Error ? error.message : 'コメント再生成に失敗しました'
       };
 
       setBatchResults(prev =>

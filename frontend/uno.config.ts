@@ -8,6 +8,16 @@ export default defineConfig({
     presetTypography()
   ],
   
+  safelist: [
+    'max-h-40',
+    'h-40',
+    'overflow-y-auto',
+    'border',
+    'border-gray-200',
+    'rounded',
+    'hover:bg-gray-50'
+  ],
+  
   theme: {
     colors: {
       primary: {
