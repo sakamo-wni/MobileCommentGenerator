@@ -15,7 +15,10 @@ export default defineNuxtConfig({
   pinia: {
     storesDirs: ['./stores/**']
   },
-  css: ['@unocss/reset/tailwind.css'],
+  css: [
+    '@unocss/reset/tailwind.css',
+    '@/assets/css/main.css'
+  ],
 
   components: [
     {
