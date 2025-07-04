@@ -10,7 +10,6 @@ interface LocationSelectionProps {
   onLocationChange: (location: Location) => void;
   onLocationsChange: (locations: string[]) => void;
   isBatchMode: boolean;
-  maxSelections?: number;
   className?: string;
 }
 
@@ -20,7 +19,6 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   onLocationChange,
   onLocationsChange,
   isBatchMode,
-  maxSelections,
   className = '',
 }) => {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -80,12 +78,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
 
   const selectAllLocations = () => {
     const allLocationNames = locations.map(loc => loc.name);
-    if (maxSelections && allLocationNames.length > maxSelections) {
-      // Limit to max selections
-      onLocationsChange(allLocationNames.slice(0, maxSelections));
-    } else {
-      onLocationsChange(allLocationNames);
-    }
+    onLocationsChange(allLocationNames);
   };
 
   const clearAllLocations = () => {
@@ -105,12 +98,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
       const newLocations = regionLocationNames.filter(name => !selectedLocations.includes(name));
       const updatedLocations = [...selectedLocations, ...newLocations];
       
-      if (maxSelections && updatedLocations.length > maxSelections) {
-        // Limit to max selections
-        onLocationsChange(updatedLocations.slice(0, maxSelections));
-      } else {
-        onLocationsChange(updatedLocations);
-      }
+      onLocationsChange(updatedLocations);
     }
   };
 
@@ -123,10 +111,6 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     if (selectedLocations.includes(locationName)) {
       onLocationsChange(selectedLocations.filter(name => name !== locationName));
     } else {
-      if (maxSelections && selectedLocations.length >= maxSelections) {
-        // Already at max, don't add more
-        return;
-      }
       onLocationsChange([...selectedLocations, locationName]);
     }
   };
@@ -204,7 +188,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
             
             {/* Selected count */}
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              選択中: {selectedLocations.length}地点{maxSelections && ` / 最大${maxSelections}地点`}
+              選択中: {selectedLocations.length}地点
             </div>
           </div>
         )}
