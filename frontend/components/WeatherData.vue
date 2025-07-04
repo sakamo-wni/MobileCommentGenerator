@@ -28,10 +28,10 @@
     </template>
 
     <div v-if="weatherData && weatherData.metadata" class="space-y-6">
-      <!-- Current Weather -->
+      <!-- Forecast Weather -->
       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-semibold text-gray-800">現在の天気状況</h3>
+          <h3 class="text-lg font-semibold text-gray-800">翌日の天気予報（選択時刻）</h3>
           <div class="text-sm text-gray-600">
             {{ formatDateTime(weatherData.metadata.weather_forecast_time) }}
           </div>
