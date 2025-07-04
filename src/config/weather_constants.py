@@ -79,6 +79,6 @@ class StringLimits:
     MAX_ERROR_MESSAGE_LENGTH = 200      # 最大エラーメッセージ長
 
 # 温度関連の警告閾値
-HEATSTROKE_WARNING_TEMP = 32.0  # 熱中症警戒開始温度
-HEATSTROKE_SEVERE_TEMP = 34.0   # 熱中症厳重警戒温度
+HEATSTROKE_WARNING_TEMP = 34.0  # 熱中症警戒開始温度
+HEATSTROKE_SEVERE_TEMP = 35.0   # 熱中症厳重警戒温度
 COLD_WARNING_TEMP = 15.0        # 防寒対策が不要になる温度
