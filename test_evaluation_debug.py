@@ -161,6 +161,31 @@ def create_duplicate_comment_pair() -> CommentPair:
     )
 
 
+def create_extremely_inappropriate_comment_pair() -> CommentPair:
+    """極端に不適切なコメントペアを作成"""
+    from src.data.past_comment import CommentType
+    return CommentPair(
+        weather_comment=PastComment(
+            location="東京",
+            datetime=datetime.now(),
+            comment_text="バカみたいな天気で死にたい",
+            comment_type=CommentType.WEATHER_COMMENT,
+            weather_condition="晴れ",
+            temperature=20.0,
+        ),
+        advice_comment=PastComment(
+            location="東京",
+            datetime=datetime.now(),
+            comment_text="クソったれな外出なんかするな",
+            comment_type=CommentType.ADVICE,
+            weather_condition="晴れ",
+            temperature=20.0,
+        ),
+        similarity_score=0.1,
+        selection_reason="極端に不適切",
+    )
+
+
 def detailed_test_evaluation_system():
     """評価システムをテスト"""
     print("=" * 60)
@@ -264,6 +289,22 @@ def detailed_test_evaluation_system():
         if score.reason:
             print(f"    理由: {score.reason}")
     print()
+    
+    # テストケース6: 極端に不適切なコメント
+    print("【テストケース6: 極端に不適切なコメント】")
+    extreme_pair = create_extremely_inappropriate_comment_pair()
+    print(f"天気コメント: '{extreme_pair.weather_comment.comment_text}'")
+    print(f"アドバイス: '{extreme_pair.advice_comment.comment_text}'")
+    
+    result = evaluator.evaluate_comment_pair(extreme_pair, context, weather_data)
+    print(f"総合スコア: {result.total_score:.3f}")
+    print(f"合格判定: {'✓ 合格' if result.is_valid else '✗ 不合格'}")
+    print("詳細スコア:")
+    for score in result.criterion_scores:
+        print(f"  {score.criterion.value}: {score.score:.3f} (重み付き: {score.weighted_score:.3f})")
+        if score.reason:
+            print(f"    理由: {score.reason}")
+    print()
 
 
 def test_evaluation_system():
@@ -286,57 +327,44 @@ def test_evaluation_system():
         print(f"  {criterion.value}: {weight}")
     print()
     
-    # テストケース1: 良いコメント
-    print("【テストケース1: 良いコメント】")
-    good_pair = create_good_comment_pair()
-    print(f"天気コメント: '{good_pair.weather_comment.comment_text}'")
-    print(f"アドバイス: '{good_pair.advice_comment.comment_text}'")
+    # テストケース一覧
+    test_cases = [
+        ("良いコメント", create_good_comment_pair, context, weather_data),
+        ("悪いコメント(ネガティブ)", create_bad_comment_pair, context, weather_data),
+        ("平凡なコメント", create_typical_comment_pair, context, weather_data),
+        ("天気矛盾コメント", create_contradictory_comment_pair,
+         EvaluationContext(weather_condition="雨", location="東京", target_datetime=datetime.now()),
+         WeatherForecast(
+             location="東京", datetime=datetime.now(), temperature=15.0,
+             weather_description="雨", weather_condition="雨", humidity=80.0,
+             precipitation=5.0, wind_speed=4.0, wind_direction="南",
+             wind_direction_degrees=180.0, weather_code="200"
+         )),
+        ("重複コメント", create_duplicate_comment_pair, context, weather_data),
+        ("極端に不適切なコメント", create_extremely_inappropriate_comment_pair, context, weather_data),
+    ]
     
-    result = evaluator.evaluate_comment_pair(good_pair, context, weather_data)
-    print(f"総合スコア: {result.total_score:.3f}")
-    print(f"合格判定: {'✓ 合格' if result.is_valid else '✗ 不合格'}")
-    print("詳細スコア:")
-    for score in result.criterion_scores:
-        print(f"  {score.criterion.value}: {score.score:.3f} (重み付き: {score.weighted_score:.3f})")
-        if score.reason:
-            print(f"    理由: {score.reason}")
-    print()
-    
-    # テストケース2: 悪いコメント
-    print("【テストケース2: 悪いコメント】")
-    bad_pair = create_bad_comment_pair()
-    print(f"天気コメント: '{bad_pair.weather_comment.comment_text}'")
-    print(f"アドバイス: '{bad_pair.advice_comment.comment_text}'")
-    
-    result = evaluator.evaluate_comment_pair(bad_pair, context, weather_data)
-    print(f"総合スコア: {result.total_score:.3f}")
-    print(f"合格判定: {'✓ 合格' if result.is_valid else '✗ 不合格'}")
-    print("詳細スコア:")
-    for score in result.criterion_scores:
-        print(f"  {score.criterion.value}: {score.score:.3f} (重み付き: {score.weighted_score:.3f})")
-        if score.reason:
-            print(f"    理由: {score.reason}")
-    if result.suggestions:
-        print("改善提案:")
-        for suggestion in result.suggestions:
-            print(f"  - {suggestion}")
-    print()
-    
-    # テストケース3: 平凡なコメント
-    print("【テストケース3: 平凡なコメント】")
-    typical_pair = create_typical_comment_pair()
-    print(f"天気コメント: '{typical_pair.weather_comment.comment_text}'")
-    print(f"アドバイス: '{typical_pair.advice_comment.comment_text}'")
-    
-    result = evaluator.evaluate_comment_pair(typical_pair, context, weather_data)
-    print(f"総合スコア: {result.total_score:.3f}")
-    print(f"合格判定: {'✓ 合格' if result.is_valid else '✗ 不合格'}")
-    print("詳細スコア:")
-    for score in result.criterion_scores:
-        print(f"  {score.criterion.value}: {score.score:.3f} (重み付き: {score.weighted_score:.3f})")
-        if score.reason:
-            print(f"    理由: {score.reason}")
-    print()
+    for i, (test_name, create_func, test_context, test_weather) in enumerate(test_cases, 1):
+        print(f"【テストケース{i}: {test_name}】")
+        comment_pair = create_func()
+        print(f"天気コメント: '{comment_pair.weather_comment.comment_text}'")
+        print(f"アドバイス: '{comment_pair.advice_comment.comment_text}'")
+        if test_name == "天気矛盾コメント":
+            print(f"実際の天気: {test_weather.weather_condition}")
+        
+        result = evaluator.evaluate_comment_pair(comment_pair, test_context, test_weather)
+        print(f"総合スコア: {result.total_score:.3f}")
+        print(f"合格判定: {'✓ 合格' if result.is_valid else '✗ 不合格'}")
+        print("詳細スコア:")
+        for score in result.criterion_scores:
+            print(f"  {score.criterion.value}: {score.score:.3f} (重み付き: {score.weighted_score:.3f})")
+            if score.reason:
+                print(f"    理由: {score.reason}")
+        if result.suggestions:
+            print("改善提案:")
+            for suggestion in result.suggestions:
+                print(f"  - {suggestion}")
+        print()
 
 
 if __name__ == "__main__":
