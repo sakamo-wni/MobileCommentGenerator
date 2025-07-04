@@ -75,7 +75,7 @@ def timed_node(node_func):
     """ノード実行時間を計測するデコレーター"""
 
     def wrapper(state: CommentGenerationState) -> CommentGenerationState:
-        node_name = node_func.__name__
+        node_name = getattr(node_func, '__name__', 'unknown_node')
         start_time = time.time()
 
         try:

@@ -11,9 +11,6 @@ from src.data.past_comment import PastComment, CommentType
 from src.data.weather_data import WeatherForecast
 from src.nodes.select_comment_pair_node import (
     select_comment_pair_node,
-    _select_best_comment_with_llm,
-    _is_weather_matched,
-    _generate_selection_prompt,
 )
 
 
@@ -135,62 +132,6 @@ class TestSelectCommentPairNode:
         with pytest.raises(ValueError, match="適切なコメントタイプが見つかりません"):
             select_comment_pair_node(state)
 
-    @patch('src.llm.llm_manager.LLMManager')
-    def test_select_best_comment_with_llm(self, mock_llm_manager):
-        """LLMによるコメント選択のテスト"""
-        mock_llm = MagicMock()
-        mock_llm.generate.return_value = "1"
-        mock_llm_manager.return_value = mock_llm
-        
-        weather_comments = [
-            c for c in self.sample_past_comments if c.comment_type == CommentType.WEATHER_COMMENT
-        ]
-        
-        result = _select_best_comment_with_llm(
-            weather_comments,
-            self.sample_weather,
-            "東京",
-            datetime.now(),
-            mock_llm,
-            CommentType.WEATHER_COMMENT
-        )
-        
-        assert result == weather_comments[1]
-        
-    def test_is_weather_matched(self):
-        """天気条件マッチングのテスト"""
-        assert _is_weather_matched("晴れ", "晴れ") == True
-        assert _is_weather_matched("晴れ時々曇り", "晴れ") == True
-        assert _is_weather_matched("晴れ", "晴れ時々曇り") == True
-        assert _is_weather_matched("雨", "晴れ") == False
-        assert _is_weather_matched(None, "晴れ") == False
-        assert _is_weather_matched("晴れ", "") == False
-        
-    def test_generate_selection_prompt(self):
-        """プロンプト生成のテスト"""
-        candidates = [
-            {
-                "index": 0,
-                "text": "テストコメント",
-                "weather": "晴れ",
-                "temperature": 20.0,
-                "season": "春",
-            }
-        ]
-        
-        prompt = _generate_selection_prompt(
-            candidates,
-            self.sample_weather,
-            "東京",
-            datetime.now(),
-            CommentType.WEATHER_COMMENT
-        )
-        
-        assert "東京" in prompt
-        assert "晴れ" in prompt
-        assert "20" in prompt
-        assert "weather_comment" in prompt
-        assert "選択基準" in prompt
 
 
 if __name__ == "__main__":

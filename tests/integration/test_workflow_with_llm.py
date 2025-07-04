@@ -62,7 +62,7 @@ class TestWorkflowWithLLMIntegration:
         }
         mock_s3.get_object.return_value = {
             'Body': MagicMock(
-                read=lambda: b'{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "爽やかな朝です", "comment_type": "weather_comment"}\n{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "日焼け対策を", "comment_type": "advice"}'
+                read=lambda: '{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "爽やかな朝です", "comment_type": "weather_comment"}\n{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "日焼け対策を", "comment_type": "advice"}'.encode('utf-8')
             )
         }
         mock_boto_client.return_value = mock_s3
@@ -124,7 +124,7 @@ class TestWorkflowWithLLMIntegration:
         }
         mock_s3.get_object.return_value = {
             'Body': MagicMock(
-                read=lambda: b'{"location": "東京", "weather_condition": "雨", "temperature": 19.0, "comment_text": "雨の一日です", "comment_type": "weather_comment"}\n{"location": "東京", "weather_condition": "雨", "temperature": 19.0, "comment_text": "傘を持って", "comment_type": "advice"}'
+                read=lambda: '{"location": "東京", "weather_condition": "雨", "temperature": 19.0, "comment_text": "雨の一日です", "comment_type": "weather_comment"}\n{"location": "東京", "weather_condition": "雨", "temperature": 19.0, "comment_text": "傘を持って", "comment_type": "advice"}'.encode('utf-8')
             )
         }
         mock_boto_client.return_value = mock_s3
@@ -179,7 +179,7 @@ class TestWorkflowWithLLMIntegration:
         mock_s3.list_objects_v2.return_value = {'Contents': [{'Key': 'test.jsonl'}]}
         mock_s3.get_object.return_value = {
             'Body': MagicMock(
-                read=lambda: b'{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "今日は本当に素晴らしい天気ですね", "comment_type": "weather_comment"}\n{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "日焼け止めを", "comment_type": "advice"}'
+                read=lambda: '{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "今日は本当に素晴らしい天気ですね", "comment_type": "weather_comment"}\n{"location": "東京", "weather_condition": "晴れ", "temperature": 24.0, "comment_text": "日焼け止めを", "comment_type": "advice"}'.encode('utf-8')
             )
         }
         mock_boto_client.return_value = mock_s3
