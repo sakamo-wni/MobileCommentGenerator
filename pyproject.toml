@@ -56,8 +56,12 @@ dependencies = [
     "loguru>=0.7.2",
     "uvicorn[standard]>=0.34.3",
     "orjson>=3.10.18",
+    # Security
+    "cryptography>=41.0.0",
     # Web Framework
     "fastapi>=0.104.0",
+    # AWS SDK（オプショナルだが基本機能に含める）
+    "boto3>=1.34.0",
 ]
 
 # オプション依存関係 - 用途別グループ化
@@ -77,22 +81,64 @@ dev = [
     "ipython>=8.18.1",
 ]
 
-# Streamlit UI開発用
-streamlit = [
-    "streamlit>=1.28.0",
+# Streamlit UI開発用（追加の依存関係）
+streamlit-extra = [
     "plotly>=5.17.0",
     "altair>=5.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "bokeh>=3.2.0",
+    "streamlit-option-menu>=0.3.6",
+    "streamlit-ace>=0.1.1",
+    "streamlit-aggrid>=0.3.4",
+    "streamlit-javascript>=0.1.5",
+    "python-dateutil>=2.8.2",
+    "openpyxl>=3.1.0",
+    "Pillow>=10.0.0",
+    "tqdm>=4.65.0",
 ]
 
-# Vue.js連携用
-frontend = [
+# API開発用（Vue.js連携含む）
+api = [
     "fastapi>=0.104.0",
-    "uvicorn>=0.24.0",
+    "uvicorn[standard]>=0.24.0",
 ]
 
 # AWS本番デプロイ用
 aws = [
     "boto3>=1.34.0",
+    "awscli>=1.32.0",
+    "python-lambda>=4.0.0",
+]
+
+# 全部入り（開発環境用）
+all = [
+    "pytest>=7.4.3",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.1",
+    "pytest-mock>=3.12.0",
+    "black>=23.12.0",
+    "isort>=5.13.2",
+    "mypy>=1.7.1",
+    "ruff>=0.1.9",
+    "flake8>=6.1.0",
+    "bandit>=1.7.5",
+    "ipython>=8.18.1",
+    "plotly>=5.17.0",
+    "altair>=5.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "bokeh>=3.2.0",
+    "streamlit-option-menu>=0.3.6",
+    "streamlit-ace>=0.1.1",
+    "streamlit-aggrid>=0.3.4",
+    "streamlit-javascript>=0.1.5",
+    "python-dateutil>=2.8.2",
+    "openpyxl>=3.1.0",
+    "Pillow>=10.0.0",
+    "tqdm>=4.65.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
     "awscli>=1.32.0",
     "python-lambda>=4.0.0",
 ]

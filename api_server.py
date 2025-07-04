@@ -2,15 +2,25 @@
 
 import os
 import logging
+import asyncio
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from src.config.app_config import get_config
+from src.utils.error_handler import ErrorHandler, AppError
+from src.types import (
+    HistoryItem,
+    LLMProvider,
+    GenerationMetadata
+)
+
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+config = get_config()
+logging.basicConfig(level=getattr(logging, config.log_level))
 logger = logging.getLogger(__name__)
 
 try:
@@ -33,6 +43,11 @@ app = FastAPI(title="Mobile Comment Generator API", version="1.0.0")
 
 # CORS設定
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174").split(",")
+
+# 本番環境ではより厳格なCORS設定を使用
+if config.env == "production":
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS_PROD", "https://your-production-domain.com").split(",")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -44,7 +59,7 @@ app.add_middleware(
 # Pydantic models
 class CommentGenerationRequest(BaseModel):
     location: str
-    llm_provider: str = "gemini"
+    llm_provider: LLMProvider = "gemini"
     target_datetime: Optional[str] = None
     exclude_previous: Optional[bool] = False
 
@@ -54,50 +69,52 @@ class CommentGenerationResponse(BaseModel):
     comment: Optional[str] = None
     advice_comment: Optional[str] = None
     error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[GenerationMetadata] = None
 
 class LocationResponse(BaseModel):
     locations: List[str]
 
 class HistoryResponse(BaseModel):
-    history: List[Dict[str, Any]]
+    history: List[HistoryItem]
 
 class HealthResponse(BaseModel):
     status: str
     version: str
 
 @app.get("/health", response_model=HealthResponse)
-def health_check():
+async def health_check():
     """Health check endpoint"""
     return HealthResponse(status="ok", version="1.0.0")
 
 @app.get("/api/locations", response_model=LocationResponse)
-def get_locations():
+async def get_locations():
     """Get available locations"""
     try:
-        locations = load_locations()
+        locations = await asyncio.to_thread(load_locations)
         logger.info(f"Loaded {len(locations)} locations")
         return LocationResponse(locations=locations)
     except Exception as e:
-        logger.error(f"Failed to load locations: {e}")
+        error_response = ErrorHandler.handle_error(e)
+        logger.error(f"Failed to load locations: {error_response.error_message}")
         # Return fallback locations
         fallback_locations = ["東京", "神戸", "大阪", "名古屋", "福岡"]
         return LocationResponse(locations=fallback_locations)
 
 @app.get("/api/history", response_model=HistoryResponse)
-def get_history():
+async def get_history():
     """Get generation history"""
     try:
-        history = load_history()
+        history = await asyncio.to_thread(load_history)
         logger.info(f"Loaded {len(history)} history items")
         return HistoryResponse(history=history)
     except Exception as e:
-        logger.error(f"Failed to load history: {e}")
+        error_response = ErrorHandler.handle_error(e)
+        logger.error(f"Failed to load history: {error_response.error_message}")
         # Return empty history on error
         return HistoryResponse(history=[])
 
 @app.post("/api/generate", response_model=CommentGenerationResponse)
-def generate_comment(request: CommentGenerationRequest):
+async def generate_comment(request: CommentGenerationRequest):
     """Generate weather comment for a location"""
     logger.info(f"Received request: {request}")
     logger.info(f"Generating comment for location: {request.location}, provider: {request.llm_provider}")
@@ -118,7 +135,8 @@ def generate_comment(request: CommentGenerationRequest):
         logger.info(f"Target datetime: {target_dt} (current time for forecast calculation)")
         
         # Run comment generation
-        result = run_comment_generation(
+        result = await asyncio.to_thread(
+            run_comment_generation,
             location_name=request.location,
             target_datetime=target_dt,
             llm_provider=request.llm_provider,
@@ -157,7 +175,7 @@ def generate_comment(request: CommentGenerationRequest):
         
         # Save to history if successful
         if success:
-            save_to_history(result, request.location, request.llm_provider)
+            await asyncio.to_thread(save_to_history, result, request.location, request.llm_provider)
         
         return CommentGenerationResponse(
             success=success,
@@ -169,20 +187,19 @@ def generate_comment(request: CommentGenerationRequest):
         )
         
     except Exception as e:
-        import traceback
-        error_msg = str(e)
-        logger.error(f"Error generating comment for {request.location}: {error_msg}")
-        logger.error(f"Full traceback: {traceback.format_exc()}")
+        error_response = ErrorHandler.handle_error(e)
+        logger.error(f"Error generating comment for {request.location}: {error_response.error_message}")
+        
         return CommentGenerationResponse(
             success=False,
             location=request.location,
             comment=None,
-            error=f"生成エラー: {error_msg}",
+            error=error_response.user_message,
             metadata=None
         )
 
 @app.get("/api/providers")
-def get_llm_providers():
+async def get_llm_providers():
     """Get available LLM providers"""
     return {
         "providers": [
