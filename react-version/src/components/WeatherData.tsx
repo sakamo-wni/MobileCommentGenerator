@@ -66,12 +66,19 @@ export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
         </div>
       )}
 
-      {/* 現在の天気 */}
+      {/* 翌日の天気予報 */}
       <div className="bg-app-surface border border-app-border rounded-lg p-6 shadow-sm">
-        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <Cloud className="w-5 h-5 mr-2 text-blue-600" />
-          現在の天気
-        </h3>
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center">
+            <Cloud className="w-5 h-5 mr-2 text-blue-600" />
+            翌日の天気予報
+          </h3>
+          {metadata?.weather_forecast_time && (
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              予報時刻: {formatDateTime(metadata.weather_forecast_time)}
+            </div>
+          )}
+        </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
