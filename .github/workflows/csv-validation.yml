@@ -1,0 +1,84 @@
+name: CSV Validation
+
+on:
+  push:
+    paths:
+      - 'output/**/*.csv'
+      - 'src/utils/csv_validator.py'
+  pull_request:
+    paths:
+      - 'output/**/*.csv'
+      - 'src/utils/csv_validator.py'
+  workflow_dispatch:
+
+jobs:
+  validate-csv:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyyaml
+    
+    - name: Run CSV validation
+      run: |
+        python src/utils/csv_validator.py output/ -o validation_report.txt -v
+    
+    - name: Upload validation report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: csv-validation-report
+        path: validation_report.txt
+    
+    - name: Comment PR with validation results
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('validation_report.txt', 'utf8');
+          
+          // レポートから重要な情報を抽出
+          const lines = report.split('\n');
+          let summary = '';
+          let inSummary = false;
+          
+          for (const line of lines) {
+            if (line.includes('## サマリー')) {
+              inSummary = true;
+              continue;
+            }
+            if (inSummary && line.trim() === '') {
+              break;
+            }
+            if (inSummary) {
+              summary += line + '\n';
+            }
+          }
+          
+          const comment = `## 📊 CSV検証レポート\n\n${summary}\n\n<details>\n<summary>詳細レポート</summary>\n\n\`\`\`\n${report}\n\`\`\`\n</details>`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+    
+    - name: Check validation status
+      run: |
+        if grep -q "✗ エラー" validation_report.txt; then
+          echo "❌ CSV検証でエラーが見つかりました"
+          exit 1
+        else
+          echo "✅ CSV検証が正常に完了しました"
+        fi

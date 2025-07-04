@@ -131,10 +131,15 @@ class DataSettings:
     generation_history_file: str = field(default="data/generation_history.json")
     locations_file: str = field(default="src/data/Chiten.csv")
     
-    # S3設定
-    s3_bucket_name: str = field(default="mobile-weather-comment-prod")
-    s3_prefix: str = field(default="comments")
-    use_s3: bool = field(default=False)
+    # データストレージ設定（S3は非推奨）
+    # @deprecated S3の使用は非推奨です。ローカルCSVファイルを使用してください。
+    # s3_bucket_name: str = field(default="mobile-weather-comment-prod")
+    # s3_prefix: str = field(default="comments") 
+    # use_s3: bool = field(default=False)
+    
+    # CSVファイル設定
+    csv_output_dir: str = field(default="output")
+    use_local_csv: bool = field(default=True)
     
     # データ保持設定
     max_history_records: int = field(default=1000)
