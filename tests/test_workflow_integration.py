@@ -155,14 +155,29 @@ class TestWorkflowIntegration:
         }
         mock_requests_get.return_value = mock_weather_response
         
-        mock_s3 = MagicMock()
-        mock_s3.list_objects_v2.return_value = {'Contents': [{'Key': 'test.jsonl'}]}
-        mock_s3.get_object.return_value = {
-            'Body': MagicMock(
-                read=lambda: b'{"location": "稚内", "weather_condition": "晴れ", "temperature": 20.0, "comment_text": "今日は本当に素晴らしい天気ですね", "comment_type": "weather_comment"}\n{"location": "稚内", "weather_condition": "晴れ", "temperature": 20.0, "comment_text": "日焼け止めを", "comment_type": "advice"}'
+        # LocalCommentRepositoryのモック
+        mock_local_repo = MagicMock()
+        from src.data.past_comment import PastComment, CommentType
+        mock_comments = [
+            PastComment(
+                location="稚内",
+                datetime=datetime.now(),
+                weather_condition="晴れ",
+                comment_text="今日は本当に素晴らしい天気ですね",
+                comment_type=CommentType.WEATHER_COMMENT,
+                temperature=20.0
+            ),
+            PastComment(
+                location="稚内",
+                datetime=datetime.now(),
+                weather_condition="晴れ",
+                comment_text="日焼け止めを",
+                comment_type=CommentType.ADVICE,
+                temperature=20.0
             )
-        }
-        mock_boto_client.return_value = mock_s3
+        ]
+        mock_local_repo.get_recent_comments.return_value = mock_comments
+        mock_local_repo_class.return_value = mock_local_repo
         
         # OpenAIクライアントのモック
         # 最初は長すぎるコメント、次は成功
