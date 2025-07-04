@@ -30,20 +30,79 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Card Component
+ * 
+ * @description
+ * 柔軟なレイアウトとバリアントを持つカードコンポーネント。
+ * ヘッダー、メインコンテンツ、フッターの3つのセクションを持ち、
+ * 様々な用途に対応できる汎用的な設計。
+ * 
+ * @example
+ * ```vue
+ * <!-- 基本的な使用例 -->
+ * <Card>
+ *   <p>カードの内容</p>
+ * </Card>
+ * 
+ * <!-- タイトル付き -->
+ * <Card title="カードタイトル">
+ *   <p>カードの内容</p>
+ * </Card>
+ * 
+ * <!-- ホバー効果とクリック可能 -->
+ * <Card hoverable clickable @click="handleCardClick">
+ *   <p>クリック可能なカード</p>
+ * </Card>
+ * 
+ * <!-- スロットを使用した複雑なレイアウト -->
+ * <Card>
+ *   <template #header>
+ *     <h3>カスタムヘッダー</h3>
+ *   </template>
+ *   <p>メインコンテンツ</p>
+ *   <template #footer>
+ *     <Button>アクション</Button>
+ *   </template>
+ * </Card>
+ * ```
+ */
 import { computed } from 'vue'
 
 interface Props {
-  // カードの外観
+  /**
+   * カードの外観バリアント
+   * @default 'default'
+   */
   variant?: 'default' | 'outlined' | 'elevated' | 'glass'
-  // パディング設定
+  
+  /**
+   * カードの内側の余白サイズ
+   * @default 'md'
+   */
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl'
-  // ホバー効果
+  
+  /**
+   * ホバー時にカードを浮かせるエフェクトを有効にする
+   * @default false
+   */
   hoverable?: boolean
-  // クリック可能
+  
+  /**
+   * カードをクリック可能にする
+   * @default false
+   */
   clickable?: boolean
-  // タイトル（ヘッダー用）
+  
+  /**
+   * ヘッダーに表示するタイトル（headerスロットより優先度が低い）
+   */
   title?: string
-  // 角丸設定
+  
+  /**
+   * カードの角丸サイズ
+   * @default 'lg'
+   */
   rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl'
 }
 
@@ -55,7 +114,14 @@ const props = withDefaults(defineProps<Props>(), {
   rounded: 'lg'
 })
 
+/**
+ * Emit定義
+ */
 interface Emits {
+  /**
+   * カードがクリックされたときに発火（clickableがtrueの場合のみ）
+   * @param event - MouseEvent
+   */
   click: [event: MouseEvent]
 }
 

@@ -25,7 +25,6 @@ interface RegeneratingState {
 }
 
 // Constants for batch mode
-const MAX_BATCH_LOCATIONS = 30;
 const WARN_BATCH_LOCATIONS = 20;
 
 // Helper function to find location info from regions data
@@ -289,7 +288,6 @@ function App() {
                     onLocationChange={setSelectedLocation}
                     onLocationsChange={setSelectedLocations}
                     isBatchMode={isBatchMode}
-                    maxSelections={MAX_BATCH_LOCATIONS}
                   />
                 </div>
               </div>
@@ -306,7 +304,7 @@ function App() {
                         大量の地点が選択されています ({selectedLocations.length}地点)
                       </div>
                       <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                        処理に時間がかかる可能性があります。最大{MAX_BATCH_LOCATIONS}地点まで選択可能です。
+                        処理に時間がかかる可能性があります。
                       </div>
                     </div>
                   </div>

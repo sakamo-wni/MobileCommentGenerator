@@ -52,7 +52,7 @@
     
     <!-- テキスト付きローディング -->
     <div 
-      v-if="text && showText"
+      v-show="text && showText"
       :class="textClasses"
     >
       {{ text }}
@@ -61,21 +61,72 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Loading Component
+ * 
+ * @description
+ * 様々なスタイルのローディングインジケーターを提供するコンポーネント。
+ * スピナー、ドット、パルス、スケルトンの4種類のアニメーションに対応。
+ * 
+ * @example
+ * ```vue
+ * <!-- 基本的なスピナー -->
+ * <Loading />
+ * 
+ * <!-- サイズと色を指定 -->
+ * <Loading size="lg" color="secondary" />
+ * 
+ * <!-- テキスト付き -->
+ * <Loading text="データを読み込んでいます..." show-text />
+ * 
+ * <!-- ドットアニメーション -->
+ * <Loading type="dots" size="sm" />
+ * 
+ * <!-- 中央寄せ -->
+ * <Loading center />
+ * ```
+ */
 import { computed } from 'vue'
 
 interface Props {
-  // ローディングの種類
+  /**
+   * ローディングアニメーションの種類
+   * @default 'spinner'
+   */
   type?: 'spinner' | 'dots' | 'pulse' | 'skeleton'
-  // サイズ
+  
+  /**
+   * ローディングインジケーターのサイズ
+   * @default 'md'
+   */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-  // 色
+  
+  /**
+   * ローディングインジケーターの色
+   * @default 'primary'
+   */
   color?: 'primary' | 'secondary' | 'white' | 'current'
-  // テキスト
+  
+  /**
+   * ローディングテキスト
+   */
   text?: string
+  
+  /**
+   * テキストを表示するか
+   * @default false
+   */
   showText?: boolean
-  // 中央寄せ
+  
+  /**
+   * コンテナを中央寄せするか
+   * @default false
+   */
   center?: boolean
-  // ARIA用
+  
+  /**
+   * スクリーンリーダー用のARIAラベル
+   */
   ariaLabel?: string
 }
 
