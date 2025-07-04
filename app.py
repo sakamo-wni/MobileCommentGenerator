@@ -1,26 +1,24 @@
 """天気コメント生成システム - Streamlit UI"""
 
-import os
-from dotenv import load_dotenv
-
-# .envファイルから環境変数を読み込む（上書きモードで強制的に再読み込み）
-load_dotenv(override=True)
-
 import streamlit as st
+from src.config.app_config import get_config
+
+# 設定の読み込み
+config = get_config()
 
 # ページ設定（最初に呼ぶ必要がある）
 st.set_page_config(
-    page_title="天気コメント生成システム",
-    page_icon="☀️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title=config.ui_settings.page_title,
+    page_icon=config.ui_settings.page_icon,
+    layout=config.ui_settings.layout,
+    initial_sidebar_state=config.ui_settings.sidebar_state
 )
 
 from datetime import datetime
 import logging
 import time
 import pytz
-from typing import Dict, Any, List
+from typing import List, Optional
 
 from src.workflows.comment_generation_workflow import run_comment_generation
 from src.ui.streamlit_components import (
@@ -31,6 +29,13 @@ from src.ui.streamlit_components import (
     settings_panel
 )
 from src.ui.streamlit_utils import save_to_history, load_history, load_locations, format_timestamp
+from src.utils.error_handler import ErrorHandler, with_error_handling
+from src.types import (
+    BatchGenerationResult,
+    LocationResult,
+    GenerationResult,
+    LLMProvider
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +44,10 @@ def initialize_session_state():
     defaults = {
         'generation_history': load_history(),
         'selected_location': load_locations(),  # 全地点がデフォルト
-        'llm_provider': "gemini",
+        'llm_provider': config.ui_settings.default_llm_provider,
         'current_result': None,
-        'is_generating': False
+        'is_generating': False,
+        'config': config
     }
     
     for key, value in defaults.items():
@@ -49,7 +55,7 @@ def initialize_session_state():
             st.session_state[key] = value
 
 
-def display_single_result(result: Dict[str, Any]):
+def display_single_result(result: LocationResult):
     """個別の結果を表示（累積表示を避ける）"""
     location = result['location']
     success = result['success']
@@ -118,7 +124,7 @@ def display_single_result(result: Dict[str, Any]):
         st.error(f"❌ **{location}**: {error}")
 
 
-def display_streaming_results(results: List[Dict[str, Any]]):
+def display_streaming_results(results: List[LocationResult]):
     """結果をストリーミング表示（従来関数・最終結果用）"""
     # ヘッダーはgenerate_comment_with_progressで表示済み
     
@@ -131,7 +137,7 @@ def display_streaming_results(results: List[Dict[str, Any]]):
         st.info(f"⏳ 生成待ち: {remaining}地点")
 
 
-def generate_comment_with_progress(locations: List[str], llm_provider: str, results_container) -> Dict[str, Any]:
+def generate_comment_with_progress(locations: List[str], llm_provider: str, results_container) -> BatchGenerationResult:
     """プログレスバー付きコメント生成（複数地点対応）"""
     if not locations:
         return {'success': False, 'error': '地点が選択されていません'}
@@ -201,13 +207,7 @@ def generate_comment_with_progress(locations: List[str], llm_provider: str, resu
                     
             except Exception as location_error:
                 # 個別地点のエラーをキャッチして記録
-                location_result = {
-                    'location': location,
-                    'result': None,
-                    'success': False,
-                    'comment': '',
-                    'error': str(location_error)
-                }
+                location_result = ErrorHandler.create_error_result(location, location_error)
                 all_results.append(location_result)
                 
                 # 個別地点の結果を追加表示（累積表示を避ける）
@@ -246,27 +246,15 @@ def generate_comment_with_progress(locations: List[str], llm_provider: str, resu
         }
         
     except Exception as e:
-        error_msg = str(e)
-        
-        # エラーメッセージをユーザーにわかりやすく表示
-        if "OPENAI_API_KEY" in error_msg or "GEMINI_API_KEY" in error_msg or "ANTHROPIC_API_KEY" in error_msg:
-            st.error(f"🔐 APIキーエラー: {error_msg}")
-            st.info("💡 ヒント: サイドバーの「APIキー設定」から必要なAPIキーを設定してください")
-        elif "S3への接続に失敗" in error_msg:
-            st.error("🗄️ S3接続エラー: 過去コメントデータベースに接続できません")
-            st.info("💡 ヒント: AWS認証情報（AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY）を確認してください")
-        elif "WXTECH_API_KEY" in error_msg:
-            st.error("☁️ 気象APIエラー: 天気予報データを取得できません")
-            st.info("💡 ヒント: WXTECH_API_KEY環境変数を設定してください")
-        elif "地点が見つかりません" in error_msg:
-            st.error(f"📍 地点エラー: {error_msg}")
-            st.info("💡 ヒント: 地点名を確認して、正しい地点を選択してください")
-        else:
-            st.error(f"⚠️ エラーが発生しました: {error_msg}")
+        # 統一されたエラーハンドリング
+        error_response = ErrorHandler.handle_error(e)
+        st.error(error_response.user_message)
+        if error_response.hint:
+            st.info(f"💡 ヒント: {error_response.hint}")
         
         return {
             'success': False,
-            'error': error_msg,
+            'error': error_response.error_message,
             'final_comment': None
         }
     finally:
@@ -277,11 +265,17 @@ def generate_comment_with_progress(locations: List[str], llm_provider: str, resu
 
 def main():
     """メインアプリケーション"""
-    # APIキーの確認（デバッグ用）
-    if not os.getenv("OPENAI_API_KEY"):
-        st.error("⚠️ OPENAI_API_KEYが設定されていません。.envファイルを確認してください。")
-    if not os.getenv("WXTECH_API_KEY"):
-        st.error("⚠️ WXTECH_API_KEYが設定されていません。.envファイルを確認してください。")
+    # 設定の検証
+    validation_results = config.validate()
+    
+    # 必須APIキーの確認
+    if not validation_results["api_keys"]["wxtech"]:
+        st.error("⚠️ WXTECH_API_KEYが設定されていません。天気予報データの取得ができません。")
+    
+    # デバッグモードでの追加情報表示
+    if config.debug and config.ui_settings.show_debug_info:
+        with st.expander("デバッグ情報", expanded=False):
+            st.json(config.to_dict())
     
     # セッション状態の初期化
     initialize_session_state()
@@ -333,6 +327,10 @@ def main():
             with st.spinner("生成中..."):
                 # 複数地点の処理
                 if isinstance(location, list) and len(location) > 0:
+                    # 最大地点数のチェック
+                    if len(location) > config.ui_settings.max_locations_per_generation:
+                        st.warning(f"⚠️ 選択された地点数が上限（{config.ui_settings.max_locations_per_generation}地点）を超えています。")
+                        location = location[:config.ui_settings.max_locations_per_generation]
                     result = generate_comment_with_progress(location, llm_provider, results_container)
                 else:
                     st.error("地点が選択されていません")

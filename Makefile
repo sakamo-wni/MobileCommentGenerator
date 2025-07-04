@@ -5,7 +5,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: help install install-dev clean test lint format run-streamlit run-frontend setup-env
+.PHONY: help install install-dev install-all clean test lint format run-streamlit run-frontend setup-env migrate-deps
 
 # デフォルトターゲット
 help:
@@ -13,9 +13,11 @@ help:
 	@echo ""
 	@echo "セットアップ:"
 	@echo "  setup          - 完全な開発環境セットアップ"
-	@echo "  install        - 基本依存関係のインストール"
+	@echo "  install        - 基本依存関係のインストール (pyproject.toml)"
 	@echo "  install-dev    - 開発用依存関係のインストール"
+	@echo "  install-all    - すべての依存関係をインストール"
 	@echo "  setup-env      - 環境変数ファイルの準備"
+	@echo "  migrate-deps   - 旧requirements.txtから移行"
 	@echo ""
 	@echo "開発:"
 	@echo "  test           - テスト実行"
@@ -45,19 +47,39 @@ setup: clean-venv
 		echo "❌ Python が見つかりません"; \
 		exit 1; \
 	fi; \
-	uv venv --python $$PYTHON_CMD
-	$(MAKE) install-dev
+	@if command -v uv &> /dev/null; then \
+		uv venv --python $$PYTHON_CMD; \
+	else \
+		$$PYTHON_CMD -m venv .venv; \
+	fi
+	$(MAKE) install-all
 	$(MAKE) setup-env
 	@echo "✅ セットアップ完了！"
 	@echo "次のステップ: source .venv/bin/activate"
 
 install:
 	@echo "📦 基本依存関係をインストール中..."
-	uv pip install -r requirements.txt
+	@if command -v uv &> /dev/null; then \
+		uv pip install -e .; \
+	else \
+		pip install -e .; \
+	fi
 
 install-dev:
 	@echo "📦 開発用依存関係をインストール中..."
-	uv pip install -r requirements.txt -r requirements-dev.txt
+	@if command -v uv &> /dev/null; then \
+		uv pip install -e ".[dev]"; \
+	else \
+		pip install -e ".[dev]"; \
+	fi
+
+install-all:
+	@echo "📦 すべての依存関係をインストール中..."
+	@if command -v uv &> /dev/null; then \
+		uv pip install -e ".[all]"; \
+	else \
+		pip install -e ".[all]"; \
+	fi
 
 setup-env:
 	@echo "⚙️  環境変数ファイルを準備中..."
@@ -138,8 +160,24 @@ clean-venv:
 
 update-deps:
 	@echo "🔄 依存関係を更新中..."
-	uv pip install --upgrade pip
-	uv pip install -U -r requirements.txt -r requirements-dev.txt
+	@if command -v uv &> /dev/null; then \
+		uv pip install --upgrade pip; \
+		uv pip install -e ".[all]" --upgrade; \
+	else \
+		pip install --upgrade pip; \
+		pip install -e ".[all]" --upgrade; \
+	fi
+
+migrate-deps:
+	@echo "🔄 旧requirements.txtから移行中..."
+	@echo "⚠️  既存の依存関係を削除します"
+	@if [ -f requirements.txt ]; then \
+		pip freeze | grep -v "^-e" | xargs pip uninstall -y || true; \
+		echo "✅ 旧依存関係を削除しました"; \
+	fi
+	@echo "📦 新しい依存関係をインストール中..."
+	$(MAKE) install-all
+	@echo "✅ 移行完了！"
 
 # 📊 プロジェクト情報
 info:
@@ -153,6 +191,7 @@ info:
 dev: setup
 	@echo "🛠️  開発環境準備完了"
 	@echo "使用可能なコマンド: make lint, make test, make run-streamlit"
+	@echo "ℹ️  旧requirements.txtから移行する場合: make migrate-deps"
 
 quick-test:
 	pytest tests/test_location_manager.py -v
