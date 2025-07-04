@@ -11,6 +11,7 @@ from src.workflows.comment_generation_workflow import (
     create_comment_generation_workflow,
     run_comment_generation
 )
+from src.data.past_comment import PastComment, CommentType
 
 
 class TestWorkflowWithLLMIntegration:
@@ -21,9 +22,6 @@ class TestWorkflowWithLLMIntegration:
         """環境変数のモック"""
         env_vars = {
             "WXTECH_API_KEY": "test-wx-key",
-            "AWS_ACCESS_KEY_ID": "test-aws-key",
-            "AWS_SECRET_ACCESS_KEY": "test-aws-secret",
-            "S3_COMMENT_BUCKET": "test-bucket",
             "OPENAI_API_KEY": "test-openai-key",
             "GEMINI_API_KEY": "test-gemini-key",
             "ANTHROPIC_API_KEY": "test-anthropic-key"
@@ -32,12 +30,12 @@ class TestWorkflowWithLLMIntegration:
             yield
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.nodes.retrieve_past_comments_node.boto3.client')
+    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_complete_workflow_with_openai(
         self,
         mock_openai_class,
-        mock_boto_client,
+        mock_local_repo_class,
         mock_requests_get,
         mock_env_vars
     ):
@@ -99,7 +97,7 @@ class TestWorkflowWithLLMIntegration:
     def test_complete_workflow_with_gemini(
         self,
         mock_genai,
-        mock_boto_client,
+        mock_local_repo_class,
         mock_requests_get,
         mock_env_vars
     ):
@@ -154,12 +152,12 @@ class TestWorkflowWithLLMIntegration:
         mock_model.generate_content.assert_called_once()
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.nodes.retrieve_past_comments_node.boto3.client')
+    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_workflow_with_retry_logic(
         self,
         mock_openai_class,
-        mock_boto_client,
+        mock_local_repo_class,
         mock_requests_get,
         mock_env_vars
     ):

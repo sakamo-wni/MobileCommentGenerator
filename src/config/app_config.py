@@ -131,10 +131,9 @@ class DataSettings:
     generation_history_file: str = field(default="data/generation_history.json")
     locations_file: str = field(default="src/data/Chiten.csv")
     
-    # S3設定
-    s3_bucket_name: str = field(default="mobile-weather-comment-prod")
-    s3_prefix: str = field(default="comments")
-    use_s3: bool = field(default=False)
+    # CSVファイル設定
+    csv_output_dir: str = field(default="output")
+    use_local_csv: bool = field(default=True)
     
     # データ保持設定
     max_history_records: int = field(default=1000)
@@ -174,12 +173,6 @@ class AppConfig:
         if os.getenv("DEFAULT_LLM_PROVIDER"):
             config.ui_settings.default_llm_provider = os.getenv("DEFAULT_LLM_PROVIDER")
         
-        if os.getenv("USE_S3"):
-            config.data_settings.use_s3 = os.getenv("USE_S3").lower() == "true"
-        
-        if os.getenv("S3_BUCKET_NAME"):
-            config.data_settings.s3_bucket_name = os.getenv("S3_BUCKET_NAME")
-        
         return config
     
     def validate(self) -> Dict[str, Any]:
@@ -195,9 +188,6 @@ class AppConfig:
         # 警告の出力
         if not validation_results["api_keys"]["wxtech"]:
             logger.warning("WXTECH_API_KEY is not set. Weather data fetching will fail.")
-        
-        if self.data_settings.use_s3 and not validation_results["api_keys"]["aws"]:
-            logger.warning("AWS credentials are not set but S3 is enabled.")
         
         return validation_results
     
@@ -220,7 +210,6 @@ class AppConfig:
                 "batch_size": self.generation_settings.batch_size
             },
             "data_settings": {
-                "use_s3": self.data_settings.use_s3,
                 "max_history": self.data_settings.max_history_records
             }
         }

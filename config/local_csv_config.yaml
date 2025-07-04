@@ -1,0 +1,103 @@
+# ローカルCSVリポジトリ設定ファイル
+
+# 基本設定
+repository:
+  # 使用する実装 (standard または lazy)
+  implementation: standard
+  
+  # CSVファイルのディレクトリ
+  output_dir: output
+  
+  # キャッシュ設定（standard実装のみ）
+  cache:
+    # 初期化時にキャッシュを読み込むか
+    preload: true
+    # キャッシュの最大サイズ（MB）
+    max_size_mb: 100
+
+# CSV検証設定
+validation:
+  # 最大コメント長
+  max_comment_length: 200
+  
+  # 最小コメント長
+  min_comment_length: 1
+  
+  # count値の範囲
+  count_range:
+    min: 0
+    max: 1000000
+  
+  # 警告を出すコメント長
+  warning_length: 100
+  
+  # 必須カラム
+  required_columns:
+    weather_comment: ["weather_comment", "count"]
+    advice: ["advice", "count"]
+
+# パフォーマンス設定
+performance:
+  # ページネーションのデフォルトサイズ（lazy実装）
+  default_page_size: 50
+  
+  # 検索結果の最大数
+  max_search_results: 1000
+  
+  # ファイル読み込みのバッファサイズ
+  buffer_size: 8192
+
+# 季節設定
+seasons:
+  # 各月に対応する季節
+  month_mapping:
+    1: ["冬", "春"]
+    2: ["冬", "春"]
+    3: ["春", "梅雨"]
+    4: ["春", "梅雨"]
+    5: ["春", "梅雨", "夏"]
+    6: ["春", "梅雨", "夏"]
+    7: ["夏", "梅雨", "台風"]
+    8: ["夏", "梅雨", "台風"]
+    9: ["夏", "台風", "秋"]
+    10: ["秋", "台風", "冬"]
+    11: ["秋", "台風", "冬"]
+    12: ["冬", "春"]
+  
+  # 優先順位（最初に検索される順）
+  priority:
+    - 春
+    - 夏
+    - 秋
+    - 冬
+    - 梅雨
+    - 台風
+
+# ログ設定
+logging:
+  # ログレベル (DEBUG, INFO, WARNING, ERROR)
+  level: INFO
+  
+  # 詳細ログを出力するか
+  verbose: false
+  
+  # CSVエラーの詳細を出力するか
+  csv_errors_detail: true
+
+# データ品質設定
+data_quality:
+  # 重複コメントを除外するか
+  remove_duplicates: true
+  
+  # 空白文字のみのコメントを除外するか
+  remove_empty: true
+  
+  # 特殊文字を正規化するか
+  normalize_special_chars: true
+  
+  # NGワードリスト（これらを含むコメントは除外）
+  ng_words:
+    - "エラー"
+    - "NULL"
+    - "undefined"
+    - "???"

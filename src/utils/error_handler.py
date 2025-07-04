@@ -68,11 +68,11 @@ class LocationError(AppError):
         self.location = location
 
 
-class S3Error(AppError):
-    """S3関連のエラー"""
+class DataStorageError(AppError):
+    """データストレージ関連のエラー"""
     def __init__(self, message: str, operation: Optional[str] = None):
-        hint = "AWS認証情報（AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY）を確認してください"
-        super().__init__(message, "S3Error", hint)
+        hint = "output/ディレクトリに必要なCSVファイルが存在することを確認してください"
+        super().__init__(message, "DataStorageError", hint)
         self.operation = operation
 
 
@@ -109,9 +109,9 @@ class ErrorHandler:
             provider = "OpenAI" if "OPENAI" in error_message else "Gemini" if "GEMINI" in error_message else "Anthropic"
             return ErrorHandler.handle_error(APIKeyError(provider))
         
-        # S3エラーの検出
-        if "S3" in error_message or "boto3" in error_message or "AWS" in error_message:
-            return ErrorHandler.handle_error(S3Error("S3への接続に失敗しました"))
+        # データストレージエラーの検出
+        if "FileNotFoundError" in error_message or "CSV" in error_message or "output/" in error_message:
+            return ErrorHandler.handle_error(DataStorageError("データファイルの読み込みに失敗しました"))
         
         # 天気APIエラーの検出
         if "WXTECH" in error_message:
@@ -187,7 +187,7 @@ def safe_api_call(api_func: Callable[..., T], *args, **kwargs) -> Union[T, Error
 ERROR_MESSAGES = {
     "api_key_missing": "🔐 {provider}のAPIキーが設定されていません",
     "weather_api_error": "☁️ 天気予報データの取得に失敗しました",
-    "s3_connection_error": "🗄️ S3接続エラー: 過去コメントデータベースに接続できません",
+    "data_storage_error": "🗄️ データ読み込みエラー: コメントデータファイルにアクセスできません",
     "location_not_found": "📍 地点エラー: {location}が見つかりません",
     "generation_failed": "⚠️ コメント生成に失敗しました: {reason}",
     "timeout_error": "⏱️ タイムアウト: 処理に時間がかかりすぎています",

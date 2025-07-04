@@ -15,8 +15,7 @@ openai>=1.12.0
 google-generativeai>=0.3.2
 anthropic>=0.18.1
 
-# AWS Integration (No longer needed - using local CSV files)
-# boto3>=1.34.0
+# AWS Integration - Removed (using local CSV files instead)
 
 # HTTP/API Communication
 requests>=2.31.0

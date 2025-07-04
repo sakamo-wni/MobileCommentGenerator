@@ -1,4 +1,8 @@
-"""ローカルCSVファイルからコメントデータを読み込むリポジトリ"""
+"""ローカルCSVファイルからコメントデータを読み込むリポジトリ
+
+このモジュールは、S3ではなくローカルのCSVファイルから過去コメントを読み込みます。
+CSVファイルは output/ ディレクトリに季節別・タイプ別に保存されています。
+"""
 
 import csv
 import logging
@@ -16,12 +20,19 @@ class LocalCommentRepository:
     """ローカルCSVファイルからコメントを読み込む"""
     
     def __init__(self, output_dir: str = "output"):
+        """初期化処理
+        
+        Args:
+            output_dir: CSVファイルが格納されているディレクトリ
+        """
         self.output_dir = Path(output_dir)
         if not self.output_dir.exists():
-            raise FileNotFoundError(f"Output directory not found: {output_dir}")
+            logger.warning(f"Output directory not found: {output_dir}, creating it...")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # キャッシュを初期化時に読み込み
         self._comment_cache = None
+        self._cache_loaded = False
         self._load_cache()
     
     def _read_csv_comments(self, file_path: Path, comment_type: str) -> List[PastComment]:
@@ -35,25 +46,61 @@ class LocalCommentRepository:
         try:
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
-                for row in reader:
-                    # Get the comment text (first column, which varies by type)
-                    comment_text = row.get('weather_comment') or row.get('advice', '')
-                    count = int(row.get('count', 0))
-                    
-                    if comment_text:
+                
+                # CSVヘッダーの検証
+                if reader.fieldnames is None:
+                    logger.error(f"CSV file {file_path} has no headers")
+                    return comments
+                
+                expected_column = 'weather_comment' if comment_type == "weather_comment" else 'advice'
+                if expected_column not in reader.fieldnames:
+                    logger.error(f"CSV file {file_path} missing expected column '{expected_column}'. Found columns: {reader.fieldnames}")
+                    return comments
+                
+                if 'count' not in reader.fieldnames:
+                    logger.warning(f"CSV file {file_path} missing 'count' column. Using default value 0.")
+                
+                for row_num, row in enumerate(reader, start=2):  # Start from 2 (header is line 1)
+                    try:
+                        # Get the comment text (first column, which varies by type)
+                        comment_text = row.get('weather_comment') or row.get('advice', '')
+                        
+                        # Validate and parse count
+                        count_str = row.get('count', '0')
+                        try:
+                            count = int(count_str) if count_str else 0
+                        except ValueError:
+                            logger.warning(f"Invalid count value '{count_str}' in {file_path} line {row_num}. Using 0.")
+                            count = 0
+                        
+                        # Skip empty comments
+                        if not comment_text or comment_text.strip() == '':
+                            logger.debug(f"Skipping empty comment in {file_path} line {row_num}")
+                            continue
+                        
+                        # Validate comment length
+                        if len(comment_text) > 200:
+                            logger.warning(f"Comment too long ({len(comment_text)} chars) in {file_path} line {row_num}. Truncating.")
+                            comment_text = comment_text[:200]
+                        
                         comment = PastComment(
                             location="全国",  # CSV doesn't have location info
                             datetime=datetime.now(),  # CSV doesn't have datetime info
                             weather_condition="不明",  # CSV doesn't have weather condition
-                            comment_text=comment_text,
+                            comment_text=comment_text.strip(),
                             comment_type=CommentType.WEATHER_COMMENT if comment_type == "weather_comment" else CommentType.ADVICE,
                             raw_data={
                                 'count': count,
                                 'source': 'local_csv',
-                                'file': file_path.name
+                                'file': file_path.name,
+                                'line': row_num
                             }
                         )
                         comments.append(comment)
+                    
+                    except Exception as e:
+                        logger.error(f"Error processing row {row_num} in {file_path}: {e}")
+                        continue
         
         except Exception as e:
             logger.error(f"Error reading CSV file {file_path}: {e}")
@@ -62,9 +109,15 @@ class LocalCommentRepository:
     
     def _load_cache(self):
         """初期化時に全コメントをキャッシュに読み込み"""
-        logger.info("Loading comment cache...")
-        self._comment_cache = self._load_all_comments()
-        logger.info(f"Loaded {len(self._comment_cache)} comments into cache")
+        try:
+            logger.info("Loading comment cache...")
+            self._comment_cache = self._load_all_comments()
+            self._cache_loaded = True
+            logger.info(f"Loaded {len(self._comment_cache)} comments into cache")
+        except Exception as e:
+            logger.error(f"Failed to load comment cache: {e}")
+            self._comment_cache = []
+            self._cache_loaded = False
     
     def _load_all_comments(self) -> List[PastComment]:
         """全季節の全コメントを読み込み"""

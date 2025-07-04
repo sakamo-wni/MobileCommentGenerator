@@ -30,10 +30,10 @@ class TestRetrievePastCommentsNode:
     def test_node_initialization_without_repository(self):
         """リポジトリなしでの初期化テスト"""
         with patch(
-            "src.nodes.retrieve_past_comments_node.S3CommentRepositoryConfig"
-        ) as mock_config:
+            "src.nodes.retrieve_past_comments_node.LocalCommentRepository"
+        ) as mock_repo_class:
             mock_repo = Mock()
-            mock_config.return_value.create_repository.return_value = mock_repo
+            mock_repo_class.return_value = mock_repo
 
             node = RetrievePastCommentsNode()
 

@@ -27,9 +27,6 @@ class TestWorkflowIntegration:
         """環境変数のモック"""
         env_vars = {
             "WXTECH_API_KEY": "test-wx-key",
-            "AWS_ACCESS_KEY_ID": "test-aws-key",
-            "AWS_SECRET_ACCESS_KEY": "test-aws-secret",
-            "S3_COMMENT_BUCKET": "test-bucket",
             "OPENAI_API_KEY": "test-openai-key",
             "GEMINI_API_KEY": "test-gemini-key",
             "ANTHROPIC_API_KEY": "test-anthropic-key"
@@ -38,12 +35,12 @@ class TestWorkflowIntegration:
             yield
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.nodes.retrieve_past_comments_node.boto3.client')
+    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_complete_workflow_success(
         self,
         mock_openai_class,
-        mock_boto_client,
+        mock_local_repo_class,
         mock_requests_get,
         mock_env_vars
     ):
@@ -63,17 +60,29 @@ class TestWorkflowIntegration:
         }
         mock_requests_get.return_value = mock_weather_response
         
-        # S3クライアントのモック
-        mock_s3 = MagicMock()
-        mock_s3.list_objects_v2.return_value = {
-            'Contents': [{'Key': 'comments_2024_06.jsonl'}]
-        }
-        mock_s3.get_object.return_value = {
-            'Body': MagicMock(
-                read=lambda: b'{"location": "稚内", "weather_condition": "晴れ", "temperature": 20.0, "comment_text": "爽やかな朝です", "comment_type": "weather_comment"}\n{"location": "稚内", "weather_condition": "晴れ", "temperature": 20.0, "comment_text": "日焼け対策を", "comment_type": "advice"}'
+        # LocalCommentRepositoryのモック
+        mock_local_repo = MagicMock()
+        from src.data.past_comment import PastComment, CommentType
+        mock_comments = [
+            PastComment(
+                location="稚内",
+                datetime=datetime.now(),
+                weather_condition="晴れ",
+                comment_text="爽やかな朝です",
+                comment_type=CommentType.WEATHER_COMMENT,
+                temperature=20.0
+            ),
+            PastComment(
+                location="稚内",
+                datetime=datetime.now(),
+                weather_condition="晴ゎ",
+                comment_text="日焼け対策を",
+                comment_type=CommentType.ADVICE,
+                temperature=20.0
             )
-        }
-        mock_boto_client.return_value = mock_s3
+        ]
+        mock_local_repo.get_recent_comments.return_value = mock_comments
+        mock_local_repo_class.return_value = mock_local_repo
         
         # OpenAIクライアントのモック
         mock_openai = MagicMock()
@@ -123,17 +132,17 @@ class TestWorkflowIntegration:
         assert should_retry(state) == "continue"
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.nodes.retrieve_past_comments_node.boto3.client')
+    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_workflow_with_retry(
         self,
         mock_openai_class,
-        mock_boto_client,
+        mock_local_repo_class,
         mock_requests_get,
         mock_env_vars
     ):
         """リトライを含むワークフローのテスト"""
-        # 天気APIとS3のモック設定（省略）
+        # 天気APIとLocalCommentRepositoryのモック設定（省略）
         mock_weather_response = MagicMock()
         mock_weather_response.json.return_value = {
             "forecasts": [{
@@ -146,14 +155,29 @@ class TestWorkflowIntegration:
         }
         mock_requests_get.return_value = mock_weather_response
         
-        mock_s3 = MagicMock()
-        mock_s3.list_objects_v2.return_value = {'Contents': [{'Key': 'test.jsonl'}]}
-        mock_s3.get_object.return_value = {
-            'Body': MagicMock(
-                read=lambda: b'{"location": "稚内", "weather_condition": "晴れ", "temperature": 20.0, "comment_text": "今日は本当に素晴らしい天気ですね", "comment_type": "weather_comment"}\n{"location": "稚内", "weather_condition": "晴れ", "temperature": 20.0, "comment_text": "日焼け止めを", "comment_type": "advice"}'
+        # LocalCommentRepositoryのモック
+        mock_local_repo = MagicMock()
+        from src.data.past_comment import PastComment, CommentType
+        mock_comments = [
+            PastComment(
+                location="稚内",
+                datetime=datetime.now(),
+                weather_condition="晴れ",
+                comment_text="今日は本当に素晴らしい天気ですね",
+                comment_type=CommentType.WEATHER_COMMENT,
+                temperature=20.0
+            ),
+            PastComment(
+                location="稚内",
+                datetime=datetime.now(),
+                weather_condition="晴れ",
+                comment_text="日焼け止めを",
+                comment_type=CommentType.ADVICE,
+                temperature=20.0
             )
-        }
-        mock_boto_client.return_value = mock_s3
+        ]
+        mock_local_repo.get_recent_comments.return_value = mock_comments
+        mock_local_repo_class.return_value = mock_local_repo
         
         # OpenAIクライアントのモック
         # 最初は長すぎるコメント、次は成功
