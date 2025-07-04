@@ -302,7 +302,7 @@ class WeatherCommentValidator:
         elif temp >= 25:
             forbidden = self.temperature_forbidden_words["moderate_warm"]["forbidden"]
             temp_category = "中程度の暖かさ"
-            # 31°C以下で熱中症は控えめに
+            # 34°C未満で熱中症は控えめに
             if temp < HEATSTROKE_WARNING_TEMP and "熱中症" in comment_text:
                 logger.info(
                     f"温度不適切表現除外: '{comment_text}' - 理由: {temp}°C（{HEATSTROKE_WARNING_TEMP}°C未満）で「熱中症」表現は過大"
@@ -496,15 +496,7 @@ class WeatherCommentValidator:
                 if phrase in weather_comment:
                     return False, f"晴天時に雨表現「{phrase}」は矛盾（天気: {weather_data.weather_description}）"
         
-        # 34度以下なのに熱中症に注意と言っている矛盾
-        if temp <= HEATSTROKE_SEVERE_TEMP:
-            heatstroke_phrases = [
-                "熱中症に注意", "熱中症対策", "熱中症の危険", "熱中症リスク",
-                "熱中症を避け", "熱中症防止", "熱中症に気をつけ"
-            ]
-            for phrase in heatstroke_phrases:
-                if phrase in weather_comment:
-                    return False, f"{HEATSTROKE_SEVERE_TEMP}°C以下（{temp}°C）で熱中症警告「{phrase}」は過剰"
+        # 熱中症チェックは_check_temperature_conditionsで行うため、ここでは削除
         
         # 9, 12, 15, 18時の矛盾パターンチェック
         hour = weather_data.datetime.hour
@@ -529,7 +521,7 @@ class WeatherCommentValidator:
         """温度と症状・対策の矛盾をチェック"""
         temp = weather_data.temperature
         
-        # 32°C未満で熱中症対策を強く推奨する矛盾
+        # 34°C未満で熱中症対策を強く推奨する矛盾
         if temp < HEATSTROKE_WARNING_TEMP:
             excessive_heat_measures = [
                 "熱中症対策必須", "熱中症に厳重注意", "熱中症の危険", "熱中症リスク高",
