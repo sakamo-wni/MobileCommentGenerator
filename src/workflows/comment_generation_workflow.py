@@ -34,12 +34,11 @@ def should_evaluate(state: CommentGenerationState) -> str:
     Returns:
         "evaluate" または "generate" の文字列
     """
-    # LLMプロバイダーが設定されていない場合は評価をスキップ
-    if not state.get("llm_provider"):
-        return "generate"
+    # LLMプロバイダーが設定されている場合は評価を実行
+    if state.get("llm_provider"):
+        return "evaluate"
 
-    # 過去データのみを使用する場合は評価をスキップ
-    # （今回は常に評価をスキップする設定）
+    # LLMプロバイダーが設定されていない場合は評価をスキップ
     return "generate"
 
 

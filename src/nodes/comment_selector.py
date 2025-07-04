@@ -165,7 +165,12 @@ class CommentSelector:
             
             # 晴天時の「変わりやすい」表現の追加チェック（強化）
             if self._is_sunny_weather_with_changeable_comment(comment.comment_text, weather_data):
-                logger.warning(f"晴天時不適切表現を強制除外: '{comment.comment_text}'")
+                logger.info(f"晴天時不適切表現を強制除外: '{comment.comment_text}'")
+                continue
+            
+            # 安定した天気での急変表現の追加チェック
+            if self._is_stable_weather_with_unstable_comment(comment.comment_text, weather_data, state):
+                logger.info(f"安定天気時の急変表現を強制除外: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）
@@ -364,6 +369,101 @@ class CommentSelector:
                 logger.info(f"晴天時に不適切な表現検出: '{comment_text}' - パターン「{pattern}」")
                 return True
         
+        return False
+    
+    def _is_stable_weather_with_unstable_comment(self, comment_text: str, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
+        """安定した天気時に急変・不安定表現が含まれているかチェック"""
+        # 翌日の全データから安定性を判定
+        is_stable = self._check_full_day_stability(weather_data, state)
+        if not is_stable:
+            return False
+        
+        # 不適切な急変・不安定表現パターン
+        unstable_patterns = [
+            "天気急変", "急変", "天気が急に", "急に変わる",
+            "変わりやすい天気", "不安定な空模様", "変化しやすい",
+            "天候不安定", "激しい変化", "急激な変化",
+            "予想外の", "突然の", "一転して", "コロコロ変わる"
+        ]
+        
+        for pattern in unstable_patterns:
+            if pattern in comment_text:
+                logger.info(f"安定天気時に不適切な表現検出: '{comment_text}' - パターン「{pattern}」")
+                return True
+        
+        return False
+    
+    def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
+        """翌日の全データから安定性を判定"""
+        if not state:
+            # stateがない場合は現在の天気データのみで判定
+            return weather_data.is_stable_weather()
+        
+        # forecast_collectionを取得
+        forecast_collection = state.generation_metadata.get('forecast_collection')
+        if not forecast_collection or not hasattr(forecast_collection, 'forecasts'):
+            # 翌日のデータがない場合は現在のデータのみで判定
+            return weather_data.is_stable_weather()
+        
+        # 翌日の予報データを取得（9:00-18:00）
+        import pytz
+        from datetime import datetime, timedelta
+        
+        jst = pytz.timezone("Asia/Tokyo")
+        tomorrow = datetime.now(jst).date() + timedelta(days=1)
+        target_hours = [9, 12, 15, 18]
+        
+        next_day_forecasts = []
+        for forecast in forecast_collection.forecasts:
+            forecast_dt = forecast.datetime
+            if forecast_dt.tzinfo is None:
+                forecast_dt = jst.localize(forecast_dt)
+            
+            # 翌日の9:00-18:00の予報のみ抽出
+            if forecast_dt.date() == tomorrow and forecast_dt.hour in target_hours:
+                next_day_forecasts.append(forecast)
+        
+        if not next_day_forecasts:
+            # 翌日のデータがない場合は現在のデータのみで判定
+            return weather_data.is_stable_weather()
+        
+        # 全ての時間帯が同じ天気か確認
+        weather_types = set()
+        for forecast in next_day_forecasts:
+            desc = forecast.weather_description.lower()
+            if any(sunny in desc for sunny in ["晴", "快晴"]):
+                weather_types.add("sunny")
+            elif any(cloudy in desc for cloudy in ["曇", "くもり"]):
+                weather_types.add("cloudy")
+            elif any(rainy in desc for rainy in ["雨", "rain"]):
+                weather_types.add("rainy")
+            else:
+                weather_types.add("other")
+        
+        # 異なる天気タイプが複数ある場合は不安定
+        if len(weather_types) > 1:
+            logger.info(f"翌日の天気が変化: {weather_types}")
+            return False
+        
+        # 全てが曇りの場合、追加条件を確認
+        if weather_types == {"cloudy"}:
+            # 降水量、風速、雷のチェック
+            for forecast in next_day_forecasts:
+                if forecast.precipitation > 1.0 or forecast.wind_speed > 5.0:
+                    logger.info(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
+                    return False
+                if "雷" in forecast.weather_description or "thunder" in forecast.weather_description.lower():
+                    logger.info("翌日に雷が含まれるため不安定")
+                    return False
+            logger.info("翌日は安定した曇天")
+            return True
+        
+        # 全てが晴れの場合は安定
+        if weather_types == {"sunny"}:
+            logger.info("翌日は安定した晴天")
+            return True
+        
+        # その他の場合は不安定
         return False
 
     def _should_exclude_weather_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:

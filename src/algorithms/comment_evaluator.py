@@ -153,44 +153,48 @@ class CommentEvaluator:
     def _evaluate_relevance(
         self, comment_pair: CommentPair, context: EvaluationContext, weather_data: WeatherForecast
     ) -> CriterionScore:
-        """関連性を評価"""
-        score = 0.0
+        """関連性を評価（緩和版）- 基本的な妥当性のみチェック"""
+        score = 0.5  # ベーススコア（中立）
         reasons = []
 
-        # 天気条件との一致
         weather_comment = comment_pair.weather_comment.comment_text
+        advice_comment = comment_pair.advice_comment.comment_text
         weather_desc = weather_data.weather_description
 
-        if weather_desc in weather_comment:
-            score += 0.4
-            reasons.append("天気条件が直接言及されている")
-        elif self._is_weather_related(weather_comment, weather_desc):
-            score += 0.2
-            reasons.append("天気条件と関連性がある")
+        # 明らかに矛盾する天気表現のチェック
+        weather_contradictions = [
+            ("晴れ", ["雨", "雪", "嵐"]),
+            ("雨", ["晴れ", "快晴"]), 
+            ("雪", ["暑い", "蒸し暑い"]),
+            ("暑い", ["雪", "寒い"]),
+        ]
+        
+        has_contradiction = False
+        for weather_type, contradictions in weather_contradictions:
+            if weather_type in weather_desc.lower():
+                for contradiction in contradictions:
+                    if contradiction in weather_comment or contradiction in advice_comment:
+                        has_contradiction = True
+                        break
+        
+        if has_contradiction:
+            score = 0.2
+            reasons.append("天気条件と明らかに矛盾する表現")
+        else:
+            score = 0.8
+            reasons.append("天気条件との矛盾なし")
 
-        # 気温との関連性
-        temp = weather_data.temperature
-        if self._is_temperature_relevant(weather_comment, temp):
-            score += 0.3
-            reasons.append(f"気温（{temp}度）に適した表現")
-
-        # 時間帯との関連性
-        hour = context.target_datetime.hour
-        if self._is_time_relevant(weather_comment, hour):
-            score += 0.2
-            reasons.append("時間帯に適した表現")
-
-        # アドバイスの適切性
-        advice = comment_pair.advice_comment.comment_text
-        if self._is_advice_relevant(advice, weather_desc, temp):
-            score += 0.1
-            reasons.append("アドバイスが状況に適している")
+        # 天気に関連する表現があればボーナス
+        weather_keywords = ["天気", "空", "気温", "暑", "寒", "涼", "暖", "晴", "雨", "雪", "風"]
+        if any(keyword in weather_comment for keyword in weather_keywords):
+            score = min(score + 0.1, 1.0)
+            reasons.append("天気関連の表現を含む")
 
         return CriterionScore(
             criterion=EvaluationCriteria.RELEVANCE,
-            score=min(score, 1.0),
+            score=score,
             weight=self.weights[EvaluationCriteria.RELEVANCE],
-            reason="、".join(reasons) if reasons else "関連性が低い",
+            reason="、".join(reasons) if reasons else "基本的な関連性あり",
         )
 
     def _evaluate_creativity(
@@ -368,22 +372,27 @@ class CommentEvaluator:
     def _evaluate_consistency(
         self, comment_pair: CommentPair, context: EvaluationContext, weather_data: WeatherForecast
     ) -> CriterionScore:
-        """一貫性を評価"""
+        """一貫性を評価（緩和版）- 重複・矛盾チェックに重点"""
         weather_text = comment_pair.weather_comment.comment_text
         advice_text = comment_pair.advice_comment.comment_text
 
         score = 1.0
         reasons = []
 
-        # トーンの一貫性
-        if not self._has_consistent_tone(weather_text, advice_text):
-            score -= 0.5
-            reasons.append("トーンが不一致")
+        # 重複コンテンツのチェック（最重要）
+        if self._has_significant_overlap(weather_text, advice_text):
+            score -= 0.6
+            reasons.append("コメントとアドバイスで同じ内容を繰り返している")
 
-        # 内容の矛盾
-        if self._has_contradiction(weather_text, advice_text):
+        # 明らかな矛盾のチェック
+        if self._has_obvious_contradiction(weather_text, advice_text):
             score -= 0.5
-            reasons.append("内容に矛盾あり")
+            reasons.append("内容に明らかな矛盾がある")
+
+        # トーンの不一致は軽微な減点のみ
+        if not self._has_consistent_tone(weather_text, advice_text):
+            score -= 0.1
+            reasons.append("トーンがやや不一致")
 
         return CriterionScore(
             criterion=EvaluationCriteria.CONSISTENCY,
@@ -426,18 +435,26 @@ class CommentEvaluator:
     def _determine_validity(
         self, criterion_scores: List[CriterionScore], total_score: float
     ) -> bool:
-        """検証結果を判定"""
-        # 総合スコアが閾値以上
-        if total_score < 0.6:
+        """検証結果を判定（緩和版）"""
+        # 総合スコアが閾値以上（緩い基準）
+        if total_score < 0.4:
             return False
 
-        # 重要な基準で低スコアがないか
-        critical_criteria = [EvaluationCriteria.APPROPRIATENESS, EvaluationCriteria.RELEVANCE]
+        # 最重要基準：適切性のみチェック（不適切表現の排除）
+        appropriateness_score = next(
+            (s for s in criterion_scores if s.criterion == EvaluationCriteria.APPROPRIATENESS), 
+            None
+        )
+        if appropriateness_score and appropriateness_score.score < 0.3:
+            return False
 
-        for criterion in critical_criteria:
-            score = next((s for s in criterion_scores if s.criterion == criterion), None)
-            if score and score.score < 0.5:
-                return False
+        # 一貫性チェック：明らかな矛盾や重複がないかのみ
+        consistency_score = next(
+            (s for s in criterion_scores if s.criterion == EvaluationCriteria.CONSISTENCY), 
+            None
+        )
+        if consistency_score and consistency_score.score < 0.3:
+            return False
 
         return True
 
@@ -508,309 +525,5 @@ class CommentEvaluator:
             if any(word in text for word in cold_words):
                 return False
             return any(word in text for word in hot_words) or True  # 適切な表現または中立
-        else:  # 15-27°C 穏やかな気温
-            # この気温帯では極端な表現は避ける
-            extreme_hot = ["厳しい暑さ", "猛暑", "酷暑", "灼熱"]
-            extreme_cold = ["極寒", "凍える", "身を切る"]
-            if any(word in text for word in extreme_hot + extreme_cold):
-                return False
-            # 穏やかな表現が好ましい
-            mild_words = ["過ごしやすい", "快適", "心地よい", "爽やか", "暖か", "涼し"]
-            return any(word in text for word in mild_words) or True  # 適切な表現または中立
-
-    def _is_advice_relevant(self, advice: str, weather: str, temp: float) -> bool:
-        """アドバイスが天気や気温に適しているかチェック"""
-        # 天気に応じたアドバイスキーワード
-        weather_advice_keywords = {
-            "晴": ["紫外線", "日焼け", "帽子", "水分"],
-            "雨": ["傘", "濡れ", "滑り", "雨具"],
-            "雪": ["防寒", "滑り", "暖か", "路面"],
-            "曇": ["油断", "急変", "念のため"],
-        }
-
-        # 気温に応じたアドバイスキーワード
-        if temp > 30:
-            temp_keywords = ["熱中症", "水分", "涼し", "冷房"]
-        elif temp < 10:
-            temp_keywords = ["防寒", "暖か", "風邪", "厚着"]
         else:
-            temp_keywords = ["調整", "羽織", "体調", "快適"]
-
-        # 天気キーワードとの関連性チェック
-        for key, keywords in weather_advice_keywords.items():
-            if key in weather and any(keyword in advice for keyword in keywords):
-                return True
-
-        # 気温キーワードとの関連性チェック
-        if any(keyword in advice for keyword in temp_keywords):
-            return True
-
-        return False
-
-    def _is_time_relevant(self, text: str, hour: int) -> bool:
-        """時間帯に適した表現かチェック"""
-        if 5 <= hour < 10:
-            return any(word in text for word in ["朝", "おはよう", "目覚め"])
-        elif 10 <= hour < 17:
-            return any(word in text for word in ["昼", "日中", "午後"])
-        elif 17 <= hour < 21:
-            return any(word in text for word in ["夕", "夜", "日暮れ"])
-        else:
-            return any(word in text for word in ["夜", "星", "月"])
-
-    def _has_metaphor(self, text: str) -> bool:
-        """比喩表現を含むかチェック"""
-        metaphor_patterns = ["ような", "みたい", "らしい", "のよう"]
-        return any(pattern in text for pattern in metaphor_patterns)
-
-    def _is_too_negative(self, text: str) -> bool:
-        """過度にネガティブかチェック"""
-        negative_words = ["最悪", "地獄", "つらい", "苦しい", "嫌", "ダメ"]
-        return sum(1 for word in negative_words if word in text) >= 2
-
-    def _has_empathy_element(self, text: str) -> bool:
-        """共感要素を含むかチェック"""
-        empathy_patterns = ["ですね", "でしょう", "ますよね", "かもしれません"]
-        return any(pattern in text for pattern in empathy_patterns)
-
-    def _is_unique_expression(self, text: str) -> bool:
-        """独創的な表現かチェック"""
-        # 一般的な定型表現
-        common_expressions = [
-            "いい天気",
-            "今日は晴れ",
-            "雨が降って",
-            "曇り空",
-            "寒いです",
-            "暑いです",
-            "涼しいです",
-            "暖かいです",
-        ]
-
-        # 定型表現を含まない場合は独創的とみなす
-        if not any(expr in text for expr in common_expressions):
-            return True
-
-        # 特殊な表現パターンを含む場合も独創的とみなす
-        unique_patterns = [
-            r"[♪☆★]",  # 装飾文字
-            r"[ぁ-ん]{3,}〜",  # 長音表現
-            r"！{2,}",  # 複数の感嘆符
-            r"[。！？]…",  # 省略記号との組み合わせ
-        ]
-
-        for pattern in unique_patterns:
-            if re.search(pattern, text):
-                return True
-
-        return False
-
-    def _is_creative_advice(self, text: str) -> bool:
-        """創造的なアドバイスかチェック"""
-        # 一般的なアドバイス
-        common_advice = ["気をつけて", "ご注意", "お忘れなく", "しっかり", "体調管理", "水分補給"]
-
-        # 一般的なアドバイスを含まない場合は創造的
-        if not any(advice in text for advice in common_advice):
-            return True
-
-        # 具体的で創造的な要素
-        creative_elements = ["おすすめ", "楽しんで", "素敵な", "ぜひ", "チャンス", "絶好の"]
-
-        return any(elem in text for elem in creative_elements)
-
-    def _has_grammatical_issues(self, text: str) -> bool:
-        """文法的な問題があるかチェック"""
-        # 簡易的な文法チェック
-        issues = [
-            r"を を",  # 助詞の重複
-            r"に に",
-            r"で で",
-            r"は は",
-            r"が が",
-            r"です です",  # 語尾の重複
-            r"ます ます",
-        ]
-
-        for pattern in issues:
-            if re.search(pattern, text):
-                return True
-
-        return False
-
-    def _has_unnatural_honorifics(self, text: str) -> bool:
-        """不自然な敬語があるかチェック"""
-        # 過剰な敬語パターン
-        unnatural_patterns = [
-            r"させていただいて",
-            r"おられます",
-            r"いたします.*いたします",  # 重複
-            r"です.*でございます",  # 混在
-        ]
-
-        for pattern in unnatural_patterns:
-            if re.search(pattern, text):
-                return True
-
-        return False
-
-    def _evaluate_tone_balance(self, text: str) -> float:
-        """トーンのバランスを評価"""
-        # カジュアルな要素
-        casual_count = sum(1 for p in ["〜", "！", "♪", "ね", "よ"] if p in text)
-        # フォーマルな要素
-        formal_count = sum(1 for p in ["です", "ます", "ございます"] if p in text)
-
-        # バランスが良い場合は高スコア
-        if casual_count > 0 and formal_count > 0:
-            return 0.8
-        elif casual_count == 0 and formal_count > 0:
-            return 0.6  # フォーマルのみ
-        elif casual_count > 0 and formal_count == 0:
-            return 0.7  # カジュアルのみ
-        else:
-            return 0.5  # どちらもない
-
-    def _has_ambiguous_expression(self, text: str) -> bool:
-        """曖昧な表現があるかチェック"""
-        ambiguous_words = [
-            "あれ",
-            "それ",
-            "これ",
-            "どれ",
-            "ある程度",
-            "たぶん",
-            "おそらく",
-            "〜的な",
-            "〜みたいな",
-        ]
-
-        return any(word in text for word in ambiguous_words)
-
-    def _has_clear_subject(self, text: str) -> bool:
-        """明確な主語があるかチェック"""
-        # 簡易的な主語パターン
-        subject_patterns = [
-            r"^(今日|本日|今朝|今夜|今)",
-            r"^(天気|空|雲|太陽|月)",
-            r"^(私|僕|我々)",
-            r"は[^。]*[です|ます]",
-        ]
-
-        for pattern in subject_patterns:
-            if re.search(pattern, text):
-                return True
-
-        return False
-
-    def _is_advice_specific(self, text: str) -> bool:
-        """アドバイスが具体的かチェック"""
-        # 具体的な要素
-        specific_elements = [
-            "傘",
-            "日傘",
-            "帽子",
-            "サングラス",
-            "上着",
-            "マフラー",
-            "手袋",
-            "水分",
-            "休憩",
-            "日陰",
-            "〜時",
-            "〜分",
-            "〜度",
-        ]
-
-        return any(elem in text for elem in specific_elements)
-
-    def _has_consistent_tone(self, text1: str, text2: str) -> bool:
-        """二つのテキストのトーンが一貫しているかチェック"""
-        # 各テキストのトーンを評価
-        tone1 = self._evaluate_tone_balance(text1)
-        tone2 = self._evaluate_tone_balance(text2)
-
-        # トーンの差が小さければ一貫性あり
-        return abs(tone1 - tone2) < 0.3
-
-    def _has_contradiction(self, weather_text: str, advice_text: str) -> bool:
-        """内容に矛盾があるかチェック"""
-        # 簡易的な矛盾チェック
-        contradictions = [
-            ("晴", "傘"),  # 晴れなのに傘
-            ("雨", "日焼け"),  # 雨なのに日焼け対策
-            ("寒", "涼し"),  # 寒いのに涼しい格好
-            ("暑", "防寒"),  # 暑いのに防寒
-        ]
-
-        for word1, word2 in contradictions:
-            if word1 in weather_text and word2 in advice_text:
-                return True
-
-        return False
-
-    def _is_advice_appropriate(self, advice_text: str, weather_data: WeatherForecast) -> bool:
-        """アドバイスが天気状況に適切かチェック"""
-        weather_desc = weather_data.weather_description.lower()
-        temp = weather_data.temperature
-
-        # 天気に応じた適切なアドバイスのチェック
-        if "雨" in weather_desc or "rain" in weather_desc:
-            appropriate_keywords = ["傘", "濡れ", "雨具", "足元"]
-            return any(kw in advice_text for kw in appropriate_keywords)
-
-        elif "晴" in weather_desc or "sunny" in weather_desc:
-            if temp > 25:
-                appropriate_keywords = ["日差し", "紫外線", "水分", "日陰"]
-                return any(kw in advice_text for kw in appropriate_keywords)
-
-        elif "雪" in weather_desc or "snow" in weather_desc:
-            appropriate_keywords = ["滑り", "防寒", "暖か", "足元"]
-            return any(kw in advice_text for kw in appropriate_keywords)
-
-        # その他の場合は基本的に適切とみなす
-        return True
-
-    def _has_emotional_element(self, text: str) -> bool:
-        """感情的な要素を含むかチェック"""
-        emotional_words = [
-            "嬉しい",
-            "楽しい",
-            "悲しい",
-            "寂しい",
-            "ワクワク",
-            "ドキドキ",
-            "うれしい",
-            "たのしい",
-            "かなしい",
-            "さびしい",
-            "わくわく",
-            "どきどき",
-            "幸せ",
-            "しあわせ",
-            "素敵",
-            "すてき",
-            "最高",
-            "さいこう",
-            "気持ちいい",
-            "きもちいい",
-            "心地よい",
-            "ここちよい",
-            "大好き",
-            "だいすき",
-            "愛",
-            "ラブ",
-            "♡",
-            "♥",
-            "❤",
-            "感動",
-            "かんどう",
-            "感激",
-            "かんげき",
-        ]
-
-        # 感嘆符の使用も感情的な要素とみなす
-        if text.count("！") >= 2 or text.count("♪") >= 1:
-            return True
-
-        return any(word in text for word in emotional_words)
+            return True  # 中間気温では何でもOK
