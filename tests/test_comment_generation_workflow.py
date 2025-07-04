@@ -40,17 +40,80 @@ class TestCommentGenerationWorkflow:
 
     @patch("src.workflows.comment_generation_workflow.fetch_weather_forecast_node")
     @patch("src.workflows.comment_generation_workflow.retrieve_past_comments_node")
+    @patch("src.workflows.comment_generation_workflow.select_comment_pair_node")
     @patch("src.workflows.comment_generation_workflow.generate_comment_node")
-    def test_run_comment_generation_success(self, mock_generate, mock_retrieve, mock_fetch):
+    def test_run_comment_generation_success(self, mock_generate, mock_select, mock_retrieve, mock_fetch):
         """正常系のワークフロー実行テスト"""
-        # モックの設定
-        mock_fetch.return_value = {
-            "weather_data": {"weather_condition": "晴れ", "temperature": 20.0}
-        }
-        mock_retrieve.return_value = {
-            "past_comments": [{"text": "爽やかな朝です", "type": "weather_comment"}]
-        }
-        mock_generate.return_value = {"final_comment": "気持ちいい朝ですね"}
+        from src.data.comment_generation_state import CommentGenerationState
+        from src.data.weather_data import WeatherForecast
+        from src.data.past_comment import PastComment, PastCommentCollection, CommentType
+        from src.data.comment_pair import CommentPair
+        from datetime import datetime
+        
+        # モックの設定 - CommentGenerationStateオブジェクトを返すように
+        def mock_fetch_side_effect(state):
+            from src.data.weather_data import WeatherCondition, WindDirection
+            state.weather_data = WeatherForecast(
+                location="東京",
+                datetime=datetime.now(),
+                temperature=20.0,
+                weather_code="100",
+                weather_condition=WeatherCondition.CLEAR,
+                weather_description="晴れ",
+                precipitation=0.0,
+                humidity=50.0,
+                wind_speed=5.0,
+                wind_direction=WindDirection.N,
+                wind_direction_degrees=0
+            )
+            return state
+            
+        def mock_retrieve_side_effect(state):
+            state.past_comments = PastCommentCollection(
+                comments=[
+                    PastComment(
+                        location="東京",
+                        datetime=datetime.now(),
+                        weather_condition="晴れ",
+                        comment_text="爽やかな朝です",
+                        comment_type=CommentType.WEATHER_COMMENT,
+                        temperature=20.0
+                    )
+                ]
+            )
+            return state
+            
+        def mock_generate_side_effect(state):
+            state.generated_comment = "気持ちいい朝ですね　日差しが強いので帽子をかぶりましょう"
+            return state
+        
+        def mock_select_side_effect(state):
+            state.selected_pair = CommentPair(
+                weather_comment=PastComment(
+                    location="東京",
+                    datetime=datetime.now(),
+                    weather_condition="晴れ",
+                    comment_text="爽やかな朝です",
+                    comment_type=CommentType.WEATHER_COMMENT,
+                    temperature=20.0
+                ),
+                advice_comment=PastComment(
+                    location="東京",
+                    datetime=datetime.now(),
+                    weather_condition="晴れ",
+                    comment_text="紫外線対策を忘れずに",
+                    comment_type=CommentType.ADVICE,
+                    temperature=20.0
+                ),
+                similarity_score=0.9,
+                selection_reason="天気条件が一致"
+            )
+            return state
+            
+        mock_fetch.side_effect = mock_fetch_side_effect
+        mock_retrieve.side_effect = mock_retrieve_side_effect
+        mock_select.side_effect = mock_select_side_effect
+        mock_generate.side_effect = mock_generate_side_effect
 
         # 実行
         result = run_comment_generation(location_name="東京", llm_provider="openai")
