@@ -1,4 +1,8 @@
-"""ローカルCSVファイルからコメントデータを読み込むリポジトリ"""
+"""ローカルCSVファイルからコメントデータを読み込むリポジトリ
+
+このモジュールは、S3ではなくローカルのCSVファイルから過去コメントを読み込みます。
+CSVファイルは output/ ディレクトリに季節別・タイプ別に保存されています。
+"""
 
 import csv
 import logging
@@ -16,12 +20,19 @@ class LocalCommentRepository:
     """ローカルCSVファイルからコメントを読み込む"""
     
     def __init__(self, output_dir: str = "output"):
+        """初期化処理
+        
+        Args:
+            output_dir: CSVファイルが格納されているディレクトリ
+        """
         self.output_dir = Path(output_dir)
         if not self.output_dir.exists():
-            raise FileNotFoundError(f"Output directory not found: {output_dir}")
+            logger.warning(f"Output directory not found: {output_dir}, creating it...")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # キャッシュを初期化時に読み込み
         self._comment_cache = None
+        self._cache_loaded = False
         self._load_cache()
     
     def _read_csv_comments(self, file_path: Path, comment_type: str) -> List[PastComment]:
@@ -62,9 +73,15 @@ class LocalCommentRepository:
     
     def _load_cache(self):
         """初期化時に全コメントをキャッシュに読み込み"""
-        logger.info("Loading comment cache...")
-        self._comment_cache = self._load_all_comments()
-        logger.info(f"Loaded {len(self._comment_cache)} comments into cache")
+        try:
+            logger.info("Loading comment cache...")
+            self._comment_cache = self._load_all_comments()
+            self._cache_loaded = True
+            logger.info(f"Loaded {len(self._comment_cache)} comments into cache")
+        except Exception as e:
+            logger.error(f"Failed to load comment cache: {e}")
+            self._comment_cache = []
+            self._cache_loaded = False
     
     def _load_all_comments(self) -> List[PastComment]:
         """全季節の全コメントを読み込み"""

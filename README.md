@@ -33,7 +33,7 @@ MobileCommentGenerator/
 ├── config/                                 # 設定ファイル
 ├── app.py                                  # Streamlit UI
 ├── api_server.py                           # FastAPI サーバー
-├── enhanced_comment_generator.py           # スタンドアロン版生成器
+├── output/                                 # CSVファイル出力ディレクトリ
 ├── .github/                                # GitHub Actions CI/CD
 │   └── workflows/                          # ワークフロー定義
 ├── pnpm-workspace.yaml                     # pnpmモノレポ設定
@@ -50,7 +50,7 @@ MobileCommentGenerator/
 
 - **LangGraphワークフロー**: 状態管理とエラーハンドリングロジックを体系的に実装
 - **マルチLLMプロバイダー**: OpenAI/Gemini/Anthropic対応  
-- **適応性ベース選抜**: 過去コメントから最適なペアを適応性に基づいてLLM選抜
+- **適応性ベース選抜**: ローカルCSVから最適なペアを適応性に基づいてLLM選抜
 - **表現ルール遵守**: NG表現禁止・値域制限・文字数規制の自動チェック
 - **12時間周期天気予報**: デフォルトで12時間周期のデータを使用
 - **デュアルUI実装**: Streamlit（開発用）+ Nuxt.js 3（Vue版） + React（新規）
@@ -102,7 +102,7 @@ graph TB
 
 1. **InputNode**: 入力パラメータの検証と初期状態の設定
 2. **FetchForecastNode**: WxTech APIから天気予報データを取得（12時間周期）
-3. **RetrieveCommentsNode**: S3から過去のコメントデータを取得
+3. **RetrieveCommentsNode**: ローカルCSVファイルから過去のコメントデータを取得
 4. **SelectCommentPairNode**: LLMが天気に基づいて最適なコメントペアを選択
 5. **EvaluateCandidateNode**: 選択されたペアの評価（評価基準に基づく検証）
 6. **GenerateCommentNode**: 最終的なコメント生成
@@ -118,7 +118,7 @@ graph TB
 ### ✅ Phase 1: 基盤システム（100%完了）
 - [x] **地点データ管理システム**: CSV読み込み・検索・条件取得機能
 - [x] **天気予報API機能**: WxTech API統合（12時間周期データ対応）
-- [x] **過去コメント取得**: enhanced50.csvベースのデータ解析・類似度選抜検証
+- [x] **過去コメント取得**: ローカルCSVベースのデータ解析・類似度選抜検証
 - [x] **LLM統合**: マルチプロバイダー対応（OpenAI/Gemini/Anthropic）
 
 ### ✅ Phase 2: LangGraph ワークフロー（100%完了）
