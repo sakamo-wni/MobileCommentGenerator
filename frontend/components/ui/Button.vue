@@ -11,7 +11,7 @@
   >
     <!-- ローディングスピナー -->
     <span 
-      v-if="loading" 
+      v-show="loading" 
       class="loading-spinner mr-2"
       aria-hidden="true"
     >
@@ -23,7 +23,7 @@
     
     <!-- 左側アイコン -->
     <i 
-      v-else-if="iconLeft"
+      v-show="!loading && iconLeft"
       :class="iconLeft"
       class="mr-2"
       aria-hidden="true"
@@ -45,26 +45,90 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Button Component
+ * 
+ * @description
+ * 汎用的なボタンコンポーネント。様々なバリアント、サイズ、状態に対応し、
+ * アクセシビリティとレスポンシブデザインを考慮した実装。
+ * 
+ * @example
+ * ```vue
+ * <!-- 基本的な使用例 -->
+ * <Button @click="handleClick">クリック</Button>
+ * 
+ * <!-- バリアントとサイズの指定 -->
+ * <Button variant="secondary" size="lg">大きいボタン</Button>
+ * 
+ * <!-- ローディング状態 -->
+ * <Button :loading="isLoading">保存中...</Button>
+ * 
+ * <!-- アイコン付きボタン -->
+ * <Button icon-left="i-heroicons-plus">新規作成</Button>
+ * 
+ * <!-- リンクとして使用 -->
+ * <Button as="nuxt-link" to="/about">詳細を見る</Button>
+ * ```
+ */
 import { computed } from 'vue'
 
 interface Props {
-  // バリアント（見た目の種類）
+  /**
+   * ボタンの見た目のバリエーション
+   * @default 'primary'
+   */
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger'
-  // サイズ
+  
+  /**
+   * ボタンのサイズ
+   * @default 'md'
+   */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-  // HTML要素タイプ
+  
+  /**
+   * レンダリングするHTML要素またはコンポーネント
+   * @default 'button'
+   */
   as?: 'button' | 'a' | 'router-link' | 'nuxt-link'
-  // ボタンタイプ（button要素の場合のみ）
+  
+  /**
+   * ボタンのtype属性（button要素の場合のみ有効）
+   * @default 'button'
+   */
   type?: 'button' | 'submit' | 'reset'
-  // 状態
+  
+  /**
+   * ボタンを無効化するか
+   * @default false
+   */
   disabled?: boolean
+  
+  /**
+   * ローディング状態を表示するか
+   * @default false
+   */
   loading?: boolean
-  // アイコン
+  
+  /**
+   * 左側に表示するアイコンクラス（UnoCSS icon形式）
+   */
   iconLeft?: string
+  
+  /**
+   * 右側に表示するアイコンクラス（UnoCSS icon形式）
+   */
   iconRight?: string
-  // フルワイド
+  
+  /**
+   * ボタンを親要素の幅いっぱいに広げるか
+   * @default false
+   */
   fullWidth?: boolean
-  // 角丸無し
+  
+  /**
+   * 角丸を無効にするか
+   * @default false
+   */
   square?: boolean
 }
 
@@ -79,7 +143,14 @@ const props = withDefaults(defineProps<Props>(), {
   square: false
 })
 
+/**
+ * Emit定義
+ */
 interface Emits {
+  /**
+   * ボタンがクリックされたときに発火
+   * @param event - MouseEvent
+   */
   click: [event: MouseEvent]
 }
 

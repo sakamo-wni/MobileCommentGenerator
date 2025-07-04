@@ -47,7 +47,7 @@
       >
         <!-- クリアボタン -->
         <button
-          v-if="clearable && modelValue && !disabled"
+          v-show="clearable && modelValue && !disabled"
           type="button"
           class="text-secondary-400 hover:text-secondary-600 transition-colors p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           @click="handleClear"
@@ -90,29 +90,114 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Input Component
+ * 
+ * @description
+ * 汎用的な入力フィールドコンポーネント。様々な入力タイプ、バリアント、
+ * アイコン、バリデーション表示に対応し、アクセシビリティを考慮した実装。
+ * 
+ * @example
+ * ```vue
+ * <!-- 基本的な使用例 -->
+ * <Input v-model="username" placeholder="ユーザー名" />
+ * 
+ * <!-- ラベル付き -->
+ * <Input v-model="email" type="email" label="メールアドレス" required />
+ * 
+ * <!-- アイコン付き -->
+ * <Input v-model="search" icon-left="i-heroicons-magnifying-glass" placeholder="検索" />
+ * 
+ * <!-- エラー表示 -->
+ * <Input v-model="password" type="password" :error-message="passwordError" />
+ * 
+ * <!-- クリアボタン付き -->
+ * <Input v-model="text" clearable />
+ * ```
+ */
 import { computed, ref } from 'vue'
 
 interface Props {
-  // v-model
+  /**
+   * 入力値（v-modelで使用）
+   */
   modelValue?: string | number
-  // 基本属性
+  
+  /**
+   * 入力フィールドのタイプ
+   * @default 'text'
+   */
   type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search'
+  
+  /**
+   * プレースホルダーテキスト
+   */
   placeholder?: string
+  
+  /**
+   * 入力を無効化するか
+   * @default false
+   */
   disabled?: boolean
+  
+  /**
+   * 読み取り専用にするか
+   * @default false
+   */
   readonly?: boolean
+  
+  /**
+   * 必須項目として表示するか
+   * @default false
+   */
   required?: boolean
+  
+  /**
+   * autocomplete属性の値
+   */
   autocomplete?: string
   
-  // UI関連
+  /**
+   * ラベルテキスト
+   */
   label?: string
+  
+  /**
+   * ヘルプテキスト（入力欄の下に表示）
+   */
   helpText?: string
+  
+  /**
+   * エラーメッセージ（helpTextより優先して表示）
+   */
   errorMessage?: string
+  
+  /**
+   * 左側に表示するアイコンクラス（UnoCSS icon形式）
+   */
   iconLeft?: string
+  
+  /**
+   * 右側に表示するアイコンクラス（UnoCSS icon形式）
+   */
   iconRight?: string
+  
+  /**
+   * クリアボタンを表示するか
+   * @default false
+   */
   clearable?: boolean
   
-  // スタイル
+  /**
+   * 入力フィールドのサイズ
+   * @default 'md'
+   */
   size?: 'sm' | 'md' | 'lg'
+  
+  /**
+   * 入力フィールドの外観バリアント
+   * @default 'default'
+   */
   variant?: 'default' | 'outlined' | 'filled'
 }
 
@@ -126,10 +211,31 @@ const props = withDefaults(defineProps<Props>(), {
   variant: 'default'
 })
 
+/**
+ * Emit定義
+ */
 interface Emits {
+  /**
+   * 入力値が変更されたときに発火
+   * @param value - 新しい入力値
+   */
   'update:modelValue': [value: string | number]
+  
+  /**
+   * フォーカスイベント
+   * @param event - FocusEvent
+   */
   focus: [event: FocusEvent]
+  
+  /**
+   * ブラーイベント
+   * @param event - FocusEvent
+   */
   blur: [event: FocusEvent]
+  
+  /**
+   * クリアボタンがクリックされたときに発火
+   */
   clear: []
 }
 
