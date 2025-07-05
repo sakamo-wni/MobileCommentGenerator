@@ -216,16 +216,20 @@ class LocalCommentRepository:
             advice_comments = [c for c in (self._comment_cache or [])
                                if c.raw_data.get('season') == season and c.comment_type.value == 'advice']
             
-            # 各タイプから50件ずつ（人気順）
+            # 各タイプから全件取得（フィルタリングはセレクターに任せる）
             weather_comments.sort(key=lambda x: x.raw_data.get('count', 0), reverse=True)
             advice_comments.sort(key=lambda x: x.raw_data.get('count', 0), reverse=True)
             
-            season_comments = weather_comments[:50] + advice_comments[:50]
+            # 各タイプから200件ずつ取得（より多くの選択肢を提供）
+            season_comments = weather_comments[:200] + advice_comments[:200]
             all_comments.extend(season_comments)
             
-            logger.info(f"季節「{season}」: 天気{len(weather_comments[:50])}件 + アドバイス{len(advice_comments[:50])}件")
+            logger.info(f"季節「{season}」: 天気{len(weather_comments[:200])}件 + アドバイス{len(advice_comments[:200])}件")
         
         # 全体を人気順でソートして制限
+        # 注: より多くのコメントを返すことで、セレクターがより適切な選択をできるようにする
         all_comments.sort(key=lambda x: x.raw_data.get('count', 0), reverse=True)
         
-        return all_comments[:total_limit]
+        # total_limitを最低1000件に設定
+        return_limit = max(total_limit, 1000)
+        return all_comments[:return_limit]

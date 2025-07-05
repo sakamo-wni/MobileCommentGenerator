@@ -45,10 +45,10 @@ class CommentSelector:
         
         # 事前フィルタリング
         filtered_weather = self.validator.get_weather_appropriate_comments(
-            weather_comments, weather_data, CommentType.WEATHER_COMMENT, limit=100
+            weather_comments, weather_data, CommentType.WEATHER_COMMENT, limit=500
         )
         filtered_advice = self.validator.get_weather_appropriate_comments(
-            advice_comments, weather_data, CommentType.ADVICE, limit=100
+            advice_comments, weather_data, CommentType.ADVICE, limit=500
         )
         
         # 除外対象のコメントを削除
@@ -66,6 +66,10 @@ class CommentSelector:
         
         logger.info(f"フィルタリング結果 - 天気: {len(weather_comments)} -> {len(filtered_weather)}")
         logger.info(f"フィルタリング結果 - アドバイス: {len(advice_comments)} -> {len(filtered_advice)}")
+        
+        # デバッグ: 元のコメント数と内容を確認
+        logger.debug(f"元の天気コメント総数: {len(weather_comments)}")
+        logger.debug(f"元のアドバイスコメント総数: {len(advice_comments)}")
         
         # 最適なコメントを選択
         best_weather = self._select_best_weather_comment(
