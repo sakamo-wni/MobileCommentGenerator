@@ -6,7 +6,16 @@ from typing import Any
 
 import pytz
 
-from src.config.app_config import get_config
+from app_interfaces import ICommentGenerationController
+from app_types import (
+    CommentGeneratorFunc,
+    HistoryLoaderFunc,
+    HistorySaverFunc,
+    LocationLoaderFunc,
+    ProgressCallback,
+    ResultCallback,
+)
+from src.config.app_config import AppConfig, get_config
 from src.types import BatchGenerationResult, LocationResult
 from src.ui.streamlit_utils import load_history, load_locations, save_to_history
 from src.utils.error_handler import ErrorHandler
@@ -15,23 +24,47 @@ from src.workflows.comment_generation_workflow import run_comment_generation
 logger = logging.getLogger(__name__)
 
 
-class CommentGenerationController:
-    """コメント生成のビジネスロジックを管理するコントローラー"""
+class CommentGenerationController(ICommentGenerationController):
+    """コメント生成のビジネスロジックを管理するコントローラー
+    
+    依存性注入を使用して設定や外部サービスを受け取ります。
+    """
 
-    def __init__(self):
-        self.config = get_config()
+    def __init__(self, config: AppConfig | None = None,
+                 comment_generator: CommentGeneratorFunc | None = None,
+                 history_loader: HistoryLoaderFunc | None = None,
+                 location_loader: LocationLoaderFunc | None = None,
+                 history_saver: HistorySaverFunc | None = None):
+        """コントローラーの初期化
+        
+        Args:
+            config: アプリケーション設定（省略時はデフォルト設定を使用）
+            comment_generator: コメント生成関数（省略時はrun_comment_generationを使用）
+            history_loader: 履歴読み込み関数（省略時はload_historyを使用）
+            location_loader: 地点読み込み関数（省略時はload_locationsを使用）
+            history_saver: 履歴保存関数（省略時はsave_to_historyを使用）
+        """
+        self.config = config or get_config()
+        self._comment_generator = comment_generator or run_comment_generation
+        self._history_loader = history_loader or load_history
+        self._location_loader = location_loader or load_locations
+        self._history_saver = history_saver or save_to_history
         self._generation_history = None
 
     @property
     def generation_history(self) -> list[dict[str, Any]]:
         """生成履歴を取得（遅延読み込み）"""
         if self._generation_history is None:
-            self._generation_history = load_history()
+            self._generation_history = self._history_loader()
         return self._generation_history
+
+    def get_generation_history(self) -> list[dict[str, Any]]:
+        """生成履歴を取得"""
+        return self.generation_history
 
     def get_default_locations(self) -> list[str]:
         """デフォルトの地点リストを取得"""
-        return load_locations()
+        return self._location_loader()
 
     def get_default_llm_provider(self) -> str:
         """デフォルトのLLMプロバイダーを取得"""
@@ -49,7 +82,7 @@ class CommentGenerationController:
         """単一地点のコメント生成"""
         try:
             # 実際のコメント生成
-            result = run_comment_generation(
+            result = self._comment_generator(
                 location_name=location,
                 target_datetime=datetime.now(),
                 llm_provider=llm_provider
@@ -82,7 +115,7 @@ class CommentGenerationController:
 
             # 履歴に保存
             if result.get('success'):
-                save_to_history(result, location, llm_provider)
+                self._history_saver(result, location, llm_provider)
                 # 履歴キャッシュをクリア
                 self._generation_history = None
 
@@ -93,8 +126,19 @@ class CommentGenerationController:
             return ErrorHandler.create_error_result(location, e)
 
     def generate_comments_batch(self, locations: list[str], llm_provider: str,
-                                progress_callback=None) -> BatchGenerationResult:
-        """複数地点のコメント生成"""
+                                progress_callback: ProgressCallback | None = None,
+                                result_callback: ResultCallback | None = None) -> BatchGenerationResult:
+        """複数地点のコメント生成
+        
+        Args:
+            locations: 生成対象の地点リスト
+            llm_provider: 使用するLLMプロバイダー
+            progress_callback: 進捗更新時のコールバック関数 (current: int, total: int, location: str) -> None
+            result_callback: 各地点の結果が生成された時のコールバック関数 (result: LocationResult) -> None
+            
+        Returns:
+            BatchGenerationResult: バッチ処理の結果
+        """
         if not locations:
             return {'success': False, 'error': '地点が選択されていません'}
 
@@ -110,6 +154,10 @@ class CommentGenerationController:
                 # 個別地点の生成
                 location_result = self.generate_comment_for_location(location, llm_provider)
                 all_results.append(location_result)
+
+                # 結果コールバック
+                if result_callback:
+                    result_callback(location_result)
 
             # 成功数をカウント
             success_count = sum(1 for r in all_results if r['success'])

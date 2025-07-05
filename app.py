@@ -1,7 +1,9 @@
 """天気コメント生成システム - Streamlit UIエントリーポイント"""
 
+
 import streamlit as st
 
+from app_constants import MAIN_COLUMN_RATIO, RESULT_HEADER
 from app_controller import CommentGenerationController
 from app_view import CommentGenerationView
 
@@ -22,87 +24,21 @@ def initialize_session_state(controller: CommentGenerationController):
             st.session_state[key] = value
 
 
-def generate_with_progress(controller: CommentGenerationController, view: CommentGenerationView,
-                          locations: list, llm_provider: str, results_container):
-    """プログレスバー付きでコメントを生成"""
-    # ヘッダーを一度だけ表示
-    with results_container.container():
-        st.markdown("### 🌤️ 生成結果")
-
-    # プログレスUI作成
-    progress_bar, status_text = view.create_progress_ui()
-
-    # 生成中フラグを立てる
-    st.session_state.is_generating = True
-
-    try:
-        # 進捗コールバック関数
-        def progress_callback(idx, total, location):
-            view.update_progress(progress_bar, status_text, idx, total, location)
-
-            # 中間結果の表示（前のインデックスまでの結果を取得）
-            if idx > 0:
-                # 既に生成済みの結果を表示
-                with results_container.container():
-                    for i in range(idx):
-                        if i < len(all_results):
-                            result = all_results[i]
-                            metadata = controller.extract_weather_metadata(result)
-                            if 'forecast_time' in metadata and metadata['forecast_time']:
-                                metadata['forecast_time'] = controller.format_forecast_time(metadata['forecast_time'])
-                            view.display_single_result(result, metadata)
-
-        # バッチ生成実行
-        all_results = []
-
-        # 各地点を順番に処理
-        for idx, location in enumerate(locations):
-            progress_callback(idx, len(locations), location)
-
-            # 単一地点の生成
-            location_result = controller.generate_comment_for_location(location, llm_provider)
-            all_results.append(location_result)
-
-            # 結果を即座に表示
-            with results_container.container():
-                metadata = controller.extract_weather_metadata(location_result)
-                if 'forecast_time' in metadata and metadata['forecast_time']:
-                    metadata['forecast_time'] = controller.format_forecast_time(metadata['forecast_time'])
-                view.display_single_result(location_result, metadata)
-
-        # 最終結果を集計
-        success_count = sum(1 for r in all_results if r['success'])
-        errors = [r for r in all_results if not r['success']]
-        error_messages = []
-
-        for err in errors:
-            location = err['location']
-            error_msg = err.get('error', '不明なエラー')
-            error_messages.append(f"{location}: {error_msg}")
-
-        result = {
-            'success': success_count > 0,
-            'total_locations': len(locations),
-            'success_count': success_count,
-            'results': all_results,
-            'final_comment': '\n'.join([f"{r['location']}: {r['comment']}" for r in all_results if r['success']]),
-            'errors': error_messages
-        }
-
-        # 完了処理
-        view.complete_progress(progress_bar, status_text, success_count, len(locations))
-
-        return result
-
-    finally:
-        st.session_state.is_generating = False
 
 
-def main():
-    """メインアプリケーション"""
-    # コントローラーとビューの初期化
-    controller = CommentGenerationController()
-    view = CommentGenerationView()
+def main(controller: CommentGenerationController | None = None,
+         view: CommentGenerationView | None = None):
+    """メインアプリケーション
+    
+    Args:
+        controller: コントローラーインスタンス（テスト用のモック注入用）
+        view: ビューインスタンス（テスト用のモック注入用）
+    """
+    # コントローラーとビューの初期化（依存性注入対応）
+    if controller is None:
+        controller = CommentGenerationController()
+    if view is None:
+        view = CommentGenerationView()
 
     # ページ設定（最初に呼ぶ必要がある）
     view.setup_page_config(controller.config)
@@ -124,7 +60,7 @@ def main():
     view.setup_sidebar(st.session_state.generation_history)
 
     # メインコンテンツ
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns(MAIN_COLUMN_RATIO)
 
     with col1:
         # 入力パネル
@@ -147,8 +83,42 @@ def main():
                         view.display_location_warning(controller.config.ui_settings.max_locations_per_generation)
                         location = location[:controller.config.ui_settings.max_locations_per_generation]
 
-                    # プログレスバー付き生成
-                    result = generate_with_progress(controller, view, location, llm_provider, results_container)
+                    # ヘッダーを一度だけ表示
+                    with results_container.container():
+                        st.markdown(RESULT_HEADER)
+
+                    # プログレスUI作成
+                    progress_bar, status_text = view.create_progress_ui()
+
+                    # 生成中フラグを立てる
+                    st.session_state.is_generating = True
+
+                    try:
+                        # コールバック関数の定義
+                        def progress_callback(current: int, total: int, location: str):
+                            view.update_progress(progress_bar, status_text, current, total, location)
+
+                        def result_callback(location_result: dict):
+                            # 結果を即座に表示
+                            with results_container.container():
+                                metadata = controller.extract_weather_metadata(location_result)
+                                if 'forecast_time' in metadata and metadata['forecast_time']:
+                                    metadata['forecast_time'] = controller.format_forecast_time(metadata['forecast_time'])
+                                view.display_single_result(location_result, metadata)
+
+                        # バッチ生成実行
+                        result = controller.generate_comments_batch(
+                            locations=location,
+                            llm_provider=llm_provider,
+                            progress_callback=progress_callback,
+                            result_callback=result_callback
+                        )
+
+                        # 完了処理
+                        view.complete_progress(progress_bar, status_text, result['success_count'], result['total_locations'])
+
+                    finally:
+                        st.session_state.is_generating = False
                 else:
                     view.display_no_location_error()
                     result = None

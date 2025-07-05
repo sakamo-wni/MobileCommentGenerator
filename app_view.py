@@ -6,6 +6,29 @@ from typing import Any
 
 import streamlit as st
 
+from app_constants import (
+    API_KEY_WARNING,
+    DEBUG_INFO_HEADER,
+    FOOTER_BY,
+    FOOTER_LAST_UPDATED,
+    FOOTER_VERSION,
+    GENERATION_ALL_FAILED,
+    GENERATION_BUTTON_TEXT,
+    GENERATION_COMPLETE,
+    GENERATION_COMPLETE_SUCCESS,
+    GENERATION_PROGRESS,
+    GENERATION_TIME_FORMAT,
+    INPUT_HEADER,
+    LOCATION_LIMIT_WARNING,
+    NO_LOCATION_ERROR,
+    PROGRESS_MAX,
+    RESULT_SECTION_HEADER,
+    SAMPLE_COMMENTS,
+    SIDEBAR_API_KEY_HEADER,
+    SIDEBAR_HISTORY_HEADER,
+    SIDEBAR_SETTINGS_HEADER,
+    UI_SLEEP_DURATION,
+)
 from src.types import BatchGenerationResult, LocationResult
 from src.ui.streamlit_components import (
     generation_history_display,
@@ -18,7 +41,23 @@ from src.ui.streamlit_utils import format_timestamp
 
 
 class CommentGenerationView:
-    """UIの表示を管理するビュークラス"""
+    """UIの表示を管理するビュークラス
+    
+    Streamlitを使用した天気コメント生成システムのUI表示を担当します。
+    ビジネスロジックはControllerに委譲し、純粋に表示とユーザーインタラクションの
+    処理に専念します。
+    
+    主な責務:
+    - ページレイアウトとスタイルの管理
+    - ユーザー入力の受け取りと表示
+    - 生成結果の表示
+    - 進捗状況の可視化
+    - エラーメッセージとフィードバックの表示
+    
+    注意:
+    - このクラスのメソッドは全て静的メソッドとして実装されています
+    - ビジネスロジックは含まず、純粋な表示ロジックのみを扱います
+    """
 
     @staticmethod
     def setup_page_config(config):
@@ -39,33 +78,33 @@ class CommentGenerationView:
     def display_api_key_warning(validation_results: dict[str, Any]):
         """APIキーの警告表示"""
         if not validation_results["api_keys"]["wxtech"]:
-            st.error("⚠️ WXTECH_API_KEYが設定されていません。天気予報データの取得ができません。")
+            st.error(API_KEY_WARNING)
 
     @staticmethod
     def display_debug_info(config):
         """デバッグ情報表示"""
         if config.debug and config.ui_settings.show_debug_info:
-            with st.expander("デバッグ情報", expanded=False):
+            with st.expander(DEBUG_INFO_HEADER, expanded=False):
                 st.json(config.to_dict())
 
     @staticmethod
     def setup_sidebar(generation_history: list[dict[str, Any]]):
         """サイドバーのセットアップ"""
         with st.sidebar:
-            st.header("設定")
+            st.header(SIDEBAR_SETTINGS_HEADER)
 
             # APIキー設定
-            with st.expander("APIキー設定", expanded=False):
+            with st.expander(SIDEBAR_API_KEY_HEADER, expanded=False):
                 settings_panel()
 
             # 生成履歴
-            st.header("生成履歴")
+            st.header(SIDEBAR_HISTORY_HEADER)
             generation_history_display(generation_history)
 
     @staticmethod
     def display_input_panel() -> tuple[list[str], str]:
         """入力パネルの表示"""
-        st.header("📍 入力設定")
+        st.header(INPUT_HEADER)
 
         # 地点選択
         location = location_selector()
@@ -74,7 +113,7 @@ class CommentGenerationView:
         llm_provider = llm_provider_selector()
 
         # 現在時刻表示
-        st.info(f"🕐 生成時刻: {format_timestamp(datetime.now())}")
+        st.info(GENERATION_TIME_FORMAT.format(format_timestamp(datetime.now())))
 
         return location, llm_provider
 
@@ -82,7 +121,7 @@ class CommentGenerationView:
     def display_generation_button(is_generating: bool) -> bool:
         """生成ボタンの表示"""
         return st.button(
-            "🎯 コメント生成",
+            GENERATION_BUTTON_TEXT,
             type="primary",
             disabled=is_generating,
             use_container_width=True
@@ -91,12 +130,12 @@ class CommentGenerationView:
     @staticmethod
     def display_location_warning(max_locations: int):
         """地点数超過の警告"""
-        st.warning(f"⚠️ 選択された地点数が上限（{max_locations}地点）を超えています。")
+        st.warning(LOCATION_LIMIT_WARNING.format(max_locations))
 
     @staticmethod
     def display_no_location_error():
         """地点未選択エラー"""
-        st.error("地点が選択されていません")
+        st.error(NO_LOCATION_ERROR)
 
     @staticmethod
     def display_single_result(result: LocationResult, metadata: dict[str, Any]):
@@ -167,19 +206,19 @@ class CommentGenerationView:
         """進捗状況を更新"""
         progress = current / total
         progress_bar.progress(progress)
-        status_text.text(f"生成中... {location} ({current + 1}/{total})")
+        status_text.text(GENERATION_PROGRESS.format(location, current + 1, total))
 
     @staticmethod
     def complete_progress(progress_bar, status_text, success_count: int, total_count: int):
         """進捗完了時の表示"""
-        progress_bar.progress(1.0)
+        progress_bar.progress(PROGRESS_MAX)
 
         if success_count > 0:
-            status_text.text(f"完了！{success_count}/{total_count}地点の生成が成功しました")
+            status_text.text(GENERATION_COMPLETE.format(success_count, total_count))
         else:
-            status_text.text("エラー：すべての地点でコメント生成に失敗しました")
+            status_text.text(GENERATION_ALL_FAILED)
 
-        time.sleep(0.5)
+        time.sleep(UI_SLEEP_DURATION)
         progress_bar.empty()
         status_text.empty()
 
@@ -187,7 +226,7 @@ class CommentGenerationView:
     def display_generation_complete(result: BatchGenerationResult):
         """生成完了時の表示"""
         if result and result['success']:
-            st.success(f"✅ コメント生成が完了しました！ ({result['success_count']}/{result['total_locations']}地点成功)")
+            st.success(GENERATION_COMPLETE_SUCCESS.format(f"{result['success_count']}/{result['total_locations']}"))
             if result['success_count'] == result['total_locations']:
                 st.balloons()
 
@@ -205,7 +244,7 @@ class CommentGenerationView:
     @staticmethod
     def display_results_section(current_result: BatchGenerationResult | None, is_generating: bool):
         """結果セクションの表示"""
-        st.header("💬 生成結果")
+        st.header(RESULT_SECTION_HEADER)
 
         # 生成中でない場合のみ固定の結果を表示
         if not is_generating:
@@ -216,12 +255,7 @@ class CommentGenerationView:
 
             # サンプル表示
             with st.expander("サンプルコメント"):
-                st.markdown("""
-                **晴れの日**: 爽やかな朝ですね  
-                **雨の日**: 傘をお忘れなく  
-                **曇りの日**: 過ごしやすい一日です  
-                **雪の日**: 足元にお気をつけて
-                """)
+                st.markdown(SAMPLE_COMMENTS)
 
     @staticmethod
     def display_footer():
@@ -229,11 +263,11 @@ class CommentGenerationView:
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown("**Version**: 1.0.0")
+            st.markdown(FOOTER_VERSION)
         with col2:
-            st.markdown("**Last Updated**: 2025-06-06")
+            st.markdown(FOOTER_LAST_UPDATED)
         with col3:
-            st.markdown("**By**: WNI Team")
+            st.markdown(FOOTER_BY)
 
     @staticmethod
     def display_error_with_hint(error_message: str, hint: str | None = None):
