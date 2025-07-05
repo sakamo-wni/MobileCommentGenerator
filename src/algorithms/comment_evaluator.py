@@ -31,6 +31,7 @@ from src.algorithms.evaluators import (
     ConsistencyEvaluator,
     OriginalityEvaluator,
 )
+from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -58,20 +59,15 @@ class CommentEvaluator:
         # 設定ローダーを初期化
         self.config_loader = EvaluationConfigLoader()
         
-        # モード別設定を取得
-        self.mode_config = self.config_loader.get_mode_config(evaluation_mode)
-        self.thresholds = self.mode_config.get("thresholds", {
-            "total_score": 0.3,
-            "appropriateness": 0.2, 
-            "consistency": 0.2
-        })
-        self.enabled_checks = self.mode_config.get("enabled_checks", ["extreme_inappropriate"])
+        # 統一された設定オブジェクトを作成
+        self.evaluator_config = EvaluatorConfig.from_config_loader(
+            self.config_loader, 
+            evaluation_mode
+        )
         
-        # パターンを設定から読み込む
-        self.inappropriate_patterns = self.config_loader.get_inappropriate_patterns(evaluation_mode)
-        self.contradiction_patterns = self.config_loader.get_contradiction_patterns(evaluation_mode)
-        self.positive_expressions = self.config_loader.get_positive_expressions()
-        self.engagement_elements = self.config_loader.get_engagement_elements()
+        # 互換性のため個別の属性も保持
+        self.thresholds = self.evaluator_config.thresholds
+        self.enabled_checks = self.evaluator_config.enabled_checks
         
         # 各評価器を初期化
         self._initialize_evaluators()
@@ -83,47 +79,42 @@ class CommentEvaluator:
         self.evaluators = {
             EvaluationCriteria.RELEVANCE: RelevanceEvaluator(
                 weight=self.weights[EvaluationCriteria.RELEVANCE],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks
+                config=self.evaluator_config
             ),
             EvaluationCriteria.CREATIVITY: CreativityEvaluator(
                 weight=self.weights[EvaluationCriteria.CREATIVITY],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks
+                config=self.evaluator_config
             ),
             EvaluationCriteria.NATURALNESS: NaturalnessEvaluator(
                 weight=self.weights[EvaluationCriteria.NATURALNESS],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks
+                config=self.evaluator_config
             ),
             EvaluationCriteria.APPROPRIATENESS: AppropriatenessEvaluator(
                 weight=self.weights[EvaluationCriteria.APPROPRIATENESS],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks,
-                inappropriate_patterns=self.inappropriate_patterns
+                evaluation_mode=self.evaluator_config.evaluation_mode,
+                enabled_checks=self.evaluator_config.enabled_checks,
+                inappropriate_patterns=self.evaluator_config.inappropriate_patterns
             ),
             EvaluationCriteria.ENGAGEMENT: EngagementEvaluator(
                 weight=self.weights[EvaluationCriteria.ENGAGEMENT],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks,
-                engagement_elements=self.engagement_elements,
-                positive_expressions=self.positive_expressions
+                evaluation_mode=self.evaluator_config.evaluation_mode,
+                enabled_checks=self.evaluator_config.enabled_checks,
+                engagement_elements=self.evaluator_config.engagement_elements,
+                positive_expressions=self.evaluator_config.positive_expressions
             ),
             EvaluationCriteria.CLARITY: ClarityEvaluator(
                 weight=self.weights[EvaluationCriteria.CLARITY],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks
+                config=self.evaluator_config
             ),
             EvaluationCriteria.CONSISTENCY: ConsistencyEvaluator(
                 weight=self.weights[EvaluationCriteria.CONSISTENCY],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks,
-                contradiction_patterns=self.contradiction_patterns
+                evaluation_mode=self.evaluator_config.evaluation_mode,
+                enabled_checks=self.evaluator_config.enabled_checks,
+                contradiction_patterns=self.evaluator_config.contradiction_patterns
             ),
             EvaluationCriteria.ORIGINALITY: OriginalityEvaluator(
                 weight=self.weights[EvaluationCriteria.ORIGINALITY],
-                evaluation_mode=self.evaluation_mode,
-                enabled_checks=self.enabled_checks
+                config=self.evaluator_config
             ),
         }
 

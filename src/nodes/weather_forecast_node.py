@@ -6,6 +6,7 @@ LangGraphノードとして天気予報データの取得・処理を行う
 
 import asyncio
 import logging
+import os
 import pytz
 from datetime import datetime, timedelta
 from typing import Any
@@ -13,13 +14,14 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
 
-from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
-from src.data.location_manager import LocationManager
-from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition
+from src.apis.wxtech import WxTechAPIError
+from src.apis.wxtech.client import WxTechAPIClient
 from src.data.weather_trend import WeatherTrend
+from src.data.weather_data import WeatherForecastCollection, WeatherForecast
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
+from src.nodes.weather_forecast import WeatherDataFetcher, WeatherDataTransformer, WeatherDataValidator
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -38,7 +40,9 @@ class WeatherForecastNode:
             api_key: WxTech API キー
         """
         self.api_key = api_key
-        self.location_manager = LocationManager()
+        self.data_fetcher = WeatherDataFetcher(api_key)
+        self.data_transformer = WeatherDataTransformer()
+        self.data_validator = WeatherDataValidator()
 
     async def get_weather_forecast(self, state: dict[str, Any]) -> dict[str, Any]:
         """天気予報データを取得するノード
@@ -62,7 +66,7 @@ class WeatherForecastNode:
                 return {**state, "error_message": "地点情報が指定されていません"}
 
             # 天気予報データを取得
-            weather_collection = await self._fetch_weather_data(location)
+            weather_collection = await self.data_fetcher.fetch_weather_data(location)
 
             if not weather_collection or not weather_collection.forecasts:
                 return {
@@ -71,13 +75,13 @@ class WeatherForecastNode:
                 }
 
             # 指定時間内の予報データをフィルタリング
-            filtered_forecasts = self._filter_forecasts_by_hours(
+            filtered_forecasts = self.data_transformer.filter_forecasts_by_hours(
                 weather_collection.forecasts,
                 forecast_hours,
             )
 
             # 天気概要を生成
-            weather_summary = self._generate_weather_summary(filtered_forecasts)
+            weather_summary = self.data_transformer.generate_weather_summary(filtered_forecasts)
 
             return {
                 **state,
@@ -95,204 +99,6 @@ class WeatherForecastNode:
             logger.error(f"天気予報データ取得エラー: {e!s}")
             return {**state, "error_message": f"天気予報データの取得に失敗しました: {e!s}"}
 
-    async def _fetch_weather_data(
-        self,
-        location: str | tuple,
-    ) -> WeatherForecastCollection | None:
-        """天気予報データを取得
-
-        Args:
-            location: 地点名または(緯度, 経度)のタプル
-
-        Returns:
-            天気予報コレクション
-        """
-        try:
-            with WxTechAPIClient(self.api_key) as client:
-                if isinstance(location, str):
-                    # 地点名から座標を取得
-                    location_obj = self.location_manager.find_exact_match(location)
-                    if not location_obj or location_obj.latitude is None or location_obj.longitude is None:
-                        # 地点検索を試行
-                        search_results = self.location_manager.search_location(location)
-                        if search_results:
-                            location_obj = search_results[0]
-                        else:
-                            raise ValueError(f"地点「{location}」が見つかりません")
-
-                    # 翌日9, 12, 15, 18時JSTのみ取得
-                    # 非同期版の実装がないため、同期版を使用
-                    return client.get_forecast_for_next_day_hours(
-                        location_obj.latitude,
-                        location_obj.longitude
-                    )
-
-                if isinstance(location, tuple) and len(location) == 2:
-                    # 緯度経度から直接取得
-                    lat, lon = location
-                    # 翌日9, 12, 15, 18時JSTのみ取得
-                    # 非同期版の実装がないため、同期版を使用
-                    return client.get_forecast_for_next_day_hours(lat, lon)
-
-                raise ValueError("無効な地点情報です")
-
-        except WxTechAPIError as e:
-            logger.error(f"WxTech API エラー: {e!s}")
-            raise
-        except Exception as e:
-            logger.error(f"天気予報データ取得エラー: {e!s}")
-            raise
-
-    def _filter_forecasts_by_hours(
-        self,
-        forecasts: list[WeatherForecast],
-        hours: int,
-    ) -> list[WeatherForecast]:
-        """指定時間内の予報データをフィルタリング
-
-        Args:
-            forecasts: 天気予報リスト
-            hours: 予報時間数
-
-        Returns:
-            フィルタリングされた天気予報リスト
-        """
-        if hours <= 0:
-            return forecasts
-
-        now = datetime.now()
-        cutoff_time = now + timedelta(hours=hours)
-
-        return [forecast for forecast in forecasts if forecast.datetime <= cutoff_time]
-
-    def _generate_weather_summary(self, forecasts: list[WeatherForecast]) -> dict[str, Any]:
-        """天気概要を生成
-
-        Args:
-            forecasts: 天気予報リスト
-
-        Returns:
-            天気概要辞書
-        """
-        if not forecasts:
-            return {}
-
-        # 指定時間後の天気
-        from src.config.weather_config import WeatherConfig
-        config = WeatherConfig()
-        target_time = datetime.now() + timedelta(hours=config.forecast_hours_ahead)
-        current_forecast = min(
-            forecasts,
-            key=lambda f: abs((f.datetime - target_time).total_seconds()),
-        )
-        
-        # デバッグ情報
-        logger.info(f"_generate_weather_summary - ターゲット時刻: {target_time}, 選択された予報時刻: {current_forecast.datetime}")
-        logger.info(f"_generate_weather_summary - 選択された天気データ: {current_forecast.temperature}°C, {current_forecast.weather_description}")
-
-        # 気温統計
-        temperatures = [f.temperature for f in forecasts]
-        precipitations = [f.precipitation for f in forecasts]
-
-        # 天気パターン分析
-        weather_conditions = [f.weather_condition for f in forecasts]
-        condition_counts = {}
-        for condition in weather_conditions:
-            condition_counts[condition.value] = condition_counts.get(condition.value, 0) + 1
-
-        # 主要な天気状況
-        dominant_condition = max(condition_counts.items(), key=lambda x: x[1])
-
-        # 雨の予測
-        rain_forecasts = [f for f in forecasts if f.precipitation > 0.1]
-        rain_probability = len(rain_forecasts) / len(forecasts) if forecasts else 0
-
-        # 悪天候の判定
-        severe_weather_forecasts = [f for f in forecasts if f.is_severe_weather()]
-        has_severe_weather = len(severe_weather_forecasts) > 0
-
-        return {
-            "current_weather": {
-                "temperature": current_forecast.temperature,
-                "condition": current_forecast.weather_condition.value,
-                "description": current_forecast.weather_description,
-                "precipitation": current_forecast.precipitation,
-                "comfort_level": current_forecast.get_comfort_level(),
-            },
-            "temperature_range": {
-                "max": max(temperatures),
-                "min": min(temperatures),
-                "average": sum(temperatures) / len(temperatures),
-            },
-            "precipitation": {
-                "total": sum(precipitations),
-                "max_hourly": max(precipitations),
-                "probability": rain_probability * 100,
-            },
-            "dominant_condition": {
-                "condition": dominant_condition[0],
-                "frequency": dominant_condition[1] / len(forecasts),
-            },
-            "alerts": {
-                "has_severe_weather": has_severe_weather,
-                "severe_weather_count": len(severe_weather_forecasts),
-                "high_precipitation": max(precipitations) > 10.0,
-                "extreme_temperature": any(t < 0 or t > 35 for t in temperatures),
-            },
-            "recommendations": self._generate_recommendations(forecasts),
-        }
-
-    def _generate_recommendations(self, forecasts: list[WeatherForecast]) -> list[str]:
-        """天気に基づく推奨事項を生成
-
-        Args:
-            forecasts: 天気予報リスト
-
-        Returns:
-            推奨事項のリスト
-        """
-        recommendations = []
-
-        if not forecasts:
-            return recommendations
-
-        # 雨の予測チェック
-        rain_forecasts = [f for f in forecasts if f.precipitation > 0.1]
-        if rain_forecasts:
-            max_precipitation = max(f.precipitation for f in rain_forecasts)
-            if max_precipitation > 10.0:
-                recommendations.append("傘の携帯をおすすめします（強い雨の予報）")
-            else:
-                recommendations.append("念のため傘をお持ちください")
-
-        # 気温チェック
-        temperatures = [f.temperature for f in forecasts]
-        max_temp = max(temperatures)
-        min_temp = min(temperatures)
-
-        if max_temp > 30:
-            recommendations.append("暑くなる予報です。水分補給や熱中症対策をお忘れなく")
-        elif max_temp < 5:
-            recommendations.append("寒くなる予報です。防寒対策をしっかりと")
-        elif min_temp < 0:
-            recommendations.append("氷点下になる可能性があります。路面凍結にご注意ください")
-
-        # 風速チェック
-        strong_winds = [f for f in forecasts if f.wind_speed > 10.0]
-        if strong_winds:
-            recommendations.append("強風の予報があります。外出時はご注意ください")
-
-        # 悪天候チェック
-        severe_weather = [f for f in forecasts if f.is_severe_weather()]
-        if severe_weather:
-            recommendations.append("悪天候の予報があります。不要な外出は控えることをおすすめします")
-
-        # 良い天気の場合
-        good_weather = [f for f in forecasts if f.is_good_weather()]
-        if len(good_weather) > len(forecasts) * 0.7:  # 70%以上が良い天気
-            recommendations.append("良い天気が続く予報です。外出日和ですね")
-
-        return recommendations
 
 
 def create_weather_forecast_graph(api_key: str) -> StateGraph:
@@ -559,7 +365,8 @@ def fetch_weather_forecast_node(state):
                 period_forecasts.append(closest_forecast)
         
         # 期間内の予報から最も重要な天気条件を選択
-        selected_forecast = _select_priority_forecast(period_forecasts)
+        validator = WeatherDataValidator()
+        selected_forecast = validator.select_priority_forecast(period_forecasts)
         
         # 気象変化傾向の分析
         if len(period_forecasts) >= 2:
@@ -633,105 +440,6 @@ def fetch_weather_forecast_node(state):
         state.add_error(f"天気予報の取得に失敗しました: {e!s}", "weather_forecast")
         # エラーをそのまま再発生させて処理を停止
         raise
-
-
-def _select_priority_forecast(forecasts):
-    """翌日9:00-18:00の予報から最も重要な気象条件を選択
-    
-    優先順位ルール:
-    1. 雷、嵐、霧などの特殊気象条件を最優先
-    2. 本降りの雨（>10mm/h）は猛暑日でも優先
-    3. 猛暑日（35℃以上）では小雨でも熱中症対策を優先
-    4. 雨 > 曇り > 晴れの順で優先
-    
-    Args:
-        forecasts: 9時間の予報リスト（9:00, 12:00, 15:00, 18:00）
-        
-    Returns:
-        選択された予報（優先度ルールに基づく）
-        
-    Raises:
-        ValueError: 予報データが空の場合
-    """
-    if not forecasts:
-        error_msg = "指定時刻の天気予報データが取得できませんでした"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    logger.info(f"翌日9:00-18:00の予報分析開始: {len(forecasts)}件")
-    
-    # 各予報の詳細をログ出力
-    for f in forecasts:
-        logger.info(f"  {f.datetime.strftime('%H:%M')}: {f.weather_description}, 気温{f.temperature}°C, 降水量{f.precipitation}mm/h")
-    
-    # 1. 真の特殊気象条件（雷、霧、嵐）を最優先（雨は除く）
-    extreme_conditions = [f for f in forecasts if f.weather_condition in [
-        WeatherCondition.THUNDER, WeatherCondition.FOG, WeatherCondition.STORM, 
-        WeatherCondition.SEVERE_STORM, WeatherCondition.EXTREME_HEAT
-    ]]
-    if extreme_conditions:
-        selected = max(extreme_conditions, key=lambda f: f.weather_condition.priority)
-        logger.info(f"特殊気象条件を優先選択: {selected.weather_condition.value} ({selected.datetime.strftime('%H:%M')})")
-        return selected
-    
-    # 2. 本降りの雨（>10mm/h）は猛暑日でも優先
-    heavy_rain = [f for f in forecasts if f.precipitation > 10.0]
-    if heavy_rain:
-        selected = max(heavy_rain, key=lambda f: f.precipitation)
-        logger.info(f"本降りの雨を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')})")
-        return selected
-    
-    # 3. 猛暑日（35℃以上）の場合の処理
-    extreme_hot = [f for f in forecasts if f.temperature >= 35.0]
-    if extreme_hot:
-        # 雨の時間帯の割合を計算
-        rainy_forecasts = [f for f in forecasts if f.precipitation > 0.1]
-        rain_ratio = len(rainy_forecasts) / len(forecasts)
-        
-        # 猛暑日に雨がある場合の判定
-        light_rain_in_hot = [f for f in extreme_hot if 0.1 < f.precipitation <= 10.0]
-        
-        if light_rain_in_hot and rain_ratio <= 0.5:
-            # 雨の時間帯が半分以下（ほとんど晴れ）なら熱中症対策を優先
-            selected = max(extreme_hot, key=lambda f: f.temperature)
-            logger.info(f"猛暑日で熱中症対策を優先選択（雨は少数）: {selected.temperature}°C ({selected.datetime.strftime('%H:%M')}, 雨の割合: {rain_ratio:.1%})")
-            return selected
-        elif light_rain_in_hot and rain_ratio > 0.5:
-            # 雨の時間帯が半分以上（ずっと雨）なら雨を優先
-            selected = max(rainy_forecasts, key=lambda f: f.precipitation)
-            logger.info(f"猛暑日だが雨が多いため雨を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')}, 雨の割合: {rain_ratio:.1%})")
-            return selected
-        else:
-            # 雨がない猛暑日は最高気温の時間帯を選択
-            selected = max(extreme_hot, key=lambda f: f.temperature)
-            logger.info(f"猛暑日を優先選択: {selected.temperature}°C ({selected.datetime.strftime('%H:%M')})")
-            return selected
-    
-    # 4. 悪天候を優先（降水量の多い順）
-    severe_weather = [f for f in forecasts if f.is_severe_weather()]
-    if severe_weather:
-        selected = max(severe_weather, key=lambda f: f.precipitation)
-        logger.info(f"悪天候を優先選択: {selected.weather_description} ({selected.datetime.strftime('%H:%M')})")
-        return selected
-    
-    # 5. 雨天を優先（降水量の多い順）
-    rainy_forecasts = [f for f in forecasts if f.precipitation > 0.1]
-    if rainy_forecasts:
-        selected = max(rainy_forecasts, key=lambda f: f.precipitation)
-        logger.info(f"雨天を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')})")
-        return selected
-    
-    # 6. 曇りを優先（晴れ以外の条件）
-    non_clear_forecasts = [f for f in forecasts if f.weather_condition.value != "clear"]
-    if non_clear_forecasts:
-        selected = max(non_clear_forecasts, key=lambda f: f.weather_condition.priority)
-        logger.info(f"曇りを優先選択: {selected.weather_description} ({selected.datetime.strftime('%H:%M')})")
-        return selected
-    
-    # 7. 全て晴れの場合は最も気温の高い時間帯を選択
-    selected = max(forecasts, key=lambda f: f.temperature)
-    logger.info(f"晴れ日で最高気温を選択: {selected.temperature}°C ({selected.datetime.strftime('%H:%M')})")
-    return selected
 
 
 if __name__ == "__main__":

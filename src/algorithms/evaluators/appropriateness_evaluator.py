@@ -28,7 +28,14 @@ class AppropriatenessEvaluator(BaseEvaluator):
             enabled_checks: 有効化するチェック項目
             inappropriate_patterns: 不適切なパターンのリスト
         """
-        super().__init__(weight, evaluation_mode, enabled_checks)
+        # EvaluatorConfigを作成してBaseEvaluatorに渡す
+        from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
+        config = EvaluatorConfig(
+            evaluation_mode=evaluation_mode,
+            enabled_checks=enabled_checks or [],
+            inappropriate_patterns=inappropriate_patterns or []
+        )
+        super().__init__(weight, config)
         self.inappropriate_patterns = inappropriate_patterns or []
         if self.inappropriate_patterns:
             self.inappropriate_regex = re.compile("|".join(self.inappropriate_patterns), re.IGNORECASE)

@@ -15,6 +15,7 @@ from src.data.evaluation_criteria import (
 )
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
+from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
 
 
 class BaseEvaluator(ABC):
@@ -22,18 +23,20 @@ class BaseEvaluator(ABC):
     評価基準の基底クラス
     """
     
-    def __init__(self, weight: float, evaluation_mode: str = "relaxed", enabled_checks: List[str] = None):
+    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None):
         """
         初期化
         
         Args:
             weight: この評価基準の重み
-            evaluation_mode: 評価モード ("strict", "moderate", "relaxed")
-            enabled_checks: 有効化するチェック項目のリスト
+            config: 評価器の設定（省略時はデフォルト設定を使用）
         """
         self.weight = weight
-        self.evaluation_mode = evaluation_mode
-        self.enabled_checks = enabled_checks or []
+        self.config = config or EvaluatorConfig()
+        
+        # 互換性のため個別の属性も保持
+        self.evaluation_mode = self.config.evaluation_mode
+        self.enabled_checks = self.config.enabled_checks
     
     @abstractmethod
     def evaluate(

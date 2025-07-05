@@ -7,6 +7,7 @@ LangGraphを使用した天気コメント生成のメインワークフロー�
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import time
+import json
 import logging
 from langgraph.graph import StateGraph, END
 
@@ -204,16 +205,32 @@ def run_comment_generation(
             workflow_end_time - result.get("workflow_start_time", workflow_end_time)
         ).total_seconds() * 1000
 
+        # output_jsonから結果を取得
+        output_json_str = result.get("generation_metadata", {}).get("output_json")
+        if output_json_str:
+            try:
+                output_data = json.loads(output_json_str)
+                final_comment = output_data.get("final_comment")
+                generation_metadata = output_data.get("generation_metadata", {})
+            except json.JSONDecodeError:
+                logger.error(f"output_jsonのパースに失敗: {output_json_str}")
+                final_comment = result.get("final_comment")
+                generation_metadata = result.get("generation_metadata", {})
+        else:
+            # フォールバック: 直接stateから取得
+            final_comment = result.get("final_comment")
+            generation_metadata = result.get("generation_metadata", {})
+
         # エラーがある場合は失敗として扱う
         if result.get("errors"):
             return {
                 "success": False,
                 "error": "; ".join(result.get("errors", [])),
                 "final_comment": None,
-                "generation_metadata": result.get("generation_metadata", {}),
+                "generation_metadata": generation_metadata,
                 "execution_time_ms": total_execution_time,
                 "retry_count": result.get("retry_count", 0),
-                "node_execution_times": result.get("generation_metadata", {}).get(
+                "node_execution_times": generation_metadata.get(
                     "node_execution_times", {}
                 ),
                 "warnings": result.get("warnings", []),
@@ -221,11 +238,11 @@ def run_comment_generation(
 
         return {
             "success": True,
-            "final_comment": result.get("final_comment"),
-            "generation_metadata": result.get("generation_metadata", {}),
+            "final_comment": final_comment,
+            "generation_metadata": generation_metadata,
             "execution_time_ms": total_execution_time,
             "retry_count": result.get("retry_count", 0),
-            "node_execution_times": result.get("generation_metadata", {}).get(
+            "node_execution_times": generation_metadata.get(
                 "node_execution_times", {}
             ),
             "warnings": result.get("warnings", []),
