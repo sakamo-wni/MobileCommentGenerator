@@ -18,6 +18,7 @@ from src.nodes.evaluate_candidate_node import evaluate_candidate_node
 from src.nodes.input_node import input_node
 from src.nodes.output_node import output_node
 from src.config.weather_config import get_config
+from src.types.validation import ensure_validation_result
 
 
 # 定数
@@ -56,17 +57,12 @@ def should_retry(state: CommentGenerationState) -> str:
     if state.get("retry_count", 0) >= MAX_RETRY_COUNT:
         return "continue"
 
-    # バリデーション結果をチェック
-    validation_result = state.get("validation_result", None)
-    if validation_result:
-        # EvaluationResultオブジェクトの場合は属性アクセス
-        if hasattr(validation_result, "is_valid"):
-            if not validation_result.is_valid:
-                return "retry"
-        # 辞書の場合は辞書アクセス（後方互換性のため）
-        # TODO: 将来的にはEvaluationResultオブジェクトのみをサポートする
-        elif isinstance(validation_result, dict) and not validation_result.get("is_valid", True):
-            return "retry"
+    # バリデーション結果をチェック（統一されたProtocolベースのアプローチ）
+    raw_result = state.get("validation_result", None)
+    validation_result = ensure_validation_result(raw_result)
+    
+    if validation_result and not validation_result.is_valid:
+        return "retry"
 
     return "continue"
 
