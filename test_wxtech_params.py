@@ -59,57 +59,57 @@ def main():
         print(f"📊 総テスト数: {test_results['total_tests']}")
         print(f"✅ 成功数: {test_results['successful_count']}")
         print(f"🎯 成功率: {test_results['successful_count']/test_results['total_tests']*100:.1f}%")
+        
+        if test_results['successful_params']:
+            print(f"\n🎉 成功したパラメータ:")
+            for param_name in test_results['successful_params']:
+                result = test_results['test_results'][param_name]
+                print(f"  ✅ {param_name}: srf={result.get('srf_count', 0)}, mrf={result.get('mrf_count', 0)}")
+                if result.get('first_srf_date'):
+                    print(f"     📆 最初のデータ日時: {result['first_srf_date']}")
+        
+        print(f"\n❌ 失敗したパラメータ:")
+        for param_name, result in test_results['test_results'].items():
+            if not result.get('success', False):
+                error_info = f"{result.get('error_type', 'unknown')}: {result.get('error', 'unknown error')}"
+                print(f"  ❌ {param_name}: {error_info}")
+        
+        # 結果をJSONファイルに保存
+        output_file = f"wxtech_api_test_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(test_results, f, ensure_ascii=False, indent=2)
+        
+        print(f"\n💾 詳細結果を保存: {output_file}")
+        
+        # 詳細テスト結果を表示
+        print(f"\n" + "="*80)
+        print(f"🔍 詳細分析: 特定時刻データのみ取得テスト")
+        print(f"="*80)
+        
+        analysis = detailed_results['analysis']
+        print(f"📊 データサイズのバリエーション:")
+        print(f"  SRFカウント: {analysis['unique_srf_counts']}")
+        print(f"  MRFカウント: {analysis['unique_mrf_counts']}")
+        print(f"  レスポンスサイズ: {analysis['unique_response_sizes']}")
+        
+        if analysis['minimum_data_response']:
+            min_resp = analysis['minimum_data_response']
+            print(f"\n🎆 最小データレスポンス: {min_resp['name']}")
+            print(f"  SRF: {min_resp['srf_count']}, MRF: {min_resp['mrf_count']}")
             
-            if test_results['successful_params']:
-                print(f"\n🎉 成功したパラメータ:")
-                for param_name in test_results['successful_params']:
-                    result = test_results['test_results'][param_name]
-                    print(f"  ✅ {param_name}: srf={result.get('srf_count', 0)}, mrf={result.get('mrf_count', 0)}")
-                    if result.get('first_srf_date'):
-                        print(f"     📆 最初のデータ日時: {result['first_srf_date']}")
-            
-            print(f"\n❌ 失敗したパラメータ:")
-            for param_name, result in test_results['test_results'].items():
-                if not result.get('success', False):
-                    error_info = f"{result.get('error_type', 'unknown')}: {result.get('error', 'unknown error')}"
-                    print(f"  ❌ {param_name}: {error_info}")
-            
-            # 結果をJSONファイルに保存
-            output_file = f"wxtech_api_test_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(test_results, f, ensure_ascii=False, indent=2)
-            
-            print(f"\n💾 詳細結果を保存: {output_file}")
-            
-            # 詳細テスト結果を表示
-            print(f"\n" + "="*80)
-            print(f"🔍 詳細分析: 特定時刻データのみ取得テスト")
-            print(f"="*80)
-            
-            analysis = detailed_results['analysis']
-            print(f"📊 データサイズのバリエーション:")
-            print(f"  SRFカウント: {analysis['unique_srf_counts']}")
-            print(f"  MRFカウント: {analysis['unique_mrf_counts']}")
-            print(f"  レスポンスサイズ: {analysis['unique_response_sizes']}")
-            
-            if analysis['minimum_data_response']:
-                min_resp = analysis['minimum_data_response']
-                print(f"\n🎆 最小データレスポンス: {min_resp['name']}")
-                print(f"  SRF: {min_resp['srf_count']}, MRF: {min_resp['mrf_count']}")
-            
-            if analysis['appears_time_specific']:
-                print(f"\n✨ 結論: 特定時刻指定が機能している可能性があります！")
-                print(f"   異なるデータサイズが確認されました。")
-            else:
-                print(f"\n😔 結論: すべてのパラメータが同じデータサイズを返しています。")
-                print(f"   特定時刻指定は機能していない可能性があります。")
-                print(f"   現在の実装（hoursパラメータ + クライアント側フィルタリング）が最適です。")
-            
-            # 詳細結果も保存
-            detailed_output_file = f"wxtech_api_detailed_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(detailed_output_file, 'w', encoding='utf-8') as f:
-                json.dump(detailed_results, f, ensure_ascii=False, indent=2)
-            print(f"\n💾 詳細テスト結果を保存: {detailed_output_file}")
+        if analysis['appears_time_specific']:
+            print(f"\n✨ 結論: 特定時刻指定が機能している可能性があります！")
+            print(f"   異なるデータサイズが確認されました。")
+        else:
+            print(f"\n😔 結論: すべてのパラメータが同じデータサイズを返しています。")
+            print(f"   特定時刻指定は機能していない可能性があります。")
+            print(f"   現在の実装（hoursパラメータ + クライアント側フィルタリング）が最適です。")
+        
+        # 詳細結果も保存
+        detailed_output_file = f"wxtech_api_detailed_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(detailed_output_file, 'w', encoding='utf-8') as f:
+            json.dump(detailed_results, f, ensure_ascii=False, indent=2)
+        print(f"\n💾 詳細テスト結果を保存: {detailed_output_file}")
     
     except WxTechAPIError as e:
         logger.error(f"WxTech APIエラー: {e}")
