@@ -15,7 +15,9 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
 
 from src.apis.wxtech import WxTechAPIError
+from src.apis.wxtech.client import WxTechAPIClient
 from src.data.weather_trend import WeatherTrend
+from src.data.weather_data import WeatherForecastCollection, WeatherForecast
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config

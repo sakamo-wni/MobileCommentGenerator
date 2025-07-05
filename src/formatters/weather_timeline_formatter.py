@@ -1,0 +1,115 @@
+"""
+天気タイムラインフォーマッター
+"""
+
+from typing import Dict, Any, List
+import logging
+from datetime import datetime, timedelta
+import pytz
+
+from src.data.forecast_cache import ForecastCache, ensure_jst
+
+logger = logging.getLogger(__name__)
+
+
+class WeatherTimelineFormatter:
+    """天気タイムラインをフォーマットするクラス"""
+    
+    def __init__(self):
+        self.cache = ForecastCache()
+        self.jst = pytz.timezone("Asia/Tokyo")
+    
+    def get_weather_timeline(self, location_name: str, base_datetime: datetime) -> Dict[str, Any]:
+        """翌日9:00-18:00の天気データを取得
+        
+        Args:
+            location_name: 地点名
+            base_datetime: 選択された予報時刻（使用しないが互換性のため維持）
+            
+        Returns:
+            翌日9:00-18:00の時系列天気データ
+        """
+        now_jst = datetime.now(self.jst)
+        
+        timeline_data: Dict[str, Any] = {
+            "future_forecasts": [],
+            "past_forecasts": [],
+            "base_time": base_datetime.isoformat()
+        }
+        
+        try:
+            # 常に翌日を対象にする
+            target_date = now_jst.date() + timedelta(days=1)
+            target_hours = [9, 12, 15, 18]
+            
+            logger.info(f"翌日({target_date})の予報データを取得中: {target_hours}")
+            
+            for hour in target_hours:
+                target_time = self.jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
+                
+                try:
+                    forecast = self.cache.get_forecast_at_time(location_name, target_time)
+                    if forecast:
+                        timeline_data["future_forecasts"].append({
+                            "time": target_time.strftime("%m/%d %H:%M"),
+                            "label": f"{hour:02d}:00",
+                            "weather": forecast.weather_description,
+                            "temperature": forecast.temperature,
+                            "precipitation": forecast.precipitation
+                        })
+                        logger.debug(f"翌日予報取得成功: {hour:02d}:00 at {target_time}")
+                    else:
+                        logger.warning(f"翌日予報データなし: {hour:02d}:00 at {target_time}")
+                except Exception as e:
+                    logger.warning(f"翌日予報取得エラー ({hour:02d}:00): {e}")
+            
+            # 過去データ表示は削除（翌日の予報のみ表示）
+            timeline_data["past_forecasts"] = []
+            
+            # データが取得できた場合のみ統計情報を追加
+            all_forecasts = timeline_data["future_forecasts"] + timeline_data["past_forecasts"]
+            if all_forecasts:
+                temps = [f["temperature"] for f in all_forecasts if f["temperature"] is not None]
+                precipitations = [f["precipitation"] for f in all_forecasts if f["precipitation"] is not None]
+                
+                timeline_data["summary"] = {
+                    "temperature_range": f"{min(temps):.1f}°C〜{max(temps):.1f}°C" if temps else "データなし",
+                    "max_precipitation": f"{max(precipitations):.1f}mm" if precipitations else "0mm",
+                    "weather_pattern": self._analyze_weather_pattern(all_forecasts)
+                }
+        
+        except Exception as e:
+            logger.error(f"天気タイムライン取得エラー: {e}")
+            timeline_data["error"] = str(e)
+        
+        return timeline_data
+    
+    def _analyze_weather_pattern(self, forecasts: List[Dict[str, Any]]) -> str:
+        """天気パターンを分析
+        
+        Args:
+            forecasts: 予報データのリスト
+            
+        Returns:
+            天気パターンの説明
+        """
+        if not forecasts:
+            return "データなし"
+        
+        weather_conditions = [f["weather"] for f in forecasts if f["weather"]]
+        
+        # 悪天候の検出
+        severe_conditions = ["大雨", "嵐", "雷", "豪雨", "暴風", "台風"]
+        rain_conditions = ["雨", "小雨", "中雨"]
+        
+        has_severe = any(any(severe in weather for severe in severe_conditions) for weather in weather_conditions)
+        has_rain = any(any(rain in weather for rain in rain_conditions) for weather in weather_conditions)
+        
+        if has_severe:
+            return "悪天候注意"
+        elif has_rain:
+            return "雨天続く"
+        elif len(set(weather_conditions)) <= 2:
+            return "安定した天気"
+        else:
+            return "変わりやすい天気"
