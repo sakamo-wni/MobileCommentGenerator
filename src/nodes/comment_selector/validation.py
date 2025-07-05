@@ -10,6 +10,8 @@ from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
+from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -336,22 +338,16 @@ class CommentValidator:
         return False
     
     def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
-        """翌日の全データから安定性を判定"""
-        # 現在の天気が「うすぐもり」「くもり」の場合も確認
-        current_desc = weather_data.weather_description.lower()
-        is_current_cloudy = any(cloudy in current_desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"])
-        
+        """翌日の全データから安定性を判定（現在の天気は無視）"""
         if not state:
-            # stateがない場合は現在の天気データのみで判定
-            if is_current_cloudy and weather_data.precipitation <= 1.0 and weather_data.wind_speed <= 5.0:
-                return True
-            return weather_data.is_stable_weather()
+            # stateがない場合はデフォルトで不安定とする
+            return False
         
         # forecast_collectionを取得
         forecast_collection = state.generation_metadata.get('forecast_collection')
         if not forecast_collection or not hasattr(forecast_collection, 'forecasts'):
-            # 翌日のデータがない場合は現在のデータのみで判定
-            return weather_data.is_stable_weather()
+            # 翌日のデータがない場合は不安定とする
+            return False
         
         # 翌日の予報データを取得（9:00-18:00）
         import pytz
@@ -371,45 +367,71 @@ class CommentValidator:
             if forecast_dt.date() == tomorrow and forecast_dt.hour in target_hours:
                 next_day_forecasts.append(forecast)
         
-        if not next_day_forecasts:
-            # 翌日のデータがない場合は現在のデータのみで判定
-            return weather_data.is_stable_weather()
-        
-        # 全ての時間帯が同じ天気か確認
-        weather_types = set()
-        for forecast in next_day_forecasts:
-            desc = forecast.weather_description.lower()
-            if any(sunny in desc for sunny in ["晴", "快晴"]):
-                weather_types.add("sunny")
-            elif any(cloudy in desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"]):
-                weather_types.add("cloudy")
-            elif any(rainy in desc for rainy in ["雨", "rain"]):
-                weather_types.add("rainy")
-            else:
-                weather_types.add("other")
-        
-        # 異なる天気タイプが複数ある場合は不安定
-        if len(weather_types) > 1:
-            logger.info(f"翌日の天気が変化: {weather_types}")
+        if len(next_day_forecasts) < 4:
+            # 4つの時間帯のデータが揃わない場合は不安定とする
+            logger.info(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
             return False
         
-        # 全てが曇りの場合、追加条件を確認
-        if weather_types == {"cloudy"}:
-            # 降水量、風速、雷のチェック
-            for forecast in next_day_forecasts:
-                if forecast.precipitation > 1.0 or forecast.wind_speed > 5.0:
-                    logger.info(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
-                    return False
-                if "雷" in forecast.weather_description or "thunder" in forecast.weather_description.lower():
-                    logger.info("翌日に雷が含まれるため不安定")
-                    return False
-            logger.info("翌日は安定した曇天")
-            return True
+        # 天気タイプの時系列を作成
+        weather_type_sequence = self._get_weather_type_sequence(next_day_forecasts)
         
-        # 全てが晴れの場合は安定
-        if weather_types == {"sunny"}:
-            logger.info("翌日は安定した晴天")
-            return True
+        # 全ての時間帯が同じ天気か確認
+        weather_types = set(weather_type_sequence)
+        
+        # 変化回数をカウント
+        type_changes = count_weather_type_changes(weather_type_sequence)
+        
+        # WEATHER_CHANGE_THRESHOLD回以上変化する場合は不安定
+        if type_changes >= WEATHER_CHANGE_THRESHOLD:
+            logger.info(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
+            return False
+        
+        # 異なる天気タイプが複数ある場合でも、変化が1回だけなら追加チェック
+        if len(weather_types) > 1:
+            # 朝だけ違って、その後同じ天気が続く場合は安定とみなす
+            if type_changes == 1 and len(weather_type_sequence) >= 4:
+                if weather_type_sequence[1] == weather_type_sequence[2] == weather_type_sequence[3]:
+                    logger.info(f"朝だけ天気が異なるが、その後安定: {weather_type_sequence}")
+                    # 朝が曇りで日中晴れ続きなら安定
+                    if weather_type_sequence[0] == "cloudy" and weather_type_sequence[1] == "sunny":
+                        return True
+                    # 朝が晴れで日中曇り続きなら、追加条件確認へ
+                    elif weather_type_sequence[0] == "sunny" and weather_type_sequence[1] == "cloudy":
+                        # 曇りの安定性を確認（下の曇り判定へ）
+                        pass
+                else:
+                    logger.info(f"翌日の天気が変化: {weather_types}")
+                    return False
+            else:
+                logger.info(f"翌日の天気が変化: {weather_types}")
+                return False
+        
+        # 単一の天気タイプの場合、その種類に応じて判定
+        if len(weather_types) == 1:
+            weather_type = list(weather_types)[0]
+            
+            # 全てが晴れの場合は安定
+            if weather_type == "sunny":
+                logger.info("翌日は終日晴天で安定")
+                return True
+            
+            # 全てが曇りの場合、追加条件を確認
+            elif weather_type == "cloudy":
+                # 降水量、風速、雷のチェック
+                for forecast in next_day_forecasts:
+                    if forecast.precipitation > 1.0 or forecast.wind_speed > 10.0:
+                        logger.info(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
+                        return False
+                    if "雷" in forecast.weather_description or "thunder" in forecast.weather_description.lower():
+                        logger.info("翌日に雷が含まれるため不安定")
+                        return False
+                logger.info("翌日は終日曇天で安定")
+                return True
+            
+            # 雨の場合は不安定とする
+            else:
+                logger.info(f"翌日の天気タイプ「{weather_type}」は不安定")
+                return False
         
         # その他の場合は不安定
         return False
@@ -579,3 +601,12 @@ class CommentValidator:
         if not comment_condition:
             return True
         return comment_condition.lower() in weather_description.lower()
+    
+    def _get_weather_type_sequence(self, forecasts: List) -> List[str]:
+        """天気予報リストから天気タイプのシーケンスを生成"""
+        weather_type_sequence = []
+        for forecast in forecasts:
+            desc = forecast.weather_description
+            weather_type = classify_weather_type(desc)
+            weather_type_sequence.append(weather_type or "other")
+        return weather_type_sequence
