@@ -1,12 +1,15 @@
 """Unified configuration management to reduce duplication"""
 
 import os
+import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 from dataclasses import dataclass, field
 
 import yaml
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env files
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
@@ -81,14 +84,20 @@ class UnifiedConfig:
         }
         
         for key, filename in yaml_configs.items():
-            filepath = config_dir / filename
-            if filepath.exists():
+            file_path = config_dir / filename
+            if file_path.exists():
                 try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
+                    with open(file_path, 'r', encoding='utf-8') as f:
                         self._config_cache[key] = yaml.safe_load(f)
-                except Exception as e:
-                    print(f"Warning: Could not load {filename}: {e}")
+                except yaml.YAMLError as e:
+                    logger.warning(f"Failed to load {filename}: {e}")
                     self._config_cache[key] = {}
+                except Exception as e:
+                    logger.error(f"Unexpected error loading {filename}: {e}")
+                    self._config_cache[key] = {}
+            else:
+                logger.debug(f"Config file not found: {filename}")
+                self._config_cache[key] = {}
     
     def get_yaml_config(self, config_name: str) -> Dict[str, Any]:
         """Get cached YAML configuration"""

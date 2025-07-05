@@ -4,6 +4,7 @@ WxTech APIクライアントのテスト
 
 import pytest
 import asyncio
+import warnings
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 
@@ -251,6 +252,29 @@ class TestAsyncFunctions:
 
         assert "location" in result
         assert result["location"] == "東京"
+
+
+class TestModuleImports:
+    """モジュールインポートのテスト"""
+
+    def test_wxtech_module_import(self):
+        """新しいモジュール構造のインポートテスト"""
+        from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
+        assert WxTechAPIClient is not None
+        assert WxTechAPIError is not None
+
+    def test_deprecated_import_warning(self):
+        """非推奨インポートの警告テスト"""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            # 既にインポート済みなので、モジュールを再読み込み
+            import importlib
+            import src.apis.wxtech_client
+            importlib.reload(src.apis.wxtech_client)
+            
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "非推奨" in str(w[0].message)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
 
-from src.apis.wxtech_client import WxTechAPIClient, WxTechAPIError
+from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
 from src.data.location_manager import LocationManager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition
 from src.data.weather_trend import WeatherTrend
