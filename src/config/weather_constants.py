@@ -82,3 +82,13 @@ class StringLimits:
 HEATSTROKE_WARNING_TEMP = 34.0  # 熱中症警戒開始温度
 HEATSTROKE_SEVERE_TEMP = 35.0   # 熱中症厳重警戒温度
 COLD_WARNING_TEMP = 15.0        # 防寒対策が不要になる温度
+
+# 天気タイプ分類
+WEATHER_TYPE_KEYWORDS = {
+    'sunny': ["晴", "快晴"],
+    'cloudy': ["曇", "くもり", "うすぐもり", "薄曇"],
+    'rainy': ["雨", "rain"]
+}
+
+# 天気変化の閾値
+WEATHER_CHANGE_THRESHOLD = 2  # 「変わりやすい」と判定する変化回数の閾値

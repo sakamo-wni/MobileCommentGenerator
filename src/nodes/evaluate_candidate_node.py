@@ -65,10 +65,8 @@ def evaluate_candidate_node(state: CommentGenerationState) -> CommentGenerationS
             target_datetime=target_datetime,
             user_preferences=user_preferences,
             history=getattr(state, "evaluation_history", []),
+            weather_stability='stable' if is_stable else 'unstable'
         )
-        
-        # 天気の安定性情報を追加
-        context.weather_stability = 'stable' if is_stable else 'unstable'
 
         # 評価器の初期化（カスタム重みがあれば使用）
         custom_weights = _get_custom_weights(user_preferences)
