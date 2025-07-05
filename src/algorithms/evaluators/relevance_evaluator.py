@@ -4,9 +4,8 @@
 天気条件との関連性を評価する
 """
 
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
@@ -16,16 +15,6 @@ class RelevanceEvaluator(BaseEvaluator):
     """
     関連性を評価するクラス
     """
-    
-    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None):
-        """
-        初期化
-        
-        Args:
-            weight: この評価基準の重み
-            config: 評価器の設定
-        """
-        super().__init__(weight, config)
     
     @property
     def criterion(self) -> EvaluationCriteria:
@@ -69,21 +58,10 @@ class RelevanceEvaluator(BaseEvaluator):
             reasons.append("天気条件との矛盾なし")
 
         # 天気に関連する表現があればボーナス
-        if self.is_weather_related(weather_comment, weather_desc):
+        weather_keywords = ["天気", "空", "気温", "暑", "寒", "涼", "暖", "晴", "雨", "雪", "風"]
+        if any(keyword in weather_comment for keyword in weather_keywords):
             score = min(score + 0.1, 1.0)
             reasons.append("天気関連の表現を含む")
-        
-        # 気温関連のチェック
-        temp = self.safe_get_temperature(weather_data)
-        if temp is not None and self.is_temperature_relevant(weather_comment, temp):
-            score = min(score + 0.05, 1.0)
-            reasons.append("気温に適した表現")
-        
-        # 時間帯関連のチェック
-        hour = context.target_datetime.hour
-        if self.is_time_relevant(weather_comment, hour):
-            score = min(score + 0.05, 1.0)
-            reasons.append("時間帯に適した表現")
 
         return CriterionScore(
             criterion=self.criterion,
@@ -119,13 +97,4 @@ class RelevanceEvaluator(BaseEvaluator):
     
     def is_advice_relevant(self, text: str, weather_desc: str, temp: float) -> bool:
         """アドバイスが関連するかチェック"""
-        # 天気に応じた基本的なアドバイスの妥当性チェック
-        if "雨" in weather_desc and any(word in text for word in ["傘", "雨具", "濡れ"]):
-            return True
-        if "晴" in weather_desc and any(word in text for word in ["日差し", "紫外線", "日焼け"]):
-            return True
-        if temp and temp > 28 and any(word in text for word in ["水分", "熱中症", "涼し"]):
-            return True
-        if temp and temp < 10 and any(word in text for word in ["防寒", "暖か", "寒さ対策"]):
-            return True
-        return True  # その他の場合も基本的にOK
+        return True  # 緩和版では基本的にOK

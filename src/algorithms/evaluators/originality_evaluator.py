@@ -4,9 +4,7 @@
 コメントの独自性と新規性を評価する
 """
 
-from typing import Optional
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
@@ -16,16 +14,6 @@ class OriginalityEvaluator(BaseEvaluator):
     """
     オリジナリティを評価するクラス
     """
-    
-    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None):
-        """
-        初期化
-        
-        Args:
-            weight: この評価基準の重み
-            config: 評価器の設定
-        """
-        super().__init__(weight, config)
     
     @property
     def criterion(self) -> EvaluationCriteria:
