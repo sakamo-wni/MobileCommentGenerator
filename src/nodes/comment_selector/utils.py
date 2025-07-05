@@ -17,7 +17,8 @@ class CommentUtils:
         self, 
         comments: List[PastComment], 
         weather_data: WeatherForecast,
-        validator,
+        weather_validator,
+        comment_validator,
         state: Optional[CommentGenerationState] = None
     ) -> List[Dict[str, Any]]:
         """天気コメント候補を準備"""
@@ -28,23 +29,23 @@ class CommentUtils:
         
         for i, comment in enumerate(comments):
             # バリデーターによる除外チェック（強化版）
-            is_valid, reason = validator.validate_comment(comment, weather_data)
+            is_valid, reason = weather_validator.validate_comment(comment, weather_data)
             if not is_valid:
                 logger.info(f"バリデーター除外: '{comment.comment_text}' - 理由: {reason}")
                 continue
             
             # 晴天時の「変わりやすい」表現の追加チェック（強化）
-            if validator.is_sunny_weather_with_changeable_comment(comment.comment_text, weather_data):
+            if comment_validator.is_sunny_weather_with_changeable_comment(comment.comment_text, weather_data):
                 logger.info(f"晴天時不適切表現を強制除外: '{comment.comment_text}'")
                 continue
             
             # 安定した天気での急変表現の追加チェック
-            if validator.is_stable_weather_with_unstable_comment(comment.comment_text, weather_data, state):
+            if comment_validator.is_stable_weather_with_unstable_comment(comment.comment_text, weather_data, state):
                 logger.info(f"安定天気時の急変表現を強制除外: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）
-            if validator.should_exclude_weather_comment(comment.comment_text, weather_data):
+            if comment_validator.should_exclude_weather_comment(comment.comment_text, weather_data):
                 logger.debug(f"天気条件不適合のため除外: '{comment.comment_text}'")
                 continue
                 
@@ -59,14 +60,14 @@ class CommentUtils:
             severe_config = get_severe_weather_config()
             
             if severe_config.is_severe_weather(weather_data.weather_condition):
-                if validator.is_severe_weather_appropriate(comment.comment_text, weather_data):
+                if comment_validator.is_severe_weather_appropriate(comment.comment_text, weather_data):
                     severe_matched.append(candidate)
-                elif validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
+                elif comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
                     weather_matched.append(candidate)
                 else:
                     others.append(candidate)
             else:
-                if validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
+                if comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
                     weather_matched.append(candidate)
                 else:
                     others.append(candidate)
@@ -102,20 +103,21 @@ class CommentUtils:
         self, 
         comments: List[PastComment], 
         weather_data: WeatherForecast,
-        validator
+        weather_validator,
+        comment_validator
     ) -> List[Dict[str, Any]]:
         """アドバイスコメント候補を準備"""
         candidates = []
         
         for i, comment in enumerate(comments):
             # バリデーターによる除外チェック
-            is_valid, reason = validator.validate_comment(comment, weather_data)
+            is_valid, reason = weather_validator.validate_comment(comment, weather_data)
             if not is_valid:
                 logger.info(f"アドバイスバリデーター除外: '{comment.comment_text}' - 理由: {reason}")
                 continue
                 
             # 旧式の除外チェック（後方互換）
-            if validator.should_exclude_advice_comment(comment.comment_text, weather_data):
+            if comment_validator.should_exclude_advice_comment(comment.comment_text, weather_data):
                 logger.debug(f"アドバイス条件不適合のため除外: '{comment.comment_text}'")
                 continue
                 
