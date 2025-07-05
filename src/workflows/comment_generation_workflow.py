@@ -7,6 +7,7 @@ LangGraphを使用した天気コメント生成のメインワークフロー�
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import time
+import logging
 from langgraph.graph import StateGraph, END
 
 from src.data.comment_generation_state import CommentGenerationState
@@ -19,7 +20,14 @@ from src.nodes.input_node import input_node
 from src.nodes.output_node import output_node
 from src.config.weather_config import get_config
 from src.types.validation import ensure_validation_result
+from src.exceptions.error_types import (
+    ErrorType, WeatherFetchError, DataAccessError, 
+    LLMError, AppException
+)
+from src.utils.error_handler import ErrorHandler
 
+# ログ設定
+logger = logging.getLogger(__name__)
 
 # 定数
 MAX_RETRY_COUNT = 5
@@ -223,23 +231,29 @@ def run_comment_generation(
             "warnings": result.get("warnings", []),
         }
     except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.error(f"ワークフロー実行エラー: {str(e)}", exc_info=True)
 
-        # エラーメッセージをより詳細に
+        # エラーを適切なタイプに分類
         error_msg = str(e)
-        if "天気予報の取得に失敗しました" in error_msg:
-            error_msg = f"天気データの取得エラー: {error_msg}"
-        elif "過去コメントが存在しません" in error_msg:
-            error_msg = f"S3データアクセスエラー: {error_msg}"
-        elif "コメントの生成に失敗しました" in error_msg:
-            error_msg = f"LLMエラー: {error_msg}"
+        app_error = None
+        
+        if "天気予報の取得に失敗しました" in error_msg or "weather" in error_msg.lower():
+            app_error = WeatherFetchError(message=error_msg)
+        elif "過去コメントが存在しません" in error_msg or "CSV" in error_msg:
+            app_error = DataAccessError(message=error_msg)
+        elif "コメントの生成に失敗しました" in error_msg or "LLM" in error_msg:
+            app_error = LLMError(message=error_msg)
+        else:
+            app_error = AppException(ErrorType.UNKNOWN_ERROR, message=error_msg)
+        
+        # エラーハンドラーを使用して統一されたレスポンスを生成
+        error_response = ErrorHandler.handle_error(app_error)
 
         return {
             "success": False,
-            "error": error_msg,
+            "error": error_response.user_message,
+            "error_type": error_response.error_type,
+            "error_details": error_response.error_details,
             "final_comment": None,
             "generation_metadata": {},
             "execution_time_ms": 0,

@@ -4,7 +4,7 @@ import os
 import logging
 import asyncio
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +16,15 @@ from src.types import (
     HistoryItem,
     LLMProvider,
     GenerationMetadata
+)
+from src.types.api_response import (
+    ApiResponse,
+    ApiError,
+    CommentGenerationData,
+    LocationData,
+    HistoryData,
+    ProvidersData,
+    ProviderData
 )
 
 # Setup logging
@@ -69,13 +78,13 @@ class CommentGenerationResponse(BaseModel):
     comment: Optional[str] = None
     advice_comment: Optional[str] = None
     error: Optional[str] = None
-    metadata: Optional[GenerationMetadata] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 class LocationResponse(BaseModel):
     locations: List[str]
 
 class HistoryResponse(BaseModel):
-    history: List[HistoryItem]
+    history: List[Dict[str, Any]]
 
 class HealthResponse(BaseModel):
     status: str
@@ -151,27 +160,11 @@ async def generate_comment(request: CommentGenerationRequest):
         error = result.get('error', None)
         advice_comment = result.get('generation_metadata', {}).get('selection_metadata', {}).get('selected_advice_comment', '')
         
-        # Extract metadata
+        # Extract metadata - pass through the entire generation_metadata
         metadata = None
         if success and result.get('generation_metadata'):
-            gen_metadata = result['generation_metadata']
-            metadata = {
-                'weather_forecast_time': gen_metadata.get('weather_forecast_time'),
-                'temperature': gen_metadata.get('temperature'),
-                'weather_condition': gen_metadata.get('weather_condition'),
-                'wind_speed': gen_metadata.get('wind_speed'),
-                'humidity': gen_metadata.get('humidity'),
-                'weather_timeline': gen_metadata.get('weather_timeline'),
-                'llm_provider': request.llm_provider
-            }
-            
-            # Add selection metadata if available
-            selection_meta = gen_metadata.get('selection_metadata', {})
-            if selection_meta:
-                metadata.update({
-                    'selected_weather_comment': selection_meta.get('selected_weather_comment'),
-                    'selected_advice_comment': selection_meta.get('selected_advice_comment'),
-                })
+            # Pass through the entire metadata object instead of reconstructing it
+            metadata = result['generation_metadata']
         
         # Save to history if successful
         if success:
