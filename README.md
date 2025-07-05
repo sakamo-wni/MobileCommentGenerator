@@ -135,6 +135,8 @@ print(f"アドバイス: {result['advice_comment']}")
 2. Fork & Pull Requestでの貢献
 3. ドキュメントの改善提案も歓迎
 
+詳細な開発ワークフローについては[開発ガイド](docs/development.md#開発ワークフロー)を参照してください。
+
 ## 📘 サポート
 
-問題が解決しない場合は、[GitHub Issues](https://github.com/your-repo/issues)で報告してください。
+問題が解決しない場合は、[GitHub Issues](https://github.com/sakamo-wni/MobileCommentGenerator/issues)で報告してください。
