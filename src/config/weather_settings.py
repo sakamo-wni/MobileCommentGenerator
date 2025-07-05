@@ -24,6 +24,7 @@ from .constants import (
     DEFAULT_FORECAST_HOURS,
     DEFAULT_FORECAST_HOURS_AHEAD,
     DEFAULT_FORECAST_CACHE_RETENTION_DAYS,
+    MAX_FORECAST_HOURS,
 )
 
 
@@ -115,8 +116,8 @@ class WeatherConfig:
         if self.forecast_hours_ahead < 0:
             raise ValueError("forecast_hours_aheadは0以上である必要があります")
         
-        if self.forecast_hours + self.forecast_hours_ahead > 168:
-            raise ValueError("予報期間の合計が168時間を超えています")
+        if self.forecast_hours + self.forecast_hours_ahead > MAX_FORECAST_HOURS:
+            raise ValueError(f"予報期間の合計が{MAX_FORECAST_HOURS}時間を超えています")
         
         # 温度閾値の論理的整合性を確認
         if self.temp_threshold_cold >= self.temp_threshold_cool:

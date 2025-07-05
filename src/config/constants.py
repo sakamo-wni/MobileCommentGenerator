@@ -29,3 +29,9 @@ MAX_FORECAST_HOURS = 168  # 最大予報時間（7日間）
 
 # キャッシュ設定
 DEFAULT_FORECAST_CACHE_RETENTION_DAYS = 7  # 予報キャッシュ保持日数
+
+# 検証用の制限値
+MAX_API_TIMEOUT = 300  # 最大APIタイムアウト（5分）
+
+# ログレベルの有効な値
+VALID_LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]

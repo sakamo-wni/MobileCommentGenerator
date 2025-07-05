@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from .weather_settings import WeatherConfig
 from .langgraph_settings import LangGraphConfig
+from .constants import MAX_FORECAST_HOURS, MAX_API_TIMEOUT, VALID_LOG_LEVELS
 
 
 @dataclass
@@ -104,11 +105,11 @@ def validate_config(config: AppConfig) -> Dict[str, List[str]]:
         if not config.weather.wxtech_api_key:
             errors["weather"].append("WxTech APIキーが設定されていません")
 
-        if config.weather.forecast_hours > 168:  # 7日 = 168時間
-            errors["weather"].append("予報時間数が長すぎます（最大168時間）")
+        if config.weather.forecast_hours > MAX_FORECAST_HOURS:
+            errors["weather"].append(f"予報時間数が長すぎます（最大{MAX_FORECAST_HOURS}時間）")
 
-        if config.weather.api_timeout > 300:  # 5分
-            errors["weather"].append("APIタイムアウトが長すぎます（最大300秒）")
+        if config.weather.api_timeout > MAX_API_TIMEOUT:
+            errors["weather"].append(f"APIタイムアウトが長すぎます（最大{MAX_API_TIMEOUT}秒）")
 
     except Exception as e:
         errors["weather"].append(f"天気設定エラー: {str(e)}")
@@ -125,8 +126,7 @@ def validate_config(config: AppConfig) -> Dict[str, List[str]]:
         errors["langgraph"].append(f"LangGraph設定エラー: {str(e)}")
 
     # 一般設定の検証
-    valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    if config.log_level not in valid_log_levels:
+    if config.log_level not in VALID_LOG_LEVELS:
         errors["general"].append(f"無効なログレベル: {config.log_level}")
 
     return {k: v for k, v in errors.items() if v}  # エラーがあるカテゴリのみ返す
