@@ -202,6 +202,22 @@ def _restore_weather_data(weather_data: Union[WeatherForecast, Dict[str, Any]]) 
 
     # 辞書の場合は変換
     if isinstance(weather_data, dict):
+        from src.data.weather_data import WeatherCondition, WindDirection
+        
+        # weather_conditionをEnumに変換
+        weather_condition_str = weather_data.get("weather_condition", "clear")
+        try:
+            weather_condition = WeatherCondition(weather_condition_str)
+        except ValueError:
+            weather_condition = WeatherCondition.CLEAR
+            
+        # wind_directionをEnumに変換
+        wind_direction_str = weather_data.get("wind_direction", "north")
+        try:
+            wind_direction = WindDirection(wind_direction_str)
+        except ValueError:
+            wind_direction = WindDirection.N
+        
         return WeatherForecast(
             location=weather_data.get("location", ""),
             datetime=(
@@ -211,11 +227,13 @@ def _restore_weather_data(weather_data: Union[WeatherForecast, Dict[str, Any]]) 
             ),
             temperature=weather_data.get("temperature", 20.0),
             weather_code=weather_data.get("weather_code", ""),
+            weather_condition=weather_condition,
             weather_description=weather_data.get("weather_description", ""),
             precipitation=weather_data.get("precipitation", 0.0),
             humidity=weather_data.get("humidity", 50.0),
             wind_speed=weather_data.get("wind_speed", 0.0),
-            wind_direction=weather_data.get("wind_direction", ""),
+            wind_direction=wind_direction,
+            wind_direction_degrees=weather_data.get("wind_direction_degrees", 0),
         )
 
     raise TypeError(f"Expected WeatherForecast or dict, got {type(weather_data)}")
