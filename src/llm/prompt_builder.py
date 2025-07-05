@@ -159,8 +159,11 @@ class TemplateLoader:
 
 class CommentPromptBuilder:
     """コメント生成用プロンプトビルダー"""
+    
+    # キャッシュ有効期間のデフォルト値（秒）
+    DEFAULT_CACHE_DURATION = 3600
 
-    def __init__(self, template_dir: Path | None = None, cache_duration: float = 3600, strict_validation: bool = False):
+    def __init__(self, template_dir: Path | None = None, cache_duration: float = DEFAULT_CACHE_DURATION, strict_validation: bool = False):
         """
         Args:
             template_dir: テンプレートディレクトリのパス
@@ -182,7 +185,7 @@ class CommentPromptBuilder:
         if self._templates_cache is None or (current_time - self._cache_time) > self._cache_duration:
             self._templates_cache = self.template_loader.load_all_templates()
             self._cache_time = current_time
-            logger.debug(f"テンプレートキャッシュを更新しました")
+            logger.info("テンプレートキャッシュを更新しました")
         
         return self._templates_cache
 
