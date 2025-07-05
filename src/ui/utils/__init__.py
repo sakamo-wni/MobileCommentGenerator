@@ -1,31 +1,32 @@
 """
-Streamlit UIユーティリティ関数
+Streamlit UIユーティリティパッケージ
 
-後方互換性のためのラッパーモジュール
-新しいコードでは src.ui.utils パッケージから直接インポートすることを推奨
+機能別に分割されたユーティリティモジュール
 """
 
-# 後方互換性のために全ての関数を再エクスポート
-from .utils import (
-    # Location utilities
+from .location_utils import (
     get_location_order,
     sort_locations_by_order,
     load_locations,
     filter_locations,
-    # History utilities
+)
+from .history_utils import (
     save_to_history,
     load_history,
     export_history_csv,
-    # UI helpers
+)
+from .ui_helpers import (
     copy_to_clipboard,
     format_timestamp,
     create_download_link,
     reset_session_state,
     handle_error,
-    # Config utilities
+)
+from .config_utils import (
     validate_api_keys,
     get_theme_colors,
-    # Statistics utilities
+)
+from .statistics_utils import (
     get_statistics,
 )
 
