@@ -242,9 +242,10 @@ class CommentValidator:
         # 不適切な急変・不安定表現パターン
         unstable_patterns = [
             "天気急変", "急変", "天気が急に", "急に変わる",
-            "変わりやすい天気", "不安定な空模様", "変化しやすい",
+            "変わりやすい天気", "変わりやすい空", "不安定な空模様", "変化しやすい",
             "天候不安定", "激しい変化", "急激な変化",
-            "予想外の", "突然の", "一転して", "コロコロ変わる"
+            "予想外の", "突然の", "一転して", "コロコロ変わる",
+            "変わりやすい", "移ろいやすい", "気まぐれな"
         ]
         
         for pattern in unstable_patterns:
@@ -256,8 +257,14 @@ class CommentValidator:
     
     def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
         """翌日の全データから安定性を判定"""
+        # 現在の天気が「うすぐもり」「くもり」の場合も確認
+        current_desc = weather_data.weather_description.lower()
+        is_current_cloudy = any(cloudy in current_desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"])
+        
         if not state:
             # stateがない場合は現在の天気データのみで判定
+            if is_current_cloudy and weather_data.precipitation <= 1.0 and weather_data.wind_speed <= 5.0:
+                return True
             return weather_data.is_stable_weather()
         
         # forecast_collectionを取得
@@ -294,7 +301,7 @@ class CommentValidator:
             desc = forecast.weather_description.lower()
             if any(sunny in desc for sunny in ["晴", "快晴"]):
                 weather_types.add("sunny")
-            elif any(cloudy in desc for cloudy in ["曇", "くもり"]):
+            elif any(cloudy in desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"]):
                 weather_types.add("cloudy")
             elif any(rainy in desc for rainy in ["雨", "rain"]):
                 weather_types.add("rainy")
