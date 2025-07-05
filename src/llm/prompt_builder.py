@@ -33,8 +33,14 @@ class PromptTemplate:
 class TemplateLoader:
     """テンプレートファイルの読み込みを管理"""
 
-    def __init__(self, template_dir: Path | None = None):
+    def __init__(self, template_dir: Path | None = None, strict_validation: bool = False):
+        """
+        Args:
+            template_dir: テンプレートディレクトリのパス
+            strict_validation: 厳格な検証モード。Trueの場合、検証エラーで例外を発生
+        """
         self.template_dir = template_dir or Path(__file__).parent / "templates"
+        self.strict_validation = strict_validation
 
     def load_text_file(self, filename: str) -> str:
         """テキストファイルを読み込み"""
@@ -81,6 +87,9 @@ class TemplateLoader:
             self._validate_templates(template)
             
             return template
+        except ValueError:
+            # 検証エラーは再発生させる（strict_validationモードのため）
+            raise
         except Exception as e:
             logger.error(f"テンプレート読み込み失敗、デフォルトを使用: {e}")
             return self._get_default_templates()
@@ -92,8 +101,10 @@ class TemplateLoader:
             template: 検証対象のテンプレート
             
         Raises:
-            ValueError: 必須フィールドが不足している場合
+            ValueError: 必須フィールドが不足している場合（strict_validationがTrueの場合）
         """
+        validation_errors = []
+        
         # 必須プレースホルダーの確認
         required_placeholders = [
             "location", "weather_description", "temperature",
@@ -102,25 +113,37 @@ class TemplateLoader:
         
         for placeholder in required_placeholders:
             if f"{{{placeholder}}}" not in template.base_template:
-                logger.warning(f"必須プレースホルダー '{{{placeholder}}}' が base.txt に含まれていません")
+                error_msg = f"必須プレースホルダー '{{{placeholder}}}' が base.txt に含まれていません"
+                validation_errors.append(error_msg)
+                logger.warning(error_msg)
         
         # 必須キーの確認
         required_weather_conditions = ["晴", "雨", "雪", "曇"]
         for condition in required_weather_conditions:
             if not any(condition in key for key in template.weather_specific.keys()):
-                logger.warning(f"天気条件 '{condition}' の指示がweather_specific.jsonに含まれていません")
+                error_msg = f"天気条件 '{condition}' の指示がweather_specific.jsonに含まれていません"
+                validation_errors.append(error_msg)
+                logger.warning(error_msg)
         
         # 季節の確認
         required_seasons = ["春", "夏", "秋", "冬"]
         for season in required_seasons:
             if season not in template.seasonal_adjustments:
-                logger.warning(f"季節 '{season}' の調整がseasonal_adjustments.jsonに含まれていません")
+                error_msg = f"季節 '{season}' の調整がseasonal_adjustments.jsonに含まれていません"
+                validation_errors.append(error_msg)
+                logger.warning(error_msg)
         
         # 時間帯の確認
         required_times = ["朝", "昼", "夕方", "夜"]
         for time_period in required_times:
             if time_period not in template.time_specific:
-                logger.warning(f"時間帯 '{time_period}' の指示がtime_specific.jsonに含まれていません")
+                error_msg = f"時間帯 '{time_period}' の指示がtime_specific.jsonに含まれていません"
+                validation_errors.append(error_msg)
+                logger.warning(error_msg)
+        
+        # 厳格モードの場合、エラーがあれば例外を発生
+        if self.strict_validation and validation_errors:
+            raise ValueError(f"テンプレート検証エラー:\n" + "\n".join(validation_errors))
 
     def _get_default_templates(self) -> PromptTemplate:
         """デフォルトテンプレート（フォールバック用）"""
@@ -137,11 +160,17 @@ class TemplateLoader:
 class CommentPromptBuilder:
     """コメント生成用プロンプトビルダー"""
 
-    def __init__(self, template_dir: Path | None = None):
-        self.template_loader = TemplateLoader(template_dir)
+    def __init__(self, template_dir: Path | None = None, cache_duration: float = 3600, strict_validation: bool = False):
+        """
+        Args:
+            template_dir: テンプレートディレクトリのパス
+            cache_duration: キャッシュ有効期間（秒）。デフォルトは3600秒（1時間）
+            strict_validation: 厳格な検証モード。Trueの場合、テンプレート検証エラーで例外を発生
+        """
+        self.template_loader = TemplateLoader(template_dir, strict_validation)
         self._templates_cache: PromptTemplate | None = None
         self._cache_time: float = 0
-        self._cache_duration: float = 3600  # 1時間のキャッシュ
+        self._cache_duration: float = cache_duration
         
     @property
     def templates(self) -> PromptTemplate:
