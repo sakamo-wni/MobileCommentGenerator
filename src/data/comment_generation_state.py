@@ -114,6 +114,10 @@ class CommentGenerationState:
             return getattr(self, key)
         raise KeyError(f"'{key}' not found in CommentGenerationState")
 
+    def __contains__(self, key: str) -> bool:
+        """in演算子のサポート"""
+        return hasattr(self, key)
+
     def __setitem__(self, key: str, value: Any):
         """辞書風の設定 - LangGraphの互換性のため"""
         if hasattr(self, key):

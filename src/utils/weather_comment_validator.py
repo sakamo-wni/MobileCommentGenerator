@@ -266,7 +266,7 @@ class WeatherCommentValidator:
             ]
             for pattern in changeable_patterns:
                 if pattern in comment_text:
-                logger.info(f"晴天時に不適切な表現を強制除外: '{comment_text}' - 「{pattern}」は晴れ・快晴に不適切")
+                    logger.info(f"晴天時に不適切な表現を強制除外: '{comment_text}' - 「{pattern}」は晴れ・快晴に不適切")
                     return False, f"晴天時に不適切な表現「{pattern}」を含む（晴れ・快晴時は安定した天気）"
         
         # 曇天チェック（晴天でない場合のみ）
