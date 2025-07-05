@@ -22,7 +22,7 @@ from .ui_helpers import (
     reset_session_state,
     handle_error,
 )
-from .config_validators import (
+from .config_utils import (
     validate_api_keys,
     get_theme_colors,
 )
@@ -46,7 +46,7 @@ __all__ = [
     "create_download_link",
     "reset_session_state",
     "handle_error",
-    # Config validators
+    # Config utilities
     "validate_api_keys",
     "get_theme_colors",
     # Statistics utilities
