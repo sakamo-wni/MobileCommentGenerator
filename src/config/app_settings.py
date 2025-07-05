@@ -58,14 +58,20 @@ def get_config() -> AppConfig:
 
     Returns:
         アプリケーション設定
+    
+    Raises:
+        RuntimeError: 設定の読み込みに失敗した場合
     """
     global _config, _env_loaded
-    if not _env_loaded:
-        load_dotenv()
-        _env_loaded = True
-    if _config is None:
-        _config = AppConfig()
-    return _config
+    try:
+        if not _env_loaded:
+            load_dotenv()
+            _env_loaded = True
+        if _config is None:
+            _config = AppConfig()
+        return _config
+    except Exception as e:
+        raise RuntimeError(f"設定の読み込みに失敗しました: {str(e)}")
 
 
 def reload_config() -> AppConfig:

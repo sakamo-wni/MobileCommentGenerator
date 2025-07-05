@@ -8,6 +8,24 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, Any
 
+from .constants import (
+    TEMP_DIFF_THRESHOLD_PREVIOUS_DAY,
+    TEMP_DIFF_THRESHOLD_12HOURS,
+    DAILY_TEMP_RANGE_THRESHOLD_LARGE,
+    DAILY_TEMP_RANGE_THRESHOLD_MEDIUM,
+    TEMP_THRESHOLD_HOT,
+    TEMP_THRESHOLD_WARM,
+    TEMP_THRESHOLD_COOL,
+    TEMP_THRESHOLD_COLD,
+    DEFAULT_API_TIMEOUT,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RATE_LIMIT_DELAY,
+    DEFAULT_CACHE_TTL,
+    DEFAULT_FORECAST_HOURS,
+    DEFAULT_FORECAST_HOURS_AHEAD,
+    DEFAULT_FORECAST_CACHE_RETENTION_DAYS,
+)
+
 
 @dataclass
 class WeatherConfig:
@@ -32,28 +50,28 @@ class WeatherConfig:
 
     wxtech_api_key: str = field(default="")
     default_location: str = field(default="東京")
-    forecast_hours: int = field(default=24)
-    forecast_hours_ahead: int = field(default=0)  # 現在時刻から予報を取得
-    api_timeout: int = field(default=30)
-    max_retries: int = field(default=3)
-    rate_limit_delay: float = field(default=0.1)
-    cache_ttl: int = field(default=300)  # 5分
+    forecast_hours: int = field(default=DEFAULT_FORECAST_HOURS)
+    forecast_hours_ahead: int = field(default=DEFAULT_FORECAST_HOURS_AHEAD)
+    api_timeout: int = field(default=DEFAULT_API_TIMEOUT)
+    max_retries: int = field(default=DEFAULT_MAX_RETRIES)
+    rate_limit_delay: float = field(default=DEFAULT_RATE_LIMIT_DELAY)
+    cache_ttl: int = field(default=DEFAULT_CACHE_TTL)
     enable_caching: bool = field(default=True)
     
     # 予報キャッシュ設定
-    forecast_cache_retention_days: int = field(default=7)
+    forecast_cache_retention_days: int = field(default=DEFAULT_FORECAST_CACHE_RETENTION_DAYS)
     
     # 温度差閾値設定（気象学的根拠に基づく）
-    temp_diff_threshold_previous_day: float = field(default=5.0)  # 前日比5℃: 人体が明確に体感できる温度差
-    temp_diff_threshold_12hours: float = field(default=3.0)  # 12時間前比3℃: 体調管理に影響する可能性がある基準値
-    daily_temp_range_threshold_large: float = field(default=15.0)  # 日較差15℃: 健康影響リスクが高まる閾値
-    daily_temp_range_threshold_medium: float = field(default=10.0)  # 日較差10℃: 注意が必要な閾値
+    temp_diff_threshold_previous_day: float = field(default=TEMP_DIFF_THRESHOLD_PREVIOUS_DAY)
+    temp_diff_threshold_12hours: float = field(default=TEMP_DIFF_THRESHOLD_12HOURS)
+    daily_temp_range_threshold_large: float = field(default=DAILY_TEMP_RANGE_THRESHOLD_LARGE)
+    daily_temp_range_threshold_medium: float = field(default=DAILY_TEMP_RANGE_THRESHOLD_MEDIUM)
     
     # 温度分類の閾値（気象庁の基準に基づく）
-    temp_threshold_hot: float = field(default=30.0)  # 真夏日の基準
-    temp_threshold_warm: float = field(default=25.0)  # 夏日の基準
-    temp_threshold_cool: float = field(default=10.0)  # 肌寒く感じる温度
-    temp_threshold_cold: float = field(default=5.0)  # 冬日に近い温度
+    temp_threshold_hot: float = field(default=TEMP_THRESHOLD_HOT)
+    temp_threshold_warm: float = field(default=TEMP_THRESHOLD_WARM)
+    temp_threshold_cool: float = field(default=TEMP_THRESHOLD_COOL)
+    temp_threshold_cold: float = field(default=TEMP_THRESHOLD_COLD)
 
     def __post_init__(self):
         """環境変数からの読み込みと設定の検証"""
@@ -92,6 +110,21 @@ class WeatherConfig:
 
         if self.api_timeout <= 0:
             raise ValueError("api_timeoutは1以上である必要があります")
+        
+        # 予報期間の妥当性検証
+        if self.forecast_hours_ahead < 0:
+            raise ValueError("forecast_hours_aheadは0以上である必要があります")
+        
+        if self.forecast_hours + self.forecast_hours_ahead > 168:
+            raise ValueError("予報期間の合計が168時間を超えています")
+        
+        # 温度閾値の論理的整合性を確認
+        if self.temp_threshold_cold >= self.temp_threshold_cool:
+            raise ValueError("temp_threshold_coldはtemp_threshold_coolより小さい必要があります")
+        if self.temp_threshold_cool >= self.temp_threshold_warm:
+            raise ValueError("temp_threshold_coolはtemp_threshold_warmより小さい必要があります")
+        if self.temp_threshold_warm >= self.temp_threshold_hot:
+            raise ValueError("temp_threshold_warmはtemp_threshold_hotより小さい必要があります")
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換（ログ出力用、APIキーはマスク）
