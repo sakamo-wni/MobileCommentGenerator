@@ -19,6 +19,7 @@ class CommentUtils:
         weather_data: WeatherForecast,
         weather_validator,
         comment_validator,
+        target_datetime,
         state: Optional[CommentGenerationState] = None
     ) -> List[Dict[str, Any]]:
         """天気コメント候補を準備"""
@@ -47,6 +48,11 @@ class CommentUtils:
             # 降水なし時の雨・雷表現の追加チェック
             if comment_validator.is_no_rain_weather_with_rain_comment(comment.comment_text, weather_data):
                 logger.info(f"降水なし時の雨・雷表現を強制除外: '{comment.comment_text}'")
+                continue
+            
+            # 月に不適切な季節表現のチェック
+            if comment_validator.is_inappropriate_seasonal_comment(comment.comment_text, target_datetime):
+                logger.info(f"月に不適切な季節表現を強制除外: '{comment.comment_text}'")
                 continue
             
             # 安定した天気での急変表現の追加チェック
@@ -114,7 +120,8 @@ class CommentUtils:
         comments: List[PastComment], 
         weather_data: WeatherForecast,
         weather_validator,
-        comment_validator
+        comment_validator,
+        target_datetime
     ) -> List[Dict[str, Any]]:
         """アドバイスコメント候補を準備"""
         candidates = []
@@ -134,6 +141,11 @@ class CommentUtils:
             # 降水なし時の雨・雷表現の追加チェック（アドバイスも同様）
             if comment_validator.is_no_rain_weather_with_rain_comment(comment.comment_text, weather_data):
                 logger.info(f"降水なし時の雨・雷表現を強制除外（アドバイス）: '{comment.comment_text}'")
+                continue
+            
+            # 月に不適切な季節表現のチェック（アドバイスも同様）
+            if comment_validator.is_inappropriate_seasonal_comment(comment.comment_text, target_datetime):
+                logger.info(f"月に不適切な季節表現を強制除外（アドバイス）: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）

@@ -279,6 +279,39 @@ class CommentValidator:
         
         return False
     
+    def is_inappropriate_seasonal_comment(self, comment_text: str, target_datetime) -> bool:
+        """月に不適切な季節表現が含まれているかチェック"""
+        from datetime import datetime
+        month = target_datetime.month
+        
+        if month in [6, 7, 8]:  # 夏
+            # 7月に不適切な表現
+            inappropriate_patterns = [
+                "残暑", "晩夏", "初秋", "秋めく", "秋の気配",
+                "秋晴れ", "秋風", "涼秋", "仲秋", "晩秋"
+            ]
+            if month == 6:
+                # 6月特有の不適切表現を追加
+                inappropriate_patterns.extend(["盛夏", "真夏日", "猛暑日", "酷暑"])
+            elif month == 7:
+                # 7月特有の不適切表現
+                inappropriate_patterns.extend(["初夏", "残暑"])
+                
+            for pattern in inappropriate_patterns:
+                if pattern in comment_text:
+                    logger.info(f"{month}月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
+                    return True
+                    
+        elif month == 9:
+            # 9月に不適切な表現
+            inappropriate_patterns = ["真夏", "盛夏", "初夏", "梅雨"]
+            for pattern in inappropriate_patterns:
+                if pattern in comment_text:
+                    logger.info(f"9月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
+                    return True
+                    
+        return False
+    
     def is_stable_weather_with_unstable_comment(self, comment_text: str, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
         """安定した天気時に急変・不安定表現が含まれているかチェック"""
         # 翌日の全データから安定性を判定

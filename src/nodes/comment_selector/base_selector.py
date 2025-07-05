@@ -117,7 +117,7 @@ class CommentSelector:
             
         # 天気コメント用の候補を準備
         candidates = self.utils.prepare_weather_candidates(
-            comments, weather_data, self.validator, self.comment_validator, state
+            comments, weather_data, self.validator, self.comment_validator, target_datetime, state
         )
         
         if not candidates:
@@ -143,7 +143,7 @@ class CommentSelector:
             
         # アドバイス用の候補を準備
         candidates = self.utils.prepare_advice_candidates(
-            comments, weather_data, self.validator, self.comment_validator
+            comments, weather_data, self.validator, self.comment_validator, target_datetime
         )
         
         if not candidates:
@@ -224,10 +224,10 @@ class CommentSelector:
         
         # 複数の候補を生成して重複しないペアを探す
         weather_candidates = self.utils.prepare_weather_candidates(
-            weather_comments, weather_data, self.validator, self.comment_validator, state
+            weather_comments, weather_data, self.validator, self.comment_validator, target_datetime, state
         )
         advice_candidates = self.utils.prepare_advice_candidates(
-            advice_comments, weather_data, self.validator, self.comment_validator
+            advice_comments, weather_data, self.validator, self.comment_validator, target_datetime
         )
         
         # 上位候補から順に試行（最大10回）
