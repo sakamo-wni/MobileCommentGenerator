@@ -26,12 +26,12 @@ class WxTechAPIClient:
     天気予報データの取得・処理を行う高レベルインターフェース
     """
     
-    def __init__(self, api_key: str, timeout: int = 30):
+    def __init__(self, api_key: str, timeout: int = 60):
         """クライアントを初期化
         
         Args:
             api_key: WxTech API キー
-            timeout: タイムアウト秒数（デフォルト: 30秒）
+            timeout: タイムアウト秒数（デフォルト: 60秒）
         """
         self.api = WxTechAPI(api_key, timeout)
     

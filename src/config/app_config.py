@@ -102,7 +102,7 @@ class GenerationSettings:
     """コメント生成関連の設定"""
     # タイムアウト設定
     generation_timeout: int = field(default=300)  # 秒
-    api_timeout: int = field(default=30)  # 秒
+    api_timeout: int = field(default=60)  # 秒 - 長野県などの山間部対応
     
     # リトライ設定
     max_retries: int = field(default=3)

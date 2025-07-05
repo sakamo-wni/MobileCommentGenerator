@@ -66,7 +66,11 @@ class WeatherForecastNode:
                 return {**state, "error_message": "地点情報が指定されていません"}
 
             # 天気予報データを取得
+            logger.info(f"天気予報データ取得開始: {location}")
+            start_time = datetime.now()
             weather_collection = await self.data_fetcher.fetch_weather_data(location)
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"天気予報データ取得完了: {location} ({elapsed_time:.2f}秒)")
 
             if not weather_collection or not weather_collection.forecasts:
                 return {

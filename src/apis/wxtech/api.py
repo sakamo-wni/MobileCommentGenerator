@@ -23,7 +23,7 @@ class WxTechAPI:
     
     # API設定
     BASE_URL = "https://wxtech.weathernews.com/api/v1"
-    DEFAULT_TIMEOUT = 30
+    DEFAULT_TIMEOUT = 60  # 長野県などの山間部対応で60秒に延長
     
     def __init__(self, api_key: str, timeout: int = DEFAULT_TIMEOUT):
         """APIクライアントを初期化
@@ -61,12 +61,13 @@ class WxTechAPI:
         
         self._last_request_time = time.time()
     
-    def make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def make_request(self, endpoint: str, params: Dict[str, Any], retry_count: int = 0) -> Dict[str, Any]:
         """API リクエストを実行
         
         Args:
             endpoint: エンドポイント名
             params: リクエストパラメータ
+            retry_count: 現在のリトライ回数
             
         Returns:
             レスポンスデータ
@@ -118,8 +119,17 @@ class WxTechAPI:
             return data
             
         except requests.exceptions.Timeout:
+            # タイムアウト時のリトライ処理
+            max_retries = 2  # 最大2回リトライ
+            if retry_count < max_retries:
+                logger.warning(
+                    f"タイムアウト発生（{self.timeout}秒）。リトライ {retry_count + 1}/{max_retries} を実行します。"
+                )
+                time.sleep(2 ** retry_count)  # 指数バックオフ
+                return self.make_request(endpoint, params, retry_count + 1)
+            
             raise WxTechAPIError(
-                f"リクエストがタイムアウトしました（{self.timeout}秒）", 
+                f"リクエストがタイムアウトしました（{self.timeout}秒）。{max_retries}回のリトライ後も失敗しました。", 
                 error_type='timeout'
             )
         except requests.exceptions.ConnectionError:
