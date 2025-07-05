@@ -10,6 +10,7 @@ from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes, WEATHER_CHANGE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
