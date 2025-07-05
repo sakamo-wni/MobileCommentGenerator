@@ -63,7 +63,8 @@ def should_retry(state: CommentGenerationState) -> str:
         if hasattr(validation_result, "is_valid"):
             if not validation_result.is_valid:
                 return "retry"
-        # 辞書の場合は辞書アクセス
+        # 辞書の場合は辞書アクセス（後方互換性のため）
+        # TODO: 将来的にはEvaluationResultオブジェクトのみをサポートする
         elif isinstance(validation_result, dict) and not validation_result.get("is_valid", True):
             return "retry"
 
