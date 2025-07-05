@@ -4,7 +4,7 @@
 コメントの品質を多角的に評価する機能
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 import re
 import logging
 from datetime import datetime
@@ -18,6 +18,7 @@ from src.data.evaluation_criteria import (
 )
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
+from src.config.evaluation_config_loader import EvaluationConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -27,51 +28,54 @@ class CommentEvaluator:
     コメント候補を評価するクラス
     """
 
-    # 不適切な表現パターン
-    INAPPROPRIATE_PATTERNS = [
-        r"死|殺|自殺",
-        r"バカ|アホ|クソ",
-        r"最悪|地獄|絶望",
-        r"危険|警告|注意(?!を)",  # 「注意を」は除外
-    ]
-
-    # ポジティブな表現
-    POSITIVE_EXPRESSIONS = [
-        "素敵",
-        "素晴らしい",
-        "快適",
-        "爽やか",
-        "心地よい",
-        "楽しい",
-        "嬉しい",
-        "幸せ",
-        "最高",
-        "いい天気",
-    ]
-
-    # エンゲージメント要素
-    ENGAGEMENT_ELEMENTS = [
-        r"[!！♪☆★]",  # 感嘆符や装飾
-        r"〜|～",  # 波線
-        r"ね[。！]?$",  # 語尾の「ね」
-        r"よ[。！]?$",  # 語尾の「よ」
-        r"でしょう[。！]?$",  # 語尾の「でしょう」
-    ]
-
-    def __init__(self, weights: Optional[Dict[EvaluationCriteria, float]] = None):
+    def __init__(
+        self, 
+        weights: Optional[Dict[EvaluationCriteria, float]] = None,
+        evaluation_mode: str = "relaxed"
+    ):
         """
         初期化
 
         Args:
             weights: 評価基準の重み（Noneの場合はデフォルト使用）
+            evaluation_mode: 評価モード ("strict", "moderate", "relaxed")
         """
         self.weights = weights or DEFAULT_CRITERION_WEIGHTS.copy()
+        self.evaluation_mode = evaluation_mode
+        
+        # 設定ローダーを初期化
+        self.config_loader = EvaluationConfigLoader()
+        
+        # モード別設定を取得
+        self.mode_config = self.config_loader.get_mode_config(evaluation_mode)
+        self.thresholds = self.mode_config.get("thresholds", {
+            "total_score": 0.3,
+            "appropriateness": 0.2, 
+            "consistency": 0.2
+        })
+        self.enabled_checks = self.mode_config.get("enabled_checks", ["extreme_inappropriate"])
+        
+        # パターンを設定から読み込む
+        self.inappropriate_patterns = self.config_loader.get_inappropriate_patterns(evaluation_mode)
+        self.contradiction_patterns = self.config_loader.get_contradiction_patterns(evaluation_mode)
+        self.positive_expressions = self.config_loader.get_positive_expressions()
+        self.engagement_elements = self.config_loader.get_engagement_elements()
+        
         self._compile_patterns()
+        
+        logger.info(f"CommentEvaluator initialized with mode: {evaluation_mode}")
 
     def _compile_patterns(self):
         """正規表現パターンをコンパイル"""
-        self.inappropriate_regex = re.compile("|".join(self.INAPPROPRIATE_PATTERNS), re.IGNORECASE)
-        self.engagement_regex = re.compile("|".join(self.ENGAGEMENT_ELEMENTS))
+        if self.inappropriate_patterns:
+            self.inappropriate_regex = re.compile("|".join(self.inappropriate_patterns), re.IGNORECASE)
+        else:
+            self.inappropriate_regex = re.compile(r"(?!.*)", re.IGNORECASE)  # 何もマッチしない
+            
+        if self.engagement_elements:
+            self.engagement_regex = re.compile("|".join(self.engagement_elements))
+        else:
+            self.engagement_regex = re.compile(r"(?!.*)")  # 何もマッチしない
 
     def evaluate_comment_pair(
         self, comment_pair: CommentPair, context: EvaluationContext, weather_data: WeatherForecast
@@ -329,7 +333,7 @@ class CommentEvaluator:
             reasons.append("親しみやすい表現要素")
 
         # ポジティブな表現
-        positive_count = sum(1 for expr in self.POSITIVE_EXPRESSIONS if expr in weather_text)
+        positive_count = sum(1 for expr in self.positive_expressions if expr in weather_text)
         if positive_count > 0:
             score += min(0.3 * positive_count, 0.4)
             reasons.append("ポジティブな表現を使用")
@@ -444,25 +448,25 @@ class CommentEvaluator:
     def _determine_validity(
         self, criterion_scores: List[CriterionScore], total_score: float
     ) -> bool:
-        """検証結果を判定（更に緩和版）"""
-        # 総合スコアが閾値以上（非常に緩い基準）
-        if total_score < 0.3:
+        """検証結果を判定（モードに応じた基準）"""
+        # 総合スコアが閾値以上
+        if total_score < self.thresholds.get("total_score", 0.3):
             return False
 
-        # 最重要基準: 適切性のみチェック（極端な不適切表現の排除のみ）
+        # 最重要基準: 適切性チェック
         appropriateness_score = next(
             (s for s in criterion_scores if s.criterion == EvaluationCriteria.APPROPRIATENESS), 
             None
         )
-        if appropriateness_score and appropriateness_score.score < 0.2:
+        if appropriateness_score and appropriateness_score.score < self.thresholds.get("appropriateness", 0.2):
             return False
 
-        # 一貫性チェック: 明らかな矛盾や重複がないかのみ
+        # 一貫性チェック
         consistency_score = next(
             (s for s in criterion_scores if s.criterion == EvaluationCriteria.CONSISTENCY), 
             None
         )
-        if consistency_score and consistency_score.score < 0.2:
+        if consistency_score and consistency_score.score < self.thresholds.get("consistency", 0.2):
             return False
 
         return True
@@ -525,14 +529,13 @@ class CommentEvaluator:
     
     def _has_obvious_contradiction(self, text1: str, text2: str) -> bool:
         """明らかな矛盾の有無をチェック"""
-        contradictions = [
-            (["晴れ", "快晴"], ["雨", "雨天"]),
-            (["暑い", "蒸し暑い"], ["寒い", "冷える"]),
-            (["外出"], ["外出しない", "出かけない"]),
-            (["注意", "気をつけ"], ["安心", "心配ない"]),
-        ]
-        
-        for positive_words, negative_words in contradictions:
+        # 設定から矛盾パターンを使用
+        if not self.contradiction_patterns:
+            return False
+            
+        for pattern in self.contradiction_patterns:
+            positive_words = pattern.get("positive", [])
+            negative_words = pattern.get("negative", [])
             has_positive = any(word in text1 or word in text2 for word in positive_words)
             has_negative = any(word in text1 or word in text2 for word in negative_words)
             if has_positive and has_negative:
@@ -548,9 +551,33 @@ class CommentEvaluator:
         extreme_negative = ["死にそう", "地獄", "絶望", "最悪.*死", "殺"]
         return any(re.search(pattern, text) for pattern in extreme_negative)
     
-    def _is_advice_appropriate(self, text: str, weather_data) -> bool:
+    def _is_advice_appropriate(self, text: str, weather_data: Any) -> bool:
         """アドバイスが状況に適切かチェック"""
-        return True  # 緩和版では基本的にOK
+        if self.evaluation_mode == "relaxed":
+            # 緩和モードでは極端な不適切さのみチェック
+            if hasattr(weather_data, 'weather_description'):
+                weather_desc = weather_data.weather_description
+                # 晴れの日に「傘を忘れずに」など明らかに不適切な場合のみ
+                if "晴" in weather_desc and "傘" in text:
+                    return False
+                if "雨" in weather_desc and "日焼け止め" in text:
+                    return False
+            return True
+        
+        # strict/moderateモードではより詳細にチェック
+        if hasattr(weather_data, 'weather_description') and hasattr(weather_data, 'temperature'):
+            weather_desc = weather_data.weather_description
+            temp = weather_data.temperature
+            
+            # 天気に応じたアドバイスの適切性
+            if "雨" in weather_desc and not any(word in text for word in ["傘", "濡れ", "雨具"]):
+                return False
+            if temp > 30 and not any(word in text for word in ["暑", "水分", "熱中症", "日差し"]):
+                return False
+            if temp < 5 and not any(word in text for word in ["寒", "防寒", "暖か"]):
+                return False
+                
+        return True
     
     def _is_weather_related(self, text: str, weather_desc: str) -> bool:
         """天気関連かチェック"""
@@ -607,31 +634,169 @@ class CommentEvaluator:
     
     def _has_grammatical_issues(self, text: str) -> bool:
         """文法的な問題があるかチェック"""
-        return False  # 緩和版では基本的にOK
+        if "grammar_check" not in self.enabled_checks:
+            return False
+            
+        # 極端な文法エラーのみチェック
+        extreme_patterns = [
+            r"。。",  # 二重句点
+            r"、、",  # 二重読点
+            r"[ぁぃぅぇぉゃゅょゎ]{2,}",  # 小文字連続
+            r"っっ",  # 促音連続
+        ]
+        
+        for pattern in extreme_patterns:
+            if re.search(pattern, text):
+                return True
+        
+        # strictモードの場合は追加チェック
+        if self.evaluation_mode == "strict" and "basic_grammar_check" in self.enabled_checks:
+            # より詳細な文法チェック
+            if re.search(r"[。、]$", text):  # 文末が句読点
+                return True
+                
+        return False
     
     def _has_unnatural_honorifics(self, text: str) -> bool:
         """不自然な敬語があるかチェック"""
-        return False  # 緩和版では基本的にOK
+        if "honorific_check" not in self.enabled_checks:
+            return False
+            
+        # 極端に不自然な敬語のみチェック
+        extreme_patterns = [
+            r"お.*お",  # 二重敬語
+            r"させていただきます.*させていただきます",  # 過剰な敬語
+            r"申し上げます.*申し上げます",  # 重複
+        ]
+        
+        for pattern in extreme_patterns:
+            if re.search(pattern, text):
+                return True
+                
+        return False
     
     def _evaluate_tone_balance(self, text: str) -> float:
         """トーンのバランスを評価"""
-        return 0.8  # 緩和版では基本的に良好
+        if self.evaluation_mode == "relaxed":
+            return 0.8  # 緩和版では基本的に良好
+        elif self.evaluation_mode == "moderate":
+            # 極端にカジュアルまたはフォーマルな場合のみ減点
+            extreme_casual = ["っす", "ヤバい", "マジで", "めっちゃ"]
+            extreme_formal = ["申し上げます", "恐れ入りますが", "拝啓"]
+            
+            if any(word in text for word in extreme_casual):
+                return 0.5
+            if any(word in text for word in extreme_formal):
+                return 0.5
+            return 0.8
+        else:  # strict
+            # より詳細なトーンバランスチェック
+            casual_count = sum(1 for word in ["ね", "よ", "でしょ", "かな"] if word in text)
+            formal_count = sum(1 for word in ["ます", "です", "ございます"] if word in text)
+            
+            # バランスを評価
+            if casual_count > 3 or formal_count > 5:
+                return 0.4
+            if abs(casual_count - formal_count) > 2:
+                return 0.6
+            return 0.9
     
     def _has_ambiguous_expression(self, text: str) -> bool:
         """曖昧な表現があるかチェック"""
-        return False  # 緩和版では基本的にOK
+        if "ambiguity_check" not in self.enabled_checks:
+            return False
+            
+        if self.evaluation_mode == "relaxed":
+            return False  # 緩和版では基本的にOK
+        
+        # strict/moderateモードでの曖昧表現チェック
+        ambiguous_patterns = [
+            "かもしれない",
+            "と思われる",
+            "のような",
+            "みたいな",
+            "っぽい",
+            "たぶん",
+            "おそらく",
+        ]
+        
+        if self.evaluation_mode == "moderate":
+            # moderateでは極端な曖昧表現のみ
+            extreme_ambiguous = ["たぶん", "おそらく", "かもしれない"]
+            return sum(1 for pattern in extreme_ambiguous if pattern in text) >= 2
+        
+        # strictモード
+        return any(pattern in text for pattern in ambiguous_patterns)
     
     def _has_clear_subject(self, text: str) -> bool:
         """明確な主語があるかチェック"""
-        return True  # 緩和版では基本的にOK
+        if "subject_check" not in self.enabled_checks:
+            return True
+            
+        if self.evaluation_mode == "relaxed":
+            return True  # 緩和版では基本的にOK
+        
+        # 主語となりうる表現
+        subjects = ["今日", "本日", "今朝", "今夜", "天気", "空", "気温", "風"]
+        has_subject = any(subject in text for subject in subjects)
+        
+        if self.evaluation_mode == "moderate":
+            # moderateでは主語がなくても許容
+            return True
+        
+        # strictモードでは主語を推奨
+        return has_subject
     
     def _is_advice_specific(self, text: str) -> bool:
         """アドバイスが具体的かチェック"""
-        return True  # 緩和版では基本的にOK
+        if "specificity_check" not in self.enabled_checks:
+            return True
+            
+        if self.evaluation_mode == "relaxed":
+            return True  # 緩和版では基本的にOK
+        
+        # 具体的な要素
+        specific_elements = [
+            # 具体的な物品
+            "傘", "日傘", "帽子", "マフラー", "手袋", "サングラス", "日焼け止め",
+            # 具体的な行動
+            "水分補給", "休憩", "早めに", "ゆっくり", "注意して",
+            # 数値
+            r"\d+",  # 数字を含む
+        ]
+        
+        has_specific = any(re.search(element, text) for element in specific_elements)
+        
+        if self.evaluation_mode == "moderate":
+            # moderateでは具体性がなくても減点は小さい
+            return has_specific or len(text) > 15
+        
+        # strictモードでは具体性を要求
+        return has_specific
     
     def _has_consistent_tone(self, text1: str, text2: str) -> bool:
         """一貫したトーンかチェック"""
-        return True  # 緩和版では基本的にOK
+        if "tone_consistency_check" not in self.enabled_checks:
+            return True
+            
+        if self.evaluation_mode == "relaxed":
+            return True  # 緩和版では基本的にOK
+        
+        # トーン要素の抽出
+        casual_endings = ["ね", "よ", "かな", "でしょ"]
+        formal_endings = ["ます", "です", "ございます"]
+        
+        text1_casual = any(text1.endswith(ending) or text1.endswith(ending + "。") for ending in casual_endings)
+        text1_formal = any(text1.endswith(ending) or text1.endswith(ending + "。") for ending in formal_endings)
+        text2_casual = any(text2.endswith(ending) or text2.endswith(ending + "。") for ending in casual_endings)
+        text2_formal = any(text2.endswith(ending) or text2.endswith(ending + "。") for ending in formal_endings)
+        
+        if self.evaluation_mode == "moderate":
+            # moderateでは極端な不一致のみ問題視
+            return not (text1_casual and text2_formal) and not (text1_formal and text2_casual)
+        
+        # strictモードでは一貫性を厳密にチェック
+        return (text1_casual == text2_casual) and (text1_formal == text2_formal)
     
     def _has_empathy_element(self, text: str) -> bool:
         """共感要素を含むかチェック"""

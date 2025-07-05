@@ -1,0 +1,94 @@
+evaluation_patterns:
+  # 不適切な表現パターン
+  inappropriate_patterns:
+    extreme:  # 極端に不適切（全モードで排除）
+      - "死|殺|自殺|地獄|絶望|最悪.*死"
+      - "危険.*死|警告.*死|やばい.*死"
+    offensive:  # 攻撃的・侮辱的（strict, moderateで排除）
+      - "バカ|アホ|クソ|ムカつく|うざい|きもい"
+    negative:  # ネガティブ（strictで排除）
+      - "最悪|地獄|絶望"
+      - "つまらない|退屈|憂鬱"
+    warning:  # 警告表現（strictで制限）
+      - "危険|警告|注意(?!を)"  # 「注意を」は除外
+
+  # 矛盾パターン
+  contradiction_patterns:
+    weather:
+      - positive: ["晴れ", "快晴", "日差し", "太陽"]
+        negative: ["雨", "雨天", "降水", "傘"]
+      - positive: ["暑い", "蒸し暑い", "猛暑", "熱い"]
+        negative: ["寒い", "冷える", "凍える", "肌寒い"]
+      - positive: ["乾燥", "カラッと"]
+        negative: ["湿気", "ジメジメ", "蒸す"]
+    activity:
+      - positive: ["外出", "お出かけ", "散歩", "レジャー"]
+        negative: ["外出しない", "出かけない", "家にいる", "室内"]
+    mood:
+      - positive: ["注意", "気をつけ", "警戒"]
+        negative: ["安心", "心配ない", "大丈夫"]
+      - positive: ["楽しい", "嬉しい", "ワクワク"]
+        negative: ["つまらない", "退屈", "憂鬱"]
+
+  # ポジティブな表現
+  positive_expressions:
+    - "素敵"
+    - "素晴らしい"
+    - "快適"
+    - "爽やか"
+    - "心地よい"
+    - "楽しい"
+    - "嬉しい"
+    - "幸せ"
+    - "最高"
+    - "いい天気"
+
+  # エンゲージメント要素
+  engagement_elements:
+    - "[!！♪☆★]"  # 感嘆符や装飾
+    - "〜|～"  # 波線
+    - "ね[。！]?$"  # 語尾の「ね」
+    - "よ[。！]?$"  # 語尾の「よ」
+    - "でしょう[。！]?$"  # 語尾の「でしょう」
+
+# 評価モード設定
+evaluation_modes:
+  strict:
+    name: "厳格モード"
+    description: "従来の厳格な評価基準"
+    thresholds:
+      total_score: 0.6
+      appropriateness: 0.5
+      consistency: 0.5
+    enabled_checks:
+      - extreme_inappropriate
+      - offensive_inappropriate
+      - negative_inappropriate
+      - warning_inappropriate
+      - all_contradictions
+      - grammar_check
+      - honorific_check
+  
+  moderate:
+    name: "標準モード"
+    description: "バランスの取れた評価基準"
+    thresholds:
+      total_score: 0.45
+      appropriateness: 0.35
+      consistency: 0.35
+    enabled_checks:
+      - extreme_inappropriate
+      - offensive_inappropriate
+      - major_contradictions
+      - basic_grammar_check
+  
+  relaxed:
+    name: "緩和モード"
+    description: "緩い評価基準で多様なコメントを許容"
+    thresholds:
+      total_score: 0.3
+      appropriateness: 0.2
+      consistency: 0.2
+    enabled_checks:
+      - extreme_inappropriate
+      - obvious_contradictions
