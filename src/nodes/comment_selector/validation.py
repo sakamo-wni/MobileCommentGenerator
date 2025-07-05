@@ -10,7 +10,8 @@ from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
-from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes, WEATHER_CHANGE_THRESHOLD
+from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
+from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -371,40 +372,17 @@ class CommentValidator:
             logger.info(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
             return False
         
-        # 全ての時間帯が同じ天気か確認
-        weather_types = set()
-        for forecast in next_day_forecasts:
-            desc = forecast.weather_description.lower()
-            if any(sunny in desc for sunny in ["晴", "快晴"]):
-                weather_types.add("sunny")
-            elif any(cloudy in desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"]):
-                weather_types.add("cloudy")
-            elif any(rainy in desc for rainy in ["雨", "rain"]):
-                weather_types.add("rainy")
-            else:
-                weather_types.add("other")
-        
         # 天気タイプの時系列を作成
-        weather_type_sequence = []
-        for forecast in next_day_forecasts:
-            desc = forecast.weather_description.lower()
-            if any(sunny in desc for sunny in ["晴", "快晴"]):
-                weather_type_sequence.append("sunny")
-            elif any(cloudy in desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"]):
-                weather_type_sequence.append("cloudy")
-            elif any(rainy in desc for rainy in ["雨", "rain"]):
-                weather_type_sequence.append("rainy")
-            else:
-                weather_type_sequence.append("other")
+        weather_type_sequence = self._get_weather_type_sequence(next_day_forecasts)
+        
+        # 全ての時間帯が同じ天気か確認
+        weather_types = set(weather_type_sequence)
         
         # 変化回数をカウント
-        type_changes = 0
-        for i in range(1, len(weather_type_sequence)):
-            if weather_type_sequence[i] != weather_type_sequence[i-1]:
-                type_changes += 1
+        type_changes = count_weather_type_changes(weather_type_sequence)
         
-        # 2回以上変化する場合は不安定（例：曇り→晴れ→曇り→晴れ）
-        if type_changes >= 2:
+        # WEATHER_CHANGE_THRESHOLD回以上変化する場合は不安定
+        if type_changes >= WEATHER_CHANGE_THRESHOLD:
             logger.info(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
             return False
         
@@ -623,3 +601,12 @@ class CommentValidator:
         if not comment_condition:
             return True
         return comment_condition.lower() in weather_description.lower()
+    
+    def _get_weather_type_sequence(self, forecasts: List) -> List[str]:
+        """天気予報リストから天気タイプのシーケンスを生成"""
+        weather_type_sequence = []
+        for forecast in forecasts:
+            desc = forecast.weather_description
+            weather_type = classify_weather_type(desc)
+            weather_type_sequence.append(weather_type or "other")
+        return weather_type_sequence

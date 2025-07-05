@@ -1,102 +1,66 @@
-"""天気タイプ分類のための共通ユーティリティ"""
+"""天気タイプ分類ユーティリティ"""
 
-from typing import List, Literal
-
-# 天気タイプの定義
-WeatherType = Literal["sunny", "cloudy", "rainy", "snowy", "other"]
-
-# 天気判定の閾値
-WEATHER_CHANGE_THRESHOLD = 2  # 「変わりやすい」と判定する変化回数の閾値
-
-# 天気キーワードマッピング
-WEATHER_KEYWORDS = {
-    "rainy": ["雨", "にわか雨", "雷雨", "雷"],
-    "snowy": ["雪", "みぞれ", "あられ", "ひょう"],
-    "sunny": ["晴", "快晴", "日差し"],
-    "cloudy": ["曇", "くもり"],
-}
+from typing import Optional
+from src.config.weather_constants import WEATHER_TYPE_KEYWORDS
 
 
-def classify_weather_type(weather_description: str) -> WeatherType:
+def classify_weather_type(weather_desc: str) -> Optional[str]:
     """
-    天気の説明文から天気タイプを分類する
+    天気説明文から天気タイプを分類
     
     Args:
-        weather_description: 天気の説明文
+        weather_desc: 天気の説明文
         
     Returns:
-        天気タイプ ("sunny", "cloudy", "rainy", "snowy", "other")
+        'sunny', 'cloudy', 'rainy', None のいずれか
     """
-    # 文字列を小文字に統一して判定
-    desc_lower = weather_description.lower()
+    if not weather_desc:
+        return None
+        
+    weather_desc_lower = weather_desc.lower()
     
-    # 雨・雪・雷を最優先で判定
-    for keyword in WEATHER_KEYWORDS["rainy"]:
-        if keyword in weather_description:
-            return "rainy"
-    
-    for keyword in WEATHER_KEYWORDS["snowy"]:
-        if keyword in weather_description:
-            return "snowy"
-    
-    # 晴れ・曇りの判定
-    for keyword in WEATHER_KEYWORDS["sunny"]:
-        if keyword in weather_description:
-            return "sunny"
-    
-    for keyword in WEATHER_KEYWORDS["cloudy"]:
-        if keyword in weather_description:
-            return "cloudy"
-    
-    return "other"
+    # 各タイプのキーワードをチェック
+    for weather_type, keywords in WEATHER_TYPE_KEYWORDS.items():
+        if any(keyword in weather_desc for keyword in keywords):
+            return weather_type
+            
+    return None
 
 
-def count_weather_type_changes(weather_sequence: List[WeatherType]) -> int:
+def count_weather_type_changes(weather_types: list[Optional[str]]) -> int:
     """
-    天気タイプの変化回数をカウントする
+    天気タイプの変化回数をカウント
     
     Args:
-        weather_sequence: 天気タイプのリスト
+        weather_types: 天気タイプのリスト
         
     Returns:
         変化回数
     """
-    if len(weather_sequence) <= 1:
+    if not weather_types or len(weather_types) < 2:
         return 0
-    
+        
     changes = 0
-    for i in range(1, len(weather_sequence)):
-        if weather_sequence[i] != weather_sequence[i-1]:
+    for i in range(1, len(weather_types)):
+        if weather_types[i] != weather_types[i-1]:
             changes += 1
-    
+            
     return changes
 
 
-def is_weather_stable(weather_sequence: List[WeatherType], allow_morning_difference: bool = True) -> bool:
+def is_morning_only_change(weather_types: list[Optional[str]]) -> bool:
     """
-    天気が安定しているかを判定する
+    朝だけ天気が違って、その後同じ天気が続くパターンかチェック
     
     Args:
-        weather_sequence: 天気タイプのリスト
-        allow_morning_difference: 朝だけ違う場合を安定とみなすか
+        weather_types: 天気タイプのリスト（時系列順）
         
     Returns:
-        安定している場合True
+        朝だけ変化パターンかどうか
     """
-    if not weather_sequence:
+    if len(weather_types) < 4:
         return False
-    
-    changes = count_weather_type_changes(weather_sequence)
-    
-    # 変化が閾値以上なら不安定
-    if changes >= WEATHER_CHANGE_THRESHOLD:
-        return False
-    
-    # 朝だけ違う場合の特別処理
-    if allow_morning_difference and changes == 1 and len(weather_sequence) >= 4:
-        # インデックス1以降が全て同じかチェック
-        if all(weather_sequence[i] == weather_sequence[1] for i in range(1, len(weather_sequence))):
-            return True
-    
-    # その他の場合は変化が1回以下なら安定
-    return changes <= 1
+        
+    # 最初の時間帯（朝）が異なり、その後の3つの時間帯が同じ場合
+    return (weather_types[0] != weather_types[1] and 
+            weather_types[1] == weather_types[2] == weather_types[3])

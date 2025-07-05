@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import pytz
 
 from src.data.forecast_cache import ForecastCache, ensure_jst
-from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes, WEATHER_CHANGE_THRESHOLD
+from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes, is_morning_only_change
+from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -123,17 +124,20 @@ class WeatherTimelineFormatter:
                     weather_changes += 1
             
             # 天気タイプを時系列で分類
-            weather_type_sequence = [classify_weather_type(condition) for condition in weather_conditions]
+            weather_type_sequence = []
+            for condition in weather_conditions:
+                weather_type = classify_weather_type(condition)
+                weather_type_sequence.append(weather_type or "other")
             
             # タイプレベルでの変化回数をカウント
             type_changes = count_weather_type_changes(weather_type_sequence)
             
             # 判定ロジック
-            # 閾値以上タイプが変わる（例：曇り→晴れ→曇り）場合は変わりやすい
+            # WEATHER_CHANGE_THRESHOLD回以上タイプが変わる場合は変わりやすい
             if type_changes >= WEATHER_CHANGE_THRESHOLD:
                 return "変わりやすい天気"
             # 朝だけ違って、その後同じ天気が続く場合は安定
-            elif type_changes == 1 and len(weather_type_sequence) >= 4 and all(weather_type_sequence[i] == weather_type_sequence[1] for i in range(1, len(weather_type_sequence))):
+            elif type_changes == 1 and is_morning_only_change(weather_type_sequence):
                 return "安定した天気"
             # その他1回だけ変化する場合も基本的には安定
             elif type_changes <= 1:

@@ -50,6 +50,13 @@ class RelevanceEvaluator(BaseEvaluator):
                         has_contradiction = True
                         break
         
+        # 天気の安定性と矛盾する表現のチェック
+        if hasattr(context, 'weather_stability') and context.weather_stability == 'stable':
+            changeable_keywords = ["変わりやすい", "不安定", "急変", "めまぐるしく", "変化"]
+            if any(keyword in weather_comment or keyword in advice_comment for keyword in changeable_keywords):
+                has_contradiction = True
+                reasons.append("安定した天気なのに「変わりやすい」という表現")
+        
         if has_contradiction:
             score = 0.2
             reasons.append("天気条件と明らかに矛盾する表現")

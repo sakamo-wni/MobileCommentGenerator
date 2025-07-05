@@ -145,6 +145,7 @@ class EvaluationContext:
         target_datetime: 対象日時
         user_preferences: ユーザー設定
         history: 過去の評価履歴
+        weather_stability: 天気の安定性 ('stable' または 'unstable')
     """
 
     weather_condition: str
@@ -152,6 +153,7 @@ class EvaluationContext:
     target_datetime: datetime
     user_preferences: Dict[str, Any] = field(default_factory=dict)
     history: List[Dict[str, Any]] = field(default_factory=list)
+    weather_stability: Optional[str] = None
 
     def get_preference(self, key: str, default: Any = None) -> Any:
         """ユーザー設定を取得"""
