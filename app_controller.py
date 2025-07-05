@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytz
 
@@ -94,8 +95,8 @@ class CommentGenerationController(ICommentGenerationController):
             return ErrorHandler.create_error_result(location, e)
 
     def generate_comments_batch(self, locations: list[str], llm_provider: str,
-                                progress_callback=None) -> BatchGenerationResult:
-        """複数地点のコメント生成
+                                progress_callback=None, max_workers: int = 3) -> BatchGenerationResult:
+        """複数地点のコメント生成（並列処理版）
 
         Args:
             locations: 生成対象の地点リスト
@@ -105,6 +106,7 @@ class CommentGenerationController(ICommentGenerationController):
                               - idx: 現在の処理インデックス（0ベース）
                               - total: 全体の地点数
                               - location: 現在処理中の地点名
+            max_workers: 並列処理のワーカー数（デフォルト: 3）
 
         Returns:
             BatchGenerationResult: バッチ生成結果
@@ -114,16 +116,43 @@ class CommentGenerationController(ICommentGenerationController):
 
         all_results = []
         total_locations = len(locations)
+        completed_count = 0
 
         try:
-            for idx, location in enumerate(locations):
-                # 進捗コールバック
-                if progress_callback:
-                    progress_callback(idx, total_locations, location)
+            # 並列処理で複数地点を処理
+            with ThreadPoolExecutor(max_workers=min(max_workers, total_locations)) as executor:
+                # 各地点の処理をサブミット
+                future_to_location = {}
+                for location in locations:
+                    future = executor.submit(
+                        self.generate_comment_for_location,
+                        location,
+                        llm_provider
+                    )
+                    future_to_location[future] = location
 
-                # 個別地点の生成
-                location_result = self.generate_comment_for_location(location, llm_provider)
-                all_results.append(location_result)
+                # 完了した順に結果を処理
+                for future in as_completed(future_to_location):
+                    location = future_to_location[future]
+                    completed_count += 1
+                    
+                    try:
+                        # 結果を取得
+                        location_result = future.result()
+                        all_results.append(location_result)
+                        
+                        # 進捗コールバック
+                        if progress_callback:
+                            progress_callback(completed_count - 1, total_locations, location)
+                            
+                    except Exception as e:
+                        # 個別地点のエラーをキャッチ
+                        location_result = ErrorHandler.create_error_result(location, e)
+                        all_results.append(location_result)
+                        
+                        # 進捗コールバック
+                        if progress_callback:
+                            progress_callback(completed_count - 1, total_locations, location)
 
             # 成功数をカウント
             success_count = sum(1 for r in all_results if r['success'])
@@ -200,3 +229,112 @@ class CommentGenerationController(ICommentGenerationController):
             return False, f"選択された地点数が上限（{max_locations}地点）を超えています。"
 
         return True, None
+    
+    def generate_with_progress(self, locations: list[str], llm_provider: str, 
+                             view, results_container) -> BatchGenerationResult:
+        """プログレスバー付きでコメントを生成
+        
+        Args:
+            locations: 生成対象の地点リスト
+            llm_provider: 使用するLLMプロバイダー
+            view: ビューインスタンス（進捗表示用）
+            results_container: 結果表示用のコンテナ
+            
+        Returns:
+            BatchGenerationResult: バッチ生成結果
+        """
+        import streamlit as st
+        from app_session_manager import SessionManager
+        
+        # ヘッダーを一度だけ表示
+        with results_container.container():
+            st.markdown("### 🌤️ 生成結果")
+        
+        # プログレスUI作成
+        progress_bar, status_text = view.create_progress_ui()
+        
+        # 生成中フラグを立てる
+        SessionManager.set_generating(True)
+        
+        # 結果を格納する変数を事前に初期化
+        all_results = []
+        
+        try:
+            # 進捗コールバック関数
+            def progress_callback(idx, total, location):
+                view.update_progress(progress_bar, status_text, idx, total, location)
+                
+                # 中間結果の表示（前のインデックスまでの結果を取得）
+                if idx > 0 and all_results:
+                    # 既に生成済みの結果を表示
+                    with results_container.container():
+                        for i in range(min(idx, len(all_results))):
+                            result = all_results[i]
+                            metadata = self.extract_weather_metadata(result)
+                            if 'forecast_time' in metadata and metadata['forecast_time']:
+                                metadata['forecast_time'] = self.format_forecast_time(metadata['forecast_time'])
+                            view.display_single_result(result, metadata)
+            
+            # 並列処理で複数地点を処理
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                # 各地点の処理をサブミット
+                future_to_location = {}
+                for location in locations:
+                    future = executor.submit(
+                        self.generate_comment_for_location,
+                        location,
+                        llm_provider
+                    )
+                    future_to_location[future] = location
+                
+                # 完了した順に結果を処理
+                completed_count = 0
+                for future in as_completed(future_to_location):
+                    location = future_to_location[future]
+                    completed_count += 1
+                    
+                    # 進捗更新
+                    progress_callback(completed_count - 1, len(locations), location)
+                    
+                    try:
+                        # 結果を取得
+                        location_result = future.result()
+                    except Exception as e:
+                        # 個別地点のエラーをキャッチ
+                        location_result = ErrorHandler.create_error_result(location, e)
+                    
+                    all_results.append(location_result)
+                    
+                    # 結果を即座に表示
+                    with results_container.container():
+                        metadata = self.extract_weather_metadata(location_result)
+                        if 'forecast_time' in metadata and metadata['forecast_time']:
+                            metadata['forecast_time'] = self.format_forecast_time(metadata['forecast_time'])
+                        view.display_single_result(location_result, metadata)
+            
+            # 最終結果を集計
+            success_count = sum(1 for r in all_results if r['success'])
+            errors = [r for r in all_results if not r['success']]
+            error_messages = []
+            
+            for err in errors:
+                location = err['location']
+                error_msg = err.get('error', '不明なエラー')
+                error_messages.append(f"{location}: {error_msg}")
+            
+            result = {
+                'success': success_count > 0,
+                'total_locations': len(locations),
+                'success_count': success_count,
+                'results': all_results,
+                'final_comment': '\n'.join([f"{r['location']}: {r['comment']}" for r in all_results if r['success']]),
+                'errors': error_messages
+            }
+            
+            # 完了処理
+            view.complete_progress(progress_bar, status_text, success_count, len(locations))
+            
+            return result
+            
+        finally:
+            SessionManager.set_generating(False)

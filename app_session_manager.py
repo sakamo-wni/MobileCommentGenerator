@@ -1,10 +1,12 @@
 """天気コメント生成システム - セッション管理"""
 
-from typing import Any
+from typing import Any, TypeVar, overload
 
 import streamlit as st
 
 from app_interfaces import ICommentGenerationController
+
+T = TypeVar('T')
 
 
 class SessionManager:
@@ -33,6 +35,18 @@ class SessionManager:
             if key not in st.session_state:
                 st.session_state[key] = value
 
+    @overload
+    @staticmethod
+    def get(key: str) -> Any:
+        """セッション状態から値を取得"""
+        ...
+    
+    @overload
+    @staticmethod
+    def get(key: str, default: T) -> T:
+        """セッション状態から値を取得（デフォルト値付き）"""
+        ...
+    
     @staticmethod
     def get(key: str, default: Any = None) -> Any:
         """セッション状態から値を取得
@@ -42,7 +56,7 @@ class SessionManager:
             default: デフォルト値
 
         Returns:
-            Any: セッション状態の値
+            セッション状態の値またはデフォルト値
         """
         return st.session_state.get(key, default)
 
