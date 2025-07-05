@@ -10,7 +10,10 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
+from src.data.weather_data import WeatherForecast
+from src.data.past_comment import PastComment
+from src.types import CommentPair
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +43,10 @@ class TemplateLoader:
             with open(file_path, encoding="utf-8") as f:
                 return f.read().strip()
         except FileNotFoundError:
-            logger.error(f"テンプレートファイルが見つかりません: {file_path}")
+            logger.error(f"テンプレートファイルが見つかりません: {filename} ({file_path})")
             raise
         except Exception as e:
-            logger.error(f"テンプレート読み込みエラー: {e}")
+            logger.error(f"テンプレート読み込みエラー: {filename} - {e}")
             raise
 
     def load_json_file(self, filename: str) -> dict[str, str]:
@@ -53,19 +56,19 @@ class TemplateLoader:
             with open(file_path, encoding="utf-8") as f:
                 return json.load(f)
         except FileNotFoundError:
-            logger.error(f"JSONファイルが見つかりません: {file_path}")
+            logger.error(f"JSONファイルが見つかりません: {filename} ({file_path})")
             return {}
         except json.JSONDecodeError as e:
-            logger.error(f"JSON解析エラー: {e}")
+            logger.error(f"JSON解析エラー: {filename} - {e}")
             return {}
         except Exception as e:
-            logger.error(f"JSON読み込みエラー: {e}")
+            logger.error(f"JSON読み込みエラー: {filename} - {e}")
             return {}
 
     def load_all_templates(self) -> PromptTemplate:
         """すべてのテンプレートを読み込み"""
         try:
-            return PromptTemplate(
+            template = PromptTemplate(
                 base_template=self.load_text_file("base.txt"),
                 weather_specific=self.load_json_file("weather_specific.json"),
                 seasonal_adjustments=self.load_json_file("seasonal_adjustments.json"),
@@ -73,9 +76,51 @@ class TemplateLoader:
                 fallback_template=self.load_text_file("fallback.txt"),
                 example_templates=self.load_json_file("examples.json")
             )
+            
+            # テンプレートバリデーション
+            self._validate_templates(template)
+            
+            return template
         except Exception as e:
             logger.error(f"テンプレート読み込み失敗、デフォルトを使用: {e}")
             return self._get_default_templates()
+
+    def _validate_templates(self, template: PromptTemplate) -> None:
+        """テンプレートの妥当性を検証
+        
+        Args:
+            template: 検証対象のテンプレート
+            
+        Raises:
+            ValueError: 必須フィールドが不足している場合
+        """
+        # 必須プレースホルダーの確認
+        required_placeholders = [
+            "location", "weather_description", "temperature",
+            "humidity", "wind_speed", "current_time", "past_comments_examples"
+        ]
+        
+        for placeholder in required_placeholders:
+            if f"{{{placeholder}}}" not in template.base_template:
+                logger.warning(f"必須プレースホルダー '{{{placeholder}}}' が base.txt に含まれていません")
+        
+        # 必須キーの確認
+        required_weather_conditions = ["晴", "雨", "雪", "曇"]
+        for condition in required_weather_conditions:
+            if not any(condition in key for key in template.weather_specific.keys()):
+                logger.warning(f"天気条件 '{condition}' の指示がweather_specific.jsonに含まれていません")
+        
+        # 季節の確認
+        required_seasons = ["春", "夏", "秋", "冬"]
+        for season in required_seasons:
+            if season not in template.seasonal_adjustments:
+                logger.warning(f"季節 '{season}' の調整がseasonal_adjustments.jsonに含まれていません")
+        
+        # 時間帯の確認
+        required_times = ["朝", "昼", "夕方", "夜"]
+        for time_period in required_times:
+            if time_period not in template.time_specific:
+                logger.warning(f"時間帯 '{time_period}' の指示がtime_specific.jsonに含まれていません")
 
     def _get_default_templates(self) -> PromptTemplate:
         """デフォルトテンプレート（フォールバック用）"""
@@ -94,15 +139,44 @@ class CommentPromptBuilder:
 
     def __init__(self, template_dir: Path | None = None):
         self.template_loader = TemplateLoader(template_dir)
-        self.templates = self.template_loader.load_all_templates()
+        self._templates_cache: PromptTemplate | None = None
+        self._cache_time: float = 0
+        self._cache_duration: float = 3600  # 1時間のキャッシュ
+        
+    @property
+    def templates(self) -> PromptTemplate:
+        """テンプレートを取得（キャッシュ機能付き）"""
+        import time
+        current_time = time.time()
+        
+        # キャッシュが無効または期限切れの場合
+        if self._templates_cache is None or (current_time - self._cache_time) > self._cache_duration:
+            self._templates_cache = self.template_loader.load_all_templates()
+            self._cache_time = current_time
+            logger.debug(f"テンプレートキャッシュを更新しました")
+        
+        return self._templates_cache
 
-    def reload_templates(self):
-        """テンプレートを再読み込み"""
-        self.templates = self.template_loader.load_all_templates()
-        logger.info("テンプレートを再読み込みしました")
+    def reload_templates(self, force: bool = False):
+        """テンプレートを再読み込み
+        
+        Args:
+            force: キャッシュを無視して強制的に再読み込み
+        """
+        if force:
+            self._templates_cache = None
+            self._cache_time = 0
+            logger.info("テンプレートを強制再読み込みしました")
+        
+        # templatesプロパティにアクセスしてキャッシュを更新
+        _ = self.templates
 
     def build_prompt(
-        self, weather_data, past_comments: list = None, location: str = "", selected_pair=None
+        self,
+        weather_data: Union[WeatherForecast, dict[str, Any], None],
+        past_comments: list[PastComment] | None = None,
+        location: str = "",
+        selected_pair: CommentPair | None = None
     ) -> str:
         """
         コメント生成用プロンプトを構築
@@ -158,7 +232,7 @@ class CommentPromptBuilder:
             logger.error(f"プロンプト構築エラー: {str(e)}")
             return self._get_fallback_prompt(location, weather_data)
 
-    def _extract_weather_info(self, weather_data) -> dict[str, Any]:
+    def _extract_weather_info(self, weather_data: Union[WeatherForecast, dict[str, Any], None]) -> dict[str, Any]:
         """天気データから情報を抽出"""
         if not weather_data:
             return {
@@ -180,7 +254,7 @@ class CommentPromptBuilder:
             ),
         }
 
-    def _format_past_comments(self, past_comments: list, selected_pair) -> str:
+    def _format_past_comments(self, past_comments: list[PastComment] | None, selected_pair: CommentPair | None) -> str:
         """過去コメントをフォーマット"""
         if not past_comments and not selected_pair:
             return "（過去のコメントデータなし）"
@@ -262,7 +336,7 @@ class CommentPromptBuilder:
         except Exception:
             return ""
 
-    def _get_fallback_prompt(self, location: str, weather_data) -> str:
+    def _get_fallback_prompt(self, location: str, weather_data: Union[WeatherForecast, dict[str, Any], None]) -> str:
         """フォールバック用のシンプルなプロンプト"""
         try:
             return self.templates.fallback_template.format(location=location or '')
@@ -270,7 +344,11 @@ class CommentPromptBuilder:
             return f"15文字以内で{location or ''}の天気に適したコメントを生成してください。\n天気コメント:"
 
     def create_custom_prompt(
-        self, template: str, weather_data, past_comments: list = None, **kwargs
+        self,
+        template: str,
+        weather_data: Union[WeatherForecast, dict[str, Any], None],
+        past_comments: list[PastComment] | None = None,
+        **kwargs: Any
     ) -> str:
         """
         カスタムテンプレートでプロンプト生成
