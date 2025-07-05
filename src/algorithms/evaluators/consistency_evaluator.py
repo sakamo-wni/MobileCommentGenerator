@@ -4,9 +4,10 @@
 コメント間の一貫性と整合性を評価する
 """
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -16,19 +17,23 @@ class ConsistencyEvaluator(BaseEvaluator):
     一貫性を評価するクラス
     """
     
-    def __init__(self, weight: float, evaluation_mode: str = "relaxed", 
-                 enabled_checks: List[str] = None, contradiction_patterns: List[Dict[str, List[str]]] = None):
+    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None,
+                 contradiction_patterns: Optional[List[Dict[str, List[str]]]] = None):
         """
         初期化
         
         Args:
             weight: この評価基準の重み
-            evaluation_mode: 評価モード
-            enabled_checks: 有効化するチェック項目
-            contradiction_patterns: 矛盾パターンのリスト
+            config: 評価器の設定
+            contradiction_patterns: 矛盾パターンのリスト（後方互換性のため）
         """
-        super().__init__(weight, evaluation_mode, enabled_checks)
-        self.contradiction_patterns = contradiction_patterns or []
+        super().__init__(weight, config)
+        
+        # パターンパラメータが提供されている場合はそれを使用、そうでなければconfigから取得
+        if contradiction_patterns is not None:
+            self.contradiction_patterns = contradiction_patterns
+        else:
+            self.contradiction_patterns = self.config.contradiction_patterns
     
     @property
     def criterion(self) -> EvaluationCriteria:
@@ -37,7 +42,7 @@ class ConsistencyEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """一貫性を評価（緩和版）- 重複・矛盾チェックに重点"""

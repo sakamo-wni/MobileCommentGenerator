@@ -5,9 +5,10 @@
 """
 
 import re
-from typing import List
+from typing import List, Optional
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -17,22 +18,30 @@ class EngagementEvaluator(BaseEvaluator):
     エンゲージメントを評価するクラス
     """
     
-    def __init__(self, weight: float, evaluation_mode: str = "relaxed", 
-                 enabled_checks: List[str] = None, engagement_elements: List[str] = None,
-                 positive_expressions: List[str] = None):
+    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None,
+                 engagement_elements: Optional[List[str]] = None,
+                 positive_expressions: Optional[List[str]] = None):
         """
         初期化
         
         Args:
             weight: この評価基準の重み
-            evaluation_mode: 評価モード
-            enabled_checks: 有効化するチェック項目
-            engagement_elements: エンゲージメント要素のリスト
-            positive_expressions: ポジティブな表現のリスト
+            config: 評価器の設定
+            engagement_elements: エンゲージメント要素のリスト（後方互換性のため）
+            positive_expressions: ポジティブな表現のリスト（後方互換性のため）
         """
-        super().__init__(weight, evaluation_mode, enabled_checks)
-        self.engagement_elements = engagement_elements or []
-        self.positive_expressions = positive_expressions or []
+        super().__init__(weight, config)
+        
+        # パターンパラメータが提供されている場合はそれを使用、そうでなければconfigから取得
+        if engagement_elements is not None:
+            self.engagement_elements = engagement_elements
+        else:
+            self.engagement_elements = self.config.engagement_elements
+            
+        if positive_expressions is not None:
+            self.positive_expressions = positive_expressions
+        else:
+            self.positive_expressions = self.config.positive_expressions
         
         if self.engagement_elements:
             self.engagement_regex = re.compile("|".join(self.engagement_elements))
@@ -46,7 +55,7 @@ class EngagementEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """エンゲージメントを評価"""

@@ -3,6 +3,7 @@
 """
 
 from .base_evaluator import BaseEvaluator
+from .evaluator_config import EvaluatorConfig
 from .relevance_evaluator import RelevanceEvaluator
 from .creativity_evaluator import CreativityEvaluator
 from .naturalness_evaluator import NaturalnessEvaluator
@@ -14,6 +15,7 @@ from .originality_evaluator import OriginalityEvaluator
 
 __all__ = [
     'BaseEvaluator',
+    'EvaluatorConfig',
     'RelevanceEvaluator',
     'CreativityEvaluator',
     'NaturalnessEvaluator',

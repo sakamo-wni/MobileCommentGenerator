@@ -5,9 +5,10 @@
 """
 
 import re
-from typing import List
+from typing import List, Optional
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -17,19 +18,24 @@ class AppropriatenessEvaluator(BaseEvaluator):
     適切性を評価するクラス
     """
     
-    def __init__(self, weight: float, evaluation_mode: str = "relaxed", 
-                 enabled_checks: List[str] = None, inappropriate_patterns: List[str] = None):
+    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None,
+                 inappropriate_patterns: Optional[List[str]] = None):
         """
         初期化
         
         Args:
             weight: この評価基準の重み
-            evaluation_mode: 評価モード
-            enabled_checks: 有効化するチェック項目
-            inappropriate_patterns: 不適切なパターンのリスト
+            config: 評価器の設定
+            inappropriate_patterns: 不適切なパターンのリスト（後方互換性のため）
         """
-        super().__init__(weight, evaluation_mode, enabled_checks)
-        self.inappropriate_patterns = inappropriate_patterns or []
+        super().__init__(weight, config)
+        
+        # パターンパラメータが提供されている場合はそれを使用、そうでなければconfigから取得
+        if inappropriate_patterns is not None:
+            self.inappropriate_patterns = inappropriate_patterns
+        else:
+            self.inappropriate_patterns = self.config.inappropriate_patterns
+            
         if self.inappropriate_patterns:
             self.inappropriate_regex = re.compile("|".join(self.inappropriate_patterns), re.IGNORECASE)
         else:
@@ -42,7 +48,7 @@ class AppropriatenessEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """適切性を評価（緩和版）- 極端に不適切な表現のみ不合格"""
@@ -95,8 +101,8 @@ class AppropriatenessEvaluator(BaseEvaluator):
         """アドバイスが状況に適切かチェック"""
         if self.evaluation_mode == "relaxed":
             # 緩和モードでは極端な不適切さのみチェック
-            if hasattr(weather_data, 'weather_description'):
-                weather_desc = weather_data.weather_description
+            weather_desc = self.safe_get_weather_desc(weather_data)
+            if weather_desc:
                 # 晴れの日に「傘を忘れずに」など明らかに不適切な場合のみ
                 if "晴" in weather_desc and "傘" in text:
                     return False
@@ -105,9 +111,10 @@ class AppropriatenessEvaluator(BaseEvaluator):
             return True
         
         # strict/moderateモードではより詳細にチェック
-        if hasattr(weather_data, 'weather_description') and hasattr(weather_data, 'temperature'):
-            weather_desc = weather_data.weather_description
-            temp = weather_data.temperature
+        weather_desc = self.safe_get_weather_desc(weather_data)
+        temp = self.safe_get_temperature(weather_data)
+        
+        if weather_desc and temp is not None:
             
             # 天気に応じたアドバイスの適切性
             if "雨" in weather_desc and not any(word in text for word in ["傘", "濡れ", "雨具"]):
