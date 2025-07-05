@@ -3,8 +3,10 @@
 import os
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
-from dotenv import load_dotenv
 import logging
+
+from .unified_config import get_unified_config, get_api_config, get_app_config as get_unified_app_config
+
 try:
     from src.utils.secure_config import get_secure_config
 except ImportError:
@@ -12,9 +14,6 @@ except ImportError:
     get_secure_config = None
 
 logger = logging.getLogger(__name__)
-
-# .envファイルの読み込み
-load_dotenv(override=True)
 
 
 @dataclass
@@ -31,25 +30,29 @@ class APIKeys:
     @classmethod
     def from_env(cls) -> "APIKeys":
         """環境変数またはセキュア設定からAPIキーを読み込む"""
+        # 統一設定から取得
+        unified_config = get_unified_config()
+        api_config = unified_config.api
+        
         # セキュア設定が利用可能な場合は優先的に使用
         if get_secure_config:
             secure_config = get_secure_config()
             return cls(
-                openai_key=secure_config.get_api_key("openai") or os.getenv("OPENAI_API_KEY"),
-                gemini_key=secure_config.get_api_key("gemini") or os.getenv("GEMINI_API_KEY"),
-                anthropic_key=secure_config.get_api_key("anthropic") or os.getenv("ANTHROPIC_API_KEY"),
-                wxtech_key=secure_config.get_api_key("wxtech") or os.getenv("WXTECH_API_KEY"),
+                openai_key=secure_config.get_api_key("openai") or api_config.openai_api_key,
+                gemini_key=secure_config.get_api_key("gemini") or api_config.gemini_api_key,
+                anthropic_key=secure_config.get_api_key("anthropic") or api_config.anthropic_api_key,
+                wxtech_key=secure_config.get_api_key("wxtech") or api_config.wxtech_api_key,
                 aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
                 aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
                 aws_region=os.getenv("AWS_DEFAULT_REGION", "ap-northeast-1")
             )
         else:
-            # フォールバック: 環境変数のみ
+            # フォールバック: 統一設定から
             return cls(
-                openai_key=os.getenv("OPENAI_API_KEY"),
-                gemini_key=os.getenv("GEMINI_API_KEY"),
-                anthropic_key=os.getenv("ANTHROPIC_API_KEY"),
-                wxtech_key=os.getenv("WXTECH_API_KEY"),
+                openai_key=api_config.openai_api_key,
+                gemini_key=api_config.gemini_api_key,
+                anthropic_key=api_config.anthropic_api_key,
+                wxtech_key=api_config.wxtech_api_key,
                 aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
                 aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
                 aws_region=os.getenv("AWS_DEFAULT_REGION", "ap-northeast-1")
@@ -156,14 +159,18 @@ class AppConfig:
     @classmethod
     def from_env(cls) -> "AppConfig":
         """環境変数から設定を読み込む"""
+        # 統一設定から取得
+        unified_config = get_unified_config()
+        unified_app = unified_config.app
+        
         config = cls(
             api_keys=APIKeys.from_env(),
             ui_settings=UISettings(),
             generation_settings=GenerationSettings(),
             data_settings=DataSettings(),
-            env=os.getenv("APP_ENV", "development"),
-            debug=os.getenv("DEBUG", "False").lower() == "true",
-            log_level=os.getenv("LOG_LEVEL", "INFO")
+            env=unified_app.env,
+            debug=unified_app.env == "development",
+            log_level=unified_app.log_level
         )
         
         # 環境変数でオーバーライド可能な設定

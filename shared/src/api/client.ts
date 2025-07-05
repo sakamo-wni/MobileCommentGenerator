@@ -42,7 +42,6 @@ export class ApiClient {
 
   async getLocations(): Promise<Location[]> {
     const response = await this.client.get('/api/locations');
-    // APIは {locations: string[]} の形式で返すので、Location[]に変換
     const locationNames = response.data.locations || response.data;
     return Array.isArray(locationNames) 
       ? locationNames.map((name: string, index: number) => ({
@@ -64,9 +63,12 @@ export class ApiClient {
     };
     
     const response = await this.client.post('/api/generate', apiRequest);
-    
-    // APIレスポンスをGeneratedComment形式に変換
     const apiResponse = response.data;
+    
+    if (!apiResponse.success) {
+      throw new Error(apiResponse.error || 'Failed to generate comment');
+    }
+    
     return {
       id: `comment-${Date.now()}`,
       comment: apiResponse.comment || '',
@@ -95,7 +97,7 @@ export class ApiClient {
     const response = await this.client.get('/api/history', {
       params: { limit },
     });
-    return response.data;
+    return response.data.history || response.data;
   }
 
   async getWeatherData(locationId: string): Promise<WeatherData> {
