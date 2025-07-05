@@ -17,7 +17,7 @@ from langgraph.graph import END, START, StateGraph
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.data.weather_trend import WeatherTrend
-from src.data.weather_data import WeatherForecastCollection, WeatherForecast, WeatherCondition
+from src.data.weather_data import WeatherForecastCollection, WeatherForecast
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
@@ -99,57 +99,6 @@ class WeatherForecastNode:
             logger.error(f"天気予報データ取得エラー: {e!s}")
             return {**state, "error_message": f"天気予報データの取得に失敗しました: {e!s}"}
 
-    def _generate_recommendations(self, forecasts: list[WeatherForecast]) -> list[str]:
-        """天気に基づく推奨事項を生成
-
-        Args:
-            forecasts: 天気予報リスト
-
-        Returns:
-            推奨事項のリスト
-        """
-        recommendations = []
-
-        if not forecasts:
-            return recommendations
-
-        # 雨の予測チェック
-        rain_forecasts = [f for f in forecasts if f.precipitation > 0.1]
-        if rain_forecasts:
-            max_precipitation = max(f.precipitation for f in rain_forecasts)
-            if max_precipitation > 10.0:
-                recommendations.append("傘の携帯をおすすめします（強い雨の予報）")
-            else:
-                recommendations.append("念のため傘をお持ちください")
-
-        # 気温チェック
-        temperatures = [f.temperature for f in forecasts]
-        max_temp = max(temperatures)
-        min_temp = min(temperatures)
-
-        if max_temp > 30:
-            recommendations.append("暑くなる予報です。水分補給や熱中症対策をお忘れなく")
-        elif max_temp < 5:
-            recommendations.append("寒くなる予報です。防寒対策をしっかりと")
-        elif min_temp < 0:
-            recommendations.append("氷点下になる可能性があります。路面凍結にご注意ください")
-
-        # 風速チェック
-        strong_winds = [f for f in forecasts if f.wind_speed > 10.0]
-        if strong_winds:
-            recommendations.append("強風の予報があります。外出時はご注意ください")
-
-        # 悪天候チェック
-        severe_weather = [f for f in forecasts if f.is_severe_weather()]
-        if severe_weather:
-            recommendations.append("悪天候の予報があります。不要な外出は控えることをおすすめします")
-
-        # 良い天気の場合
-        good_weather = [f for f in forecasts if f.is_good_weather()]
-        if len(good_weather) > len(forecasts) * 0.7:  # 70%以上が良い天気
-            recommendations.append("良い天気が続く予報です。外出日和ですね")
-
-        return recommendations
 
 
 def create_weather_forecast_graph(api_key: str) -> StateGraph:
@@ -416,7 +365,8 @@ def fetch_weather_forecast_node(state):
                 period_forecasts.append(closest_forecast)
         
         # 期間内の予報から最も重要な天気条件を選択
-        selected_forecast = self.data_validator.select_priority_forecast(period_forecasts)
+        validator = WeatherDataValidator()
+        selected_forecast = validator.select_priority_forecast(period_forecasts)
         
         # 気象変化傾向の分析
         if len(period_forecasts) >= 2:
