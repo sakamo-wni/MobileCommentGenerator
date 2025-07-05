@@ -232,6 +232,29 @@ class CommentValidator:
         
         return False
     
+    def is_cloudy_weather_with_sunshine_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
+        """曇り天気時に日差し関連のコメントが含まれているかチェック"""
+        weather_desc = weather_data.weather_description.lower()
+        
+        # 曇り・薄曇りの判定
+        if not any(cloudy in weather_desc for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"]):
+            return False
+        
+        # 不適切な日差し関連表現パターン
+        sunshine_patterns = [
+            "強い日差し", "日差しが強", "強烈な日差し", "照りつける太陽",
+            "燦々と", "さんさんと", "ギラギラ", "まぶしい太陽",
+            "日光が強", "紫外線が強", "日焼け注意", "サングラス必須",
+            "太陽が照り", "陽射しが強", "日向は暑", "カンカン照り"
+        ]
+        
+        for pattern in sunshine_patterns:
+            if pattern in comment_text:
+                logger.info(f"曇り天気時に不適切な日差し表現検出: '{comment_text}' - パターン「{pattern}」")
+                return True
+        
+        return False
+    
     def is_stable_weather_with_unstable_comment(self, comment_text: str, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
         """安定した天気時に急変・不安定表現が含まれているかチェック"""
         # 翌日の全データから安定性を判定

@@ -39,6 +39,11 @@ class CommentUtils:
                 logger.info(f"晴天時不適切表現を強制除外: '{comment.comment_text}'")
                 continue
             
+            # 曇り天気時の日差し表現の追加チェック
+            if comment_validator.is_cloudy_weather_with_sunshine_comment(comment.comment_text, weather_data):
+                logger.info(f"曇り天気時の日差し表現を強制除外: '{comment.comment_text}'")
+                continue
+            
             # 安定した天気での急変表現の追加チェック
             if comment_validator.is_stable_weather_with_unstable_comment(comment.comment_text, weather_data, state):
                 logger.info(f"安定天気時の急変表現を強制除外: '{comment.comment_text}'")
@@ -114,6 +119,11 @@ class CommentUtils:
             is_valid, reason = weather_validator.validate_comment(comment, weather_data)
             if not is_valid:
                 logger.info(f"アドバイスバリデーター除外: '{comment.comment_text}' - 理由: {reason}")
+                continue
+            
+            # 曇り天気時の日差し表現の追加チェック（アドバイスも同様）
+            if comment_validator.is_cloudy_weather_with_sunshine_comment(comment.comment_text, weather_data):
+                logger.info(f"曇り天気時の日差し表現を強制除外（アドバイス）: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）
