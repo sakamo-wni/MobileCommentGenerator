@@ -108,7 +108,7 @@ class CommentSelector:
             logger.warning("天気コメントが空です")
             return None
             
-        candidates = self._prepare_weather_candidates(comments, weather_data)
+        candidates = self._prepare_weather_candidates(comments, weather_data, state)
         if not candidates:
             logger.warning("天気コメント候補が空です")
             return None
@@ -148,7 +148,8 @@ class CommentSelector:
     def _prepare_weather_candidates(
         self, 
         comments: List[PastComment], 
-        weather_data: WeatherForecast
+        weather_data: WeatherForecast,
+        state: Optional[CommentGenerationState] = None
     ) -> List[Dict[str, Any]]:
         """天気コメント候補を準備"""
         candidates = []
