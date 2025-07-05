@@ -7,7 +7,7 @@
 import re
 from typing import List
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -46,7 +46,7 @@ class EngagementEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """エンゲージメントを評価"""

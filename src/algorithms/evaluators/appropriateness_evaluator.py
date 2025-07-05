@@ -7,7 +7,7 @@
 import re
 from typing import List
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -42,7 +42,7 @@ class AppropriatenessEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """適切性を評価（緩和版）- 極端に不適切な表現のみ不合格"""
@@ -95,8 +95,8 @@ class AppropriatenessEvaluator(BaseEvaluator):
         """アドバイスが状況に適切かチェック"""
         if self.evaluation_mode == "relaxed":
             # 緩和モードでは極端な不適切さのみチェック
-            if hasattr(weather_data, 'weather_description'):
-                weather_desc = weather_data.weather_description
+            weather_desc = self.safe_get_weather_desc(weather_data)
+            if weather_desc:
                 # 晴れの日に「傘を忘れずに」など明らかに不適切な場合のみ
                 if "晴" in weather_desc and "傘" in text:
                     return False
@@ -105,9 +105,9 @@ class AppropriatenessEvaluator(BaseEvaluator):
             return True
         
         # strict/moderateモードではより詳細にチェック
-        if hasattr(weather_data, 'weather_description') and hasattr(weather_data, 'temperature'):
-            weather_desc = weather_data.weather_description
-            temp = weather_data.temperature
+        weather_desc = self.safe_get_weather_desc(weather_data)
+        temp = self.safe_get_temperature(weather_data)
+        if weather_desc and temp is not None:
             
             # 天気に応じたアドバイスの適切性
             if "雨" in weather_desc and not any(word in text for word in ["傘", "濡れ", "雨具"]):

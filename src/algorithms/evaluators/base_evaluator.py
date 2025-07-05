@@ -11,6 +11,7 @@ import re
 from src.data.evaluation_criteria import (
     EvaluationCriteria,
     CriterionScore,
+    EvaluationContext,
 )
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
@@ -38,7 +39,7 @@ class BaseEvaluator(ABC):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: Any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """
@@ -59,3 +60,21 @@ class BaseEvaluator(ABC):
     def criterion(self) -> EvaluationCriteria:
         """評価基準を返す"""
         pass
+    
+    # 共通ユーティリティメソッド
+    
+    def safe_get_weather_desc(self, weather_data: WeatherForecast) -> str:
+        """天気説明を安全に取得"""
+        return getattr(weather_data, 'weather_description', '')
+    
+    def safe_get_temperature(self, weather_data: WeatherForecast) -> Optional[float]:
+        """気温を安全に取得"""
+        return getattr(weather_data, 'temperature', None)
+    
+    def safe_get_weather_condition(self, weather_data: WeatherForecast) -> str:
+        """天気条件を安全に取得"""
+        return getattr(weather_data, 'weather_condition', '')
+    
+    def has_weather_attribute(self, weather_data: WeatherForecast, attribute: str) -> bool:
+        """天気データが特定の属性を持つかチェック"""
+        return hasattr(weather_data, attribute)

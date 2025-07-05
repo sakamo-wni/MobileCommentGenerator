@@ -6,7 +6,7 @@
 
 import re
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -23,7 +23,7 @@ class ClarityEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """明確性を評価"""

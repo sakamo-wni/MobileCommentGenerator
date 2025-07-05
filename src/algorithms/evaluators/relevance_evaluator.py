@@ -6,7 +6,7 @@
 
 from typing import List, Tuple
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -23,7 +23,7 @@ class RelevanceEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """関連性を評価（緩和版）- 基本的な妥当性のみチェック"""
@@ -32,7 +32,7 @@ class RelevanceEvaluator(BaseEvaluator):
 
         weather_comment = comment_pair.weather_comment.comment_text
         advice_comment = comment_pair.advice_comment.comment_text
-        weather_desc = weather_data.weather_description
+        weather_desc = self.safe_get_weather_desc(weather_data)
 
         # 明らかに矛盾する天気表現のチェック
         weather_contradictions = [

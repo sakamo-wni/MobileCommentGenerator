@@ -6,7 +6,7 @@
 
 from typing import List, Dict
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
-from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore
+from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
 
@@ -37,7 +37,7 @@ class ConsistencyEvaluator(BaseEvaluator):
     def evaluate(
         self, 
         comment_pair: CommentPair, 
-        context: any, 
+        context: EvaluationContext, 
         weather_data: WeatherForecast
     ) -> CriterionScore:
         """一貫性を評価（緩和版）- 重複・矛盾チェックに重点"""
