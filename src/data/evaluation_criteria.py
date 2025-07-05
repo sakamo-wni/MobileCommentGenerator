@@ -172,16 +172,16 @@ class EvaluationContext:
         }
 
 
-# デフォルト評価重み
+# デフォルト評価重み（緩和版）
 DEFAULT_CRITERION_WEIGHTS = {
-    EvaluationCriteria.RELEVANCE: 0.25,
-    EvaluationCriteria.NATURALNESS: 0.20,
-    EvaluationCriteria.APPROPRIATENESS: 0.20,
-    EvaluationCriteria.CLARITY: 0.15,
-    EvaluationCriteria.ENGAGEMENT: 0.10,
-    EvaluationCriteria.CREATIVITY: 0.05,
-    EvaluationCriteria.CONSISTENCY: 0.03,
-    EvaluationCriteria.ORIGINALITY: 0.02,
+    EvaluationCriteria.APPROPRIATENESS: 0.40,  # 不適切表現の排除を最重視
+    EvaluationCriteria.CONSISTENCY: 0.25,     # 矛盾・重複チェックを重視
+    EvaluationCriteria.RELEVANCE: 0.20,       # 天気との関連性（緩く評価）
+    EvaluationCriteria.NATURALNESS: 0.10,     # 自然さ（基本的なチェックのみ）
+    EvaluationCriteria.CLARITY: 0.03,         # 明確性（緩く評価）
+    EvaluationCriteria.ENGAGEMENT: 0.01,      # エンゲージメント（最小限）
+    EvaluationCriteria.CREATIVITY: 0.005,     # 創造性（最小限）
+    EvaluationCriteria.ORIGINALITY: 0.005,    # オリジナリティ（最小限）
 }
 
 

@@ -248,6 +248,42 @@ class WeatherForecast:
             return "uncomfortable"
         else:
             return "moderate"
+    
+    def is_stable_weather(self) -> bool:
+        """安定した天気かどうかを判定
+        
+        Returns:
+            安定した天気の場合True
+        """
+        # 晴れ・快晴は基本的に安定
+        if self.weather_condition in [WeatherCondition.CLEAR]:
+            return True
+        
+        # 曇りでも以下の条件を満たせば安定
+        if self.weather_condition == WeatherCondition.CLOUDY:
+            # 降水量が少ない
+            if self.precipitation > 1.0:
+                return False
+            # 風速が弱い
+            if self.wind_speed > 5.0:
+                return False
+            return True
+        
+        # その他の天気は不安定とみなす
+        return False
+    
+    def get_weather_stability(self) -> str:
+        """天気の安定性レベルを取得
+        
+        Returns:
+            安定性レベル（'stable', 'moderate', 'unstable'）
+        """
+        if self.is_stable_weather():
+            return "stable"
+        elif self.is_severe_weather():
+            return "unstable"
+        else:
+            return "moderate"
 
 
 @dataclass

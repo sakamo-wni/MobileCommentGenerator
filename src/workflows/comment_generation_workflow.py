@@ -34,12 +34,11 @@ def should_evaluate(state: CommentGenerationState) -> str:
     Returns:
         "evaluate" または "generate" の文字列
     """
-    # LLMプロバイダーが設定されていない場合は評価をスキップ
-    if not state.get("llm_provider"):
-        return "generate"
+    # LLMプロバイダーが設定されている場合は評価を実行
+    if state.get("llm_provider"):
+        return "evaluate"
 
-    # 過去データのみを使用する場合は評価をスキップ
-    # （今回は常に評価をスキップする設定）
+    # LLMプロバイダーが設定されていない場合は評価をスキップ
     return "generate"
 
 
@@ -84,24 +83,26 @@ def timed_node(node_func):
 
             # 実行時間を記録
             execution_time = (time.time() - start_time) * 1000  # ミリ秒
-            if not hasattr(result, "generation_metadata"):
-                result.generation_metadata = {}
-            if "node_execution_times" not in result.generation_metadata:
-                result.generation_metadata["node_execution_times"] = {}
-            result.generation_metadata["node_execution_times"][node_name] = execution_time
+            if "generation_metadata" not in result:
+                result["generation_metadata"] = {}
+            if "node_execution_times" not in result["generation_metadata"]:
+                result["generation_metadata"]["node_execution_times"] = {}
+            result["generation_metadata"]["node_execution_times"][node_name] = execution_time
 
             return result
         except Exception as e:
             # エラーでも実行時間を記録
             execution_time = (time.time() - start_time) * 1000
-            if not hasattr(state, "generation_metadata"):
-                state.generation_metadata = {}
-            if "node_execution_times" not in state.generation_metadata:
-                state.generation_metadata["node_execution_times"] = {}
-            state.generation_metadata["node_execution_times"][node_name] = execution_time
+            if "generation_metadata" not in state:
+                state["generation_metadata"] = {}
+            if "node_execution_times" not in state["generation_metadata"]:
+                state["generation_metadata"]["node_execution_times"] = {}
+            state["generation_metadata"]["node_execution_times"][node_name] = execution_time
 
             # エラーをstateに記録して再発生
-            state.add_error(f"{node_name}: {str(e)}", node_name)
+            if "errors" not in state:
+                state["errors"] = []
+            state["errors"].append({"error": f"{node_name}: {str(e)}", "node": node_name})
             raise e
 
     return wrapper

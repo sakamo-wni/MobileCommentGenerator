@@ -266,7 +266,7 @@ class WeatherCommentValidator:
             ]
             for pattern in changeable_patterns:
                 if pattern in comment_text:
-                    logger.warning(f"晴天時に不適切な表現を強制除外: '{comment_text}' - 「{pattern}」は晴れ・快晴に不適切")
+                    logger.info(f"晴天時に不適切な表現を強制除外: '{comment_text}' - 「{pattern}」は晴れ・快晴に不適切")
                     return False, f"晴天時に不適切な表現「{pattern}」を含む（晴れ・快晴時は安定した天気）"
         
         # 曇天チェック（晴天でない場合のみ）
@@ -275,6 +275,19 @@ class WeatherCommentValidator:
             for word in forbidden_words:
                 if word in comment_text:
                     return False, f"曇天時の禁止ワード「{word}」を含む"
+            
+            # 曇天時でも「天気急変」「変わりやすい」系の表現をチェック
+            # 全ての天気が曇りで安定している場合は不適切
+            if self._is_stable_cloudy_weather(weather_data):
+                weather_change_expressions = [
+                    "天気急変", "急変", "天気が急に", "急に変わる",
+                    "変わりやすい天気", "不安定な空模様", "変化しやすい",
+                    "天候不安定", "激しい変化", "急激な変化"
+                ]
+                for expr in weather_change_expressions:
+                    if expr in comment_text:
+                        logger.info(f"安定した曇天時に不適切な表現を除外: '{comment_text}' - 「{expr}」は不適切")
+                        return False, f"安定した曇天時に不適切な急変表現「{expr}」を含む"
             
             # 曇天時のみ「スッキリしない」を許可
             logger.debug(f"曇天時コメント許可: '{comment_text}'")
@@ -912,3 +925,42 @@ class WeatherCommentValidator:
             return "秋"
         else:  # 12, 1, 2
             return "冬"
+    
+    def _is_stable_cloudy_weather(self, weather_data: WeatherForecast) -> bool:
+        """安定した曇天かどうかを判定（翌日の1日分のデータを考慮）"""
+        # 現在の天気が曇りでない場合はFalse
+        weather_desc = weather_data.weather_description.lower()
+        if not any(cloudy in weather_desc for cloudy in ["曇", "くもり"]):
+            return False
+        
+        # 設定ファイルから闾値を取得
+        try:
+            from src.config.config_loader import load_config
+            config = load_config()
+            stability_config = config.get('weather_stability', {})
+            precipitation_threshold = stability_config.get('cloudy_precipitation_threshold', 1.0)
+            wind_threshold = stability_config.get('cloudy_wind_threshold', 5.0)
+        except (FileNotFoundError, KeyError, ValueError) as e:
+            logger.debug(f"Failed to load stability thresholds: {e}")
+            # デフォルト値を使用
+            precipitation_threshold = 1.0  # 1mm/h
+            wind_threshold = 5.0  # 5m/s
+        
+        # 降水量が多い場合は不安定と判定
+        if weather_data.precipitation > precipitation_threshold:
+            return False
+        
+        # 風速が強い場合は不安定と判定
+        if weather_data.wind_speed > wind_threshold:
+            return False
+        
+        # 雷を含む場合は不安定と判定
+        if "雷" in weather_desc or "thunder" in weather_desc.lower():
+            return False
+        
+        # 霧を含む場合も変化の可能性があるため不安定と判定
+        if "霧" in weather_desc or "fog" in weather_desc.lower():
+            return False
+        
+        # 上記の条件をクリアした場合は安定した曇天と判定
+        return True
