@@ -9,7 +9,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import pytz
-from datetime import timedelta, datetime as dt
+from datetime import timedelta, datetime
 
 from src.data.weather_data import WeatherForecastCollection
 from src.data.location_manager import Location
@@ -117,7 +117,7 @@ class WxTechAPIClient:
             WxTechAPIError: API エラーが発生した場合
         """
         jst = pytz.timezone("Asia/Tokyo")
-        now_jst = dt.now(jst)
+        now_jst = datetime.now(jst)
         
         # 翌日の日付
         target_date = now_jst.date() + timedelta(days=1)
@@ -126,7 +126,7 @@ class WxTechAPIClient:
         target_hours = [9, 12, 15, 18]
         target_times = []
         for hour in target_hours:
-            target_dt = jst.localize(dt.combine(target_date, dt.min.time().replace(hour=hour)))
+            target_dt = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
             target_times.append(target_dt)
         
         # 現在時刻から各時刻までの時間を計算
@@ -164,11 +164,11 @@ class WxTechAPIClient:
             テスト結果とレスポンスデータ
         """
         jst = pytz.timezone("Asia/Tokyo")
-        now_jst = dt.now(jst)
+        now_jst = datetime.now(jst)
         
         # 翌日の9時のタイムスタンプを作成
         target_date = now_jst.date() + timedelta(days=1)
-        target_dt = jst.localize(dt.combine(target_date, dt.min.time().replace(hour=9)))
+        target_dt = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=9)))
         target_timestamp = int(target_dt.timestamp())
         
         test_results = {}
@@ -296,7 +296,7 @@ class WxTechAPIClient:
             テスト結果とレスポンスデータの詳細解析
         """
         jst = pytz.timezone("Asia/Tokyo")
-        now_jst = dt.now(jst)
+        now_jst = datetime.now(jst)
         
         # 翌日の9, 12, 15, 18時JSTのタイムスタンプを作成
         target_date = now_jst.date() + timedelta(days=1)
@@ -304,7 +304,7 @@ class WxTechAPIClient:
         target_timestamps = []
         
         for hour in [9, 12, 15, 18]:
-            target_dt = jst.localize(dt.combine(target_date, dt.min.time().replace(hour=hour)))
+            target_dt = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
             target_times.append(target_dt)
             target_timestamps.append(int(target_dt.timestamp()))
         
