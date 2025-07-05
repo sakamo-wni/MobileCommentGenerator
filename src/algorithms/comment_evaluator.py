@@ -91,12 +91,14 @@ class CommentEvaluator:
             ),
             EvaluationCriteria.APPROPRIATENESS: AppropriatenessEvaluator(
                 weight=self.weights[EvaluationCriteria.APPROPRIATENESS],
-                config=self.evaluator_config,
+                evaluation_mode=self.evaluator_config.evaluation_mode,
+                enabled_checks=self.evaluator_config.enabled_checks,
                 inappropriate_patterns=self.evaluator_config.inappropriate_patterns
             ),
             EvaluationCriteria.ENGAGEMENT: EngagementEvaluator(
                 weight=self.weights[EvaluationCriteria.ENGAGEMENT],
-                config=self.evaluator_config,
+                evaluation_mode=self.evaluator_config.evaluation_mode,
+                enabled_checks=self.evaluator_config.enabled_checks,
                 engagement_elements=self.evaluator_config.engagement_elements,
                 positive_expressions=self.evaluator_config.positive_expressions
             ),
@@ -106,7 +108,8 @@ class CommentEvaluator:
             ),
             EvaluationCriteria.CONSISTENCY: ConsistencyEvaluator(
                 weight=self.weights[EvaluationCriteria.CONSISTENCY],
-                config=self.evaluator_config,
+                evaluation_mode=self.evaluator_config.evaluation_mode,
+                enabled_checks=self.evaluator_config.enabled_checks,
                 contradiction_patterns=self.evaluator_config.contradiction_patterns
             ),
             EvaluationCriteria.ORIGINALITY: OriginalityEvaluator(

@@ -30,7 +30,15 @@ class EngagementEvaluator(BaseEvaluator):
             engagement_elements: エンゲージメント要素のリスト
             positive_expressions: ポジティブな表現のリスト
         """
-        super().__init__(weight, evaluation_mode, enabled_checks)
+        # EvaluatorConfigを作成してBaseEvaluatorに渡す
+        from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
+        config = EvaluatorConfig(
+            evaluation_mode=evaluation_mode,
+            enabled_checks=enabled_checks or [],
+            engagement_elements=engagement_elements or [],
+            positive_expressions=positive_expressions or []
+        )
+        super().__init__(weight, config)
         self.engagement_elements = engagement_elements or []
         self.positive_expressions = positive_expressions or []
         

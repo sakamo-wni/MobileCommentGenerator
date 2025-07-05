@@ -27,7 +27,14 @@ class ConsistencyEvaluator(BaseEvaluator):
             enabled_checks: 有効化するチェック項目
             contradiction_patterns: 矛盾パターンのリスト
         """
-        super().__init__(weight, evaluation_mode, enabled_checks)
+        # EvaluatorConfigを作成してBaseEvaluatorに渡す
+        from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
+        config = EvaluatorConfig(
+            evaluation_mode=evaluation_mode,
+            enabled_checks=enabled_checks or [],
+            contradiction_patterns=contradiction_patterns or []
+        )
+        super().__init__(weight, config)
         self.contradiction_patterns = contradiction_patterns or []
     
     @property
