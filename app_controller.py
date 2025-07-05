@@ -6,7 +6,8 @@ from typing import Any
 
 import pytz
 
-from src.config.app_config import get_config
+from app_interfaces import ICommentGenerationController
+from src.config.app_config import AppConfig, get_config
 from src.types import BatchGenerationResult, LocationResult
 from src.ui.streamlit_utils import load_history, load_locations, save_to_history
 from src.utils.error_handler import ErrorHandler
@@ -15,11 +16,11 @@ from src.workflows.comment_generation_workflow import run_comment_generation
 logger = logging.getLogger(__name__)
 
 
-class CommentGenerationController:
+class CommentGenerationController(ICommentGenerationController):
     """コメント生成のビジネスロジックを管理するコントローラー"""
 
-    def __init__(self):
-        self.config = get_config()
+    def __init__(self, config: AppConfig | None = None):
+        self.config = config or get_config()
         self._generation_history = None
 
     @property
@@ -94,7 +95,20 @@ class CommentGenerationController:
 
     def generate_comments_batch(self, locations: list[str], llm_provider: str,
                                 progress_callback=None) -> BatchGenerationResult:
-        """複数地点のコメント生成"""
+        """複数地点のコメント生成
+
+        Args:
+            locations: 生成対象の地点リスト
+            llm_provider: 使用するLLMプロバイダー
+            progress_callback: 進捗通知用コールバック関数
+                              シグネチャ: (idx: int, total: int, location: str) -> None
+                              - idx: 現在の処理インデックス（0ベース）
+                              - total: 全体の地点数
+                              - location: 現在処理中の地点名
+
+        Returns:
+            BatchGenerationResult: バッチ生成結果
+        """
         if not locations:
             return {'success': False, 'error': '地点が選択されていません'}
 

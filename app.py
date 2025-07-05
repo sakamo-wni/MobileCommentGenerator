@@ -3,23 +3,8 @@
 import streamlit as st
 
 from app_controller import CommentGenerationController
+from app_session_manager import SessionManager
 from app_view import CommentGenerationView
-
-
-def initialize_session_state(controller: CommentGenerationController):
-    """セッション状態の初期化"""
-    defaults = {
-        'generation_history': controller.generation_history,
-        'selected_location': controller.get_default_locations(),
-        'llm_provider': controller.get_default_llm_provider(),
-        'current_result': None,
-        'is_generating': False,
-        'config': controller.config
-    }
-
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
 
 
 def generate_with_progress(controller: CommentGenerationController, view: CommentGenerationView,
@@ -33,7 +18,10 @@ def generate_with_progress(controller: CommentGenerationController, view: Commen
     progress_bar, status_text = view.create_progress_ui()
 
     # 生成中フラグを立てる
-    st.session_state.is_generating = True
+    SessionManager.set_generating(True)
+
+    # 結果を格納する変数を事前に初期化
+    all_results = []
 
     try:
         # 進捗コールバック関数
@@ -41,19 +29,15 @@ def generate_with_progress(controller: CommentGenerationController, view: Commen
             view.update_progress(progress_bar, status_text, idx, total, location)
 
             # 中間結果の表示（前のインデックスまでの結果を取得）
-            if idx > 0:
+            if idx > 0 and all_results:
                 # 既に生成済みの結果を表示
                 with results_container.container():
-                    for i in range(idx):
-                        if i < len(all_results):
-                            result = all_results[i]
-                            metadata = controller.extract_weather_metadata(result)
-                            if 'forecast_time' in metadata and metadata['forecast_time']:
-                                metadata['forecast_time'] = controller.format_forecast_time(metadata['forecast_time'])
-                            view.display_single_result(result, metadata)
-
-        # バッチ生成実行
-        all_results = []
+                    for i in range(min(idx, len(all_results))):
+                        result = all_results[i]
+                        metadata = controller.extract_weather_metadata(result)
+                        if 'forecast_time' in metadata and metadata['forecast_time']:
+                            metadata['forecast_time'] = controller.format_forecast_time(metadata['forecast_time'])
+                        view.display_single_result(result, metadata)
 
         # 各地点を順番に処理
         for idx, location in enumerate(locations):
@@ -95,7 +79,7 @@ def generate_with_progress(controller: CommentGenerationController, view: Commen
         return result
 
     finally:
-        st.session_state.is_generating = False
+        SessionManager.set_generating(False)
 
 
 def main():
@@ -108,7 +92,7 @@ def main():
     view.setup_page_config(controller.config)
 
     # セッション状態の初期化
-    initialize_session_state(controller)
+    SessionManager.initialize(controller)
 
     # 設定の検証とAPIキー警告
     validation_results = controller.validate_configuration()
@@ -121,7 +105,7 @@ def main():
     view.display_header()
 
     # サイドバー設定
-    view.setup_sidebar(st.session_state.generation_history)
+    view.setup_sidebar(SessionManager.get('generation_history', []))
 
     # メインコンテンツ
     col1, col2 = st.columns([1, 2])
@@ -129,11 +113,11 @@ def main():
     with col1:
         # 入力パネル
         location, llm_provider = view.display_input_panel()
-        st.session_state.selected_location = location
-        st.session_state.llm_provider = llm_provider
+        SessionManager.set_selected_location(location)
+        SessionManager.set_llm_provider(llm_provider)
 
         # 生成ボタン
-        if view.display_generation_button(st.session_state.is_generating):
+        if view.display_generation_button(SessionManager.is_generating()):
             # 結果表示用のコンテナを先に作成
             col2.empty()
             results_container = col2.container()
@@ -153,14 +137,14 @@ def main():
                     view.display_no_location_error()
                     result = None
 
-                st.session_state.current_result = result
+                SessionManager.set_current_result(result)
 
                 # 完了メッセージ
                 view.display_generation_complete(result)
 
     with col2:
         # 結果セクション
-        view.display_results_section(st.session_state.current_result, st.session_state.is_generating)
+        view.display_results_section(SessionManager.get_current_result(), SessionManager.is_generating())
 
     # フッター
     view.display_footer()
