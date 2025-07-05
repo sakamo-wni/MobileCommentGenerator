@@ -203,7 +203,7 @@ class WeatherCommentValidator:
             # 設定ファイルから雷の降水量閾値を取得
             try:
                 from src.config.config_loader import load_config
-                config = load_config()
+                config = load_config('weather_thresholds', validate=False)
                 thunder_threshold = config.get('precipitation', {}).get('thunder_severe_threshold', 5.0)
             except (FileNotFoundError, KeyError, ValueError) as e:
                 logger.warning(f"Failed to load thunder threshold: {e}")
@@ -936,7 +936,7 @@ class WeatherCommentValidator:
         # 設定ファイルから闾値を取得
         try:
             from src.config.config_loader import load_config
-            config = load_config()
+            config = load_config('weather_thresholds', validate=False)
             stability_config = config.get('weather_stability', {})
             precipitation_threshold = stability_config.get('cloudy_precipitation_threshold', 1.0)
             wind_threshold = stability_config.get('cloudy_wind_threshold', 5.0)
