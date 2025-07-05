@@ -6,6 +6,7 @@ LangGraphノードとして天気予報データの取得・処理を行う
 
 import asyncio
 import logging
+import os
 import pytz
 from datetime import datetime, timedelta
 from typing import Any
@@ -13,13 +14,12 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
 
-from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
-from src.data.location_manager import LocationManager
-from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition
+from src.apis.wxtech import WxTechAPIError
 from src.data.weather_trend import WeatherTrend
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
+from src.nodes.weather_forecast import WeatherDataFetcher, WeatherDataTransformer, WeatherDataValidator
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -38,7 +38,9 @@ class WeatherForecastNode:
             api_key: WxTech API キー
         """
         self.api_key = api_key
-        self.location_manager = LocationManager()
+        self.data_fetcher = WeatherDataFetcher(api_key)
+        self.data_transformer = WeatherDataTransformer()
+        self.data_validator = WeatherDataValidator()
 
     async def get_weather_forecast(self, state: dict[str, Any]) -> dict[str, Any]:
         """天気予報データを取得するノード
@@ -62,7 +64,7 @@ class WeatherForecastNode:
                 return {**state, "error_message": "地点情報が指定されていません"}
 
             # 天気予報データを取得
-            weather_collection = await self._fetch_weather_data(location)
+            weather_collection = await self.data_fetcher.fetch_weather_data(location)
 
             if not weather_collection or not weather_collection.forecasts:
                 return {
@@ -71,13 +73,13 @@ class WeatherForecastNode:
                 }
 
             # 指定時間内の予報データをフィルタリング
-            filtered_forecasts = self._filter_forecasts_by_hours(
+            filtered_forecasts = self.data_transformer.filter_forecasts_by_hours(
                 weather_collection.forecasts,
                 forecast_hours,
             )
 
             # 天気概要を生成
-            weather_summary = self._generate_weather_summary(filtered_forecasts)
+            weather_summary = self.data_transformer.generate_weather_summary(filtered_forecasts)
 
             return {
                 **state,
