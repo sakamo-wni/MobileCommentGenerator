@@ -5,7 +5,8 @@ WxTech API モジュール分割のテスト
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
 from src.apis.wxtech.errors import handle_http_error
@@ -159,7 +160,7 @@ class TestBackwardCompatibility:
         assert OldError is WxTechAPIError
     
     @patch('src.apis.wxtech.api.WxTechAPI.make_request')
-    def test_client_functionality(self, mock_request):
+    def test_client_functionality(self, mock_request: Any) -> None:
         """クライアントの基本機能が動作すること"""
         # モックレスポンス
         mock_request.return_value = {

@@ -4,7 +4,7 @@ WxTech API クライアント
 高レベルのAPI操作インターフェースを提供
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Type
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -417,7 +417,7 @@ class WxTechAPIClient:
     def __enter__(self):
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
         self.close()
 
 
