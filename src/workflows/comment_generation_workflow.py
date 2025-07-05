@@ -74,7 +74,7 @@ def timed_node(node_func):
     """ノード実行時間を計測するデコレーター"""
 
     def wrapper(state: CommentGenerationState) -> CommentGenerationState:
-        node_name = node_func.__name__
+        node_name = getattr(node_func, '__name__', 'unknown_node')
         start_time = time.time()
 
         try:
@@ -83,24 +83,26 @@ def timed_node(node_func):
 
             # 実行時間を記録
             execution_time = (time.time() - start_time) * 1000  # ミリ秒
-            if not hasattr(result, "generation_metadata"):
-                result.generation_metadata = {}
-            if "node_execution_times" not in result.generation_metadata:
-                result.generation_metadata["node_execution_times"] = {}
-            result.generation_metadata["node_execution_times"][node_name] = execution_time
+            if "generation_metadata" not in result:
+                result["generation_metadata"] = {}
+            if "node_execution_times" not in result["generation_metadata"]:
+                result["generation_metadata"]["node_execution_times"] = {}
+            result["generation_metadata"]["node_execution_times"][node_name] = execution_time
 
             return result
         except Exception as e:
             # エラーでも実行時間を記録
             execution_time = (time.time() - start_time) * 1000
-            if not hasattr(state, "generation_metadata"):
-                state.generation_metadata = {}
-            if "node_execution_times" not in state.generation_metadata:
-                state.generation_metadata["node_execution_times"] = {}
-            state.generation_metadata["node_execution_times"][node_name] = execution_time
+            if "generation_metadata" not in state:
+                state["generation_metadata"] = {}
+            if "node_execution_times" not in state["generation_metadata"]:
+                state["generation_metadata"]["node_execution_times"] = {}
+            state["generation_metadata"]["node_execution_times"][node_name] = execution_time
 
             # エラーをstateに記録して再発生
-            state.add_error(f"{node_name}: {str(e)}", node_name)
+            if "errors" not in state:
+                state["errors"] = []
+            state["errors"].append({"error": f"{node_name}: {str(e)}", "node": node_name})
             raise e
 
     return wrapper

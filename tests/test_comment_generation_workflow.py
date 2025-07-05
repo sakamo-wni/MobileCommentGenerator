@@ -40,8 +40,9 @@ class TestCommentGenerationWorkflow:
 
     @patch("src.workflows.comment_generation_workflow.fetch_weather_forecast_node")
     @patch("src.workflows.comment_generation_workflow.retrieve_past_comments_node")
+    @patch("src.workflows.comment_generation_workflow.select_comment_pair_node")
     @patch("src.workflows.comment_generation_workflow.generate_comment_node")
-    def test_run_comment_generation_success(self, mock_generate, mock_retrieve, mock_fetch):
+    def test_run_comment_generation_success(self, mock_generate, mock_select, mock_retrieve, mock_fetch):
         """正常系のワークフロー実行テスト"""
         # モックの設定
         mock_fetch.return_value = {
@@ -49,6 +50,9 @@ class TestCommentGenerationWorkflow:
         }
         mock_retrieve.return_value = {
             "past_comments": [{"text": "爽やかな朝です", "type": "weather_comment"}]
+        }
+        mock_select.return_value = {
+            "selected_pair": {"weather_comment": "爽やかな朝です", "advice": "日焼け対策を"}
         }
         mock_generate.return_value = {"final_comment": "気持ちいい朝ですね"}
 
