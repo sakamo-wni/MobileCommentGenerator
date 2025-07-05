@@ -13,7 +13,6 @@ from src.data.comment_generation_state import CommentGenerationState
 from src.formatters import (
     FinalCommentFormatter,
     MetadataFormatter,
-    DebugInfoFormatter,
     JsonOutputFormatter
 )
 
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 # フォーマッターインスタンスの初期化
 final_comment_formatter = FinalCommentFormatter()
 metadata_formatter = MetadataFormatter()
-debug_info_formatter = DebugInfoFormatter()
 json_output_formatter = JsonOutputFormatter()
 
 
@@ -65,15 +63,8 @@ def output_node(state: CommentGenerationState) -> CommentGenerationState:
         generation_metadata = metadata_formatter.create_generation_metadata(state, execution_time_ms)
         state.generation_metadata = generation_metadata
 
-        # デバッグ情報の生成（必要な場合）
-        debug_info = None
-        if state.generation_metadata.get("include_debug_info", False):
-            debug_info = debug_info_formatter.create_debug_info(state)
-
         # JSON形式への変換
-        output_json = json_output_formatter.format_output(
-            final_comment, generation_metadata, debug_info
-        )
+        output_json = json_output_formatter.format_output(state)
         state.update_metadata("output_json", output_json)
 
         # 成功ログ
@@ -85,18 +76,13 @@ def output_node(state: CommentGenerationState) -> CommentGenerationState:
             f"retry_count={state.retry_count}"
         )
 
-        # クリーンアップ
-        json_output_formatter.cleanup_state(state)
-
-        state.update_metadata("output_processed", True)
-
     except Exception as e:
         logger.error(f"出力処理中にエラー: {str(e)}")
         state.errors = state.errors + [f"OutputNode: {str(e)}"]
         state.update_metadata("output_processed", False)
 
         # エラー時の出力
-        error_json = json_output_formatter.format_error_output(str(e), state.errors)
+        error_json = json_output_formatter.format_error_output(state, str(e))
         state.update_metadata("output_json", error_json)
 
     return state
