@@ -48,6 +48,11 @@ def evaluate_candidate_node(state: CommentGenerationState) -> CommentGenerationS
         comment_pair = _restore_comment_pair(selected_pair_data)
         weather_data = _restore_weather_data(weather_data_dict)
 
+        # 天気の安定性を判定（validation.pyのロジックを再利用）
+        from src.nodes.comment_selector.validation import CommentValidator
+        validator = CommentValidator()
+        is_stable = validator._check_full_day_stability(weather_data, state)
+        
         # 評価コンテキストの作成
         context = EvaluationContext(
             weather_condition=weather_data.weather_description,
@@ -56,6 +61,9 @@ def evaluate_candidate_node(state: CommentGenerationState) -> CommentGenerationS
             user_preferences=user_preferences,
             history=getattr(state, "evaluation_history", []),
         )
+        
+        # 天気の安定性情報を追加
+        context.weather_stability = 'stable' if is_stable else 'unstable'
 
         # 評価器の初期化（カスタム重みがあれば使用）
         custom_weights = _get_custom_weights(user_preferences)
