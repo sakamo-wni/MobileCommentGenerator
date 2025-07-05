@@ -1,0 +1,5 @@
+{
+  "basic": "15文字以内で{location}の天気コメントを生成してください。\n天気: {weather_description}\n気温: {temperature}°C\n\n天気コメント:",
+  "detailed": "あなたは天気キャスターです。以下の天気情報を基に、視聴者に向けた15文字以内のコメントを生成してください。\n\n地点: {location}\n天気: {weather_description}\n気温: {temperature}°C\n時刻: {current_time}\n\n過去の例:\n{past_comments_examples}\n\n天気コメント:",
+  "friendly": "親しみやすい天気コメントを15文字以内で生成してください。\n\n今の天気: {weather_description}\n気温: {temperature}°C\n場所: {location}\n\n天気コメント:"
+}
