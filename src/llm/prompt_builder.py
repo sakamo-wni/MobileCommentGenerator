@@ -368,7 +368,7 @@ class CommentPromptBuilder:
         except Exception:
             return ""
 
-    def _get_fallback_prompt(self, location: str, weather_data: Union[WeatherForecast, dict[str, Any], None]) -> str:
+    def _get_fallback_prompt(self, location: str, _weather_data: Union[WeatherForecast, dict[str, Any], None]) -> str:
         """フォールバック用のシンプルなプロンプト"""
         try:
             return self.templates.fallback_template.format(location=location or '')
