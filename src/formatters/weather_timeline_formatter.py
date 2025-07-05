@@ -109,7 +109,44 @@ class WeatherTimelineFormatter:
             return "悪天候注意"
         elif has_rain:
             return "雨天続く"
-        elif len(set(weather_conditions)) <= 2:
-            return "安定した天気"
         else:
-            return "変わりやすい天気"
+            # 天気の変化を詳細に分析
+            # 全て同じ天気の場合
+            if len(set(weather_conditions)) == 1:
+                return "安定した天気"
+            
+            # 天気の変化回数をカウント
+            weather_changes = 0
+            for i in range(1, len(weather_conditions)):
+                if weather_conditions[i] != weather_conditions[i-1]:
+                    weather_changes += 1
+            
+            # 天気タイプを時系列で分類
+            weather_type_sequence = []
+            for condition in weather_conditions:
+                condition_lower = condition.lower()
+                if any(sunny in condition_lower for sunny in ["晴", "快晴"]):
+                    weather_type_sequence.append("sunny")
+                elif any(cloudy in condition_lower for cloudy in ["曇", "くもり", "うすぐもり", "薄曇"]):
+                    weather_type_sequence.append("cloudy")
+                else:
+                    weather_type_sequence.append("other")
+            
+            # タイプレベルでの変化回数をカウント
+            type_changes = 0
+            for i in range(1, len(weather_type_sequence)):
+                if weather_type_sequence[i] != weather_type_sequence[i-1]:
+                    type_changes += 1
+            
+            # 判定ロジック
+            # 2回以上タイプが変わる（例：曇り→晴れ→曇り）場合は変わりやすい
+            if type_changes >= 2:
+                return "変わりやすい天気"
+            # 朝だけ違って、その後同じ天気が続く場合は安定
+            elif type_changes == 1 and weather_type_sequence[1] == weather_type_sequence[2] == weather_type_sequence[3]:
+                return "安定した天気"
+            # その他1回だけ変化する場合も基本的には安定
+            elif type_changes <= 1:
+                return "安定した天気"
+            else:
+                return "変わりやすい天気"
