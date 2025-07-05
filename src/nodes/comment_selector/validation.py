@@ -245,12 +245,36 @@ class CommentValidator:
             "強い日差し", "日差しが強", "強烈な日差し", "照りつける太陽",
             "燦々と", "さんさんと", "ギラギラ", "まぶしい太陽",
             "日光が強", "紫外線が強", "日焼け注意", "サングラス必須",
-            "太陽が照り", "陽射しが強", "日向は暑", "カンカン照り"
+            "太陽が照り", "陽射しが強", "日向は暑", "カンカン照り",
+            "ジリジリ", "じりじり", "日差しジリジリ", "照りつけ",
+            "日差しの威力", "太陽の威力", "焼けつく"
         ]
         
         for pattern in sunshine_patterns:
             if pattern in comment_text:
                 logger.info(f"曇り天気時に不適切な日差し表現検出: '{comment_text}' - パターン「{pattern}」")
+                return True
+        
+        return False
+    
+    def is_no_rain_weather_with_rain_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
+        """降水なしの天気時に雨・雷関連のコメントが含まれているかチェック"""
+        # 降水量が0または極めて少ない場合（0.5mm未満）
+        if weather_data.precipitation >= 0.5:
+            return False
+        
+        # 不適切な雨・雷関連表現パターン
+        rain_patterns = [
+            "強雨", "雷雨", "大雨", "豪雨", "激しい雨",
+            "雷に注意", "雷雨に注意", "落雷", "雷鳴",
+            "土砂降り", "どしゃ降り", "ザーザー", "バケツをひっくり返した",
+            "雨脚が強", "雨が激し", "傘が役に立たない", "ずぶ濡れ",
+            "洪水", "冠水", "浸水", "雨量が多"
+        ]
+        
+        for pattern in rain_patterns:
+            if pattern in comment_text:
+                logger.info(f"降水なし天気時に不適切な雨・雷表現検出: '{comment_text}' - パターン「{pattern}」")
                 return True
         
         return False
