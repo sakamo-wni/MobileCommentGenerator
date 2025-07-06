@@ -319,6 +319,7 @@ class CommentValidator:
         # 翌日の全データから安定性を判定
         is_stable = self._check_full_day_stability(weather_data, state)
         if not is_stable:
+            logger.debug(f"天気が不安定なため、不安定表現チェックをスキップ: {comment_text}")
             return False
         
         # 不適切な急変・不安定表現パターン
@@ -338,7 +339,7 @@ class CommentValidator:
         return False
     
     def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
-        """翌日の全データから安定性を判定（現在の天気は無視）"""
+        """対象日（翌日）の全データから安定性を判定"""
         if not state:
             # stateがない場合はデフォルトで不安定とする
             return False
@@ -354,8 +355,24 @@ class CommentValidator:
         from datetime import datetime, timedelta
         
         jst = pytz.timezone("Asia/Tokyo")
-        tomorrow = datetime.now(jst).date() + timedelta(days=1)
+        
+        # target_datetimeから翌日を計算（より確実）
+        if state.target_datetime:
+            base_datetime = state.target_datetime
+            if base_datetime.tzinfo is None:
+                base_datetime = jst.localize(base_datetime)
+            # target_datetimeの日付を取得
+            target_date = base_datetime.date()
+            logger.debug(f"target_datetime: {base_datetime}, 対象日: {target_date}")
+        else:
+            # target_datetimeがない場合は現在時刻を使用
+            target_date = datetime.now(jst).date()
+            logger.debug(f"target_datetimeなし、現在日付を使用: {target_date}")
+        
         target_hours = [9, 12, 15, 18]
+        
+        logger.debug(f"天気安定性チェック開始: 対象日={target_date}")
+        logger.debug(f"  予報データ数: {len(forecast_collection.forecasts)}")
         
         next_day_forecasts = []
         for forecast in forecast_collection.forecasts:
@@ -363,13 +380,16 @@ class CommentValidator:
             if forecast_dt.tzinfo is None:
                 forecast_dt = jst.localize(forecast_dt)
             
-            # 翌日の9:00-18:00の予報のみ抽出
-            if forecast_dt.date() == tomorrow and forecast_dt.hour in target_hours:
+            # 対象日の9:00-18:00の予報のみ抽出
+            if forecast_dt.date() == target_date and forecast_dt.hour in target_hours:
                 next_day_forecasts.append(forecast)
+                logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
         
         if len(next_day_forecasts) < 4:
             # 4つの時間帯のデータが揃わない場合は不安定とする
             logger.info(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
+            logger.info(f"  検索対象日: {target_date}")
+            logger.info(f"  検索時間帯: {target_hours}")
             return False
         
         # 天気タイプの時系列を作成
