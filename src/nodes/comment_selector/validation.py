@@ -448,10 +448,10 @@ class CommentValidator:
                 logger.info("翌日は終日曇天で安定")
                 return True
             
-            # 雨の場合は不安定とする
+            # 雨の場合も、同じ天気が続くなら安定とする
             else:
-                logger.info(f"翌日の天気タイプ「{weather_type}」は不安定")
-                return False
+                logger.info(f"翌日は終日{weather_type}で安定")
+                return True
         
         # その他の場合は不安定
         return False
