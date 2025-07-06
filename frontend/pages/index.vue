@@ -186,7 +186,7 @@ const generateComment = async () => {
           }
         })
         
-        // Add results to store
+        // Add results to store incrementally (3 locations at a time)
         processedResults.forEach(result => commentStore.addResult(result))
       }
       

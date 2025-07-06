@@ -70,7 +70,9 @@ function App() {
       if (isBatchMode) {
         // Batch generation with improved parallel processing
         const CONCURRENT_LIMIT = 3;
-        const results: BatchResult[] = [];
+        
+        // Clear previous results before starting new batch
+        setBatchResults([]);
 
         // Process all locations with controlled concurrency
         for (let i = 0; i < selectedLocations.length; i += CONCURRENT_LIMIT) {
@@ -119,10 +121,9 @@ function App() {
                 }
           );
           
-          results.push(...processedResults);
+          // Update results incrementally (3 locations at a time)
+          setBatchResults(prevResults => [...prevResults, ...processedResults]);
         }
-
-        setBatchResults(results);
       } else {
         // Single location generation
         const result = await generateComment(selectedLocation!, {
