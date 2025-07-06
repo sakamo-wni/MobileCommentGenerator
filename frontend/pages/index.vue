@@ -68,6 +68,7 @@ import { getLocationsByRegion } from '~/constants/regions'
 import { useCommentStore } from '~/stores/comment'
 import { useLocationStore } from '~/stores/location'
 import { BATCH_CONFIG } from '../../src/config/constants'
+import { getErrorMessage, logError } from '~/utils/error'
 
 // Runtime config
 const config = useRuntimeConfig()
@@ -179,13 +180,11 @@ const generateComment = async () => {
             commentStore.updateResultAtIndex(globalIdx, successResult)
             return successResult
           } catch (error) {
-            console.error(`Failed to generate for ${location}:`, error)
-            let errorMessage = 'Unknown error'
-            if (error.name === 'AbortError') {
-              errorMessage = `タイムアウトしました（${BATCH_CONFIG.REQUEST_TIMEOUT / 1000}秒以上）`
-            } else if (error.message) {
-              errorMessage = error.message
-            }
+            logError(error, `${location}のコメント生成`)
+            const errorMessage = getErrorMessage({ 
+              error, 
+              context: `${location}のコメント生成`
+            })
             
             const errorResult = {
               success: false,
@@ -241,7 +240,7 @@ const generateComment = async () => {
     }
     
   } catch (error) {
-    console.error('Generation failed:', error)
+    logError(error, 'コメント生成')
     if (isBatchMode.value) {
       // In batch mode, errors should have been handled per location
       // This catch is for unexpected errors
@@ -303,13 +302,11 @@ const retryFailedLocation = async (location: string, index: number) => {
     }
     commentStore.updateResultAtIndex(index, successResult)
   } catch (error) {
-    console.error(`Retry failed for ${location}:`, error)
-    let errorMessage = 'Unknown error'
-    if (error.name === 'AbortError') {
-      errorMessage = 'タイムアウトしました（2分以上）'
-    } else if (error.message) {
-      errorMessage = error.message
-    }
+    logError(error, `${location}の再試行`)
+    const errorMessage = getErrorMessage({ 
+      error, 
+      context: `${location}の再試行`
+    })
     
     // Update with error result
     const errorResult = {
@@ -355,13 +352,11 @@ const loadLocations = async () => {
     console.log('API response received:', response)
     locationStore.setLocations(response.locations || [])
   } catch (error) {
-    let errorMessage = '地点データの取得に失敗しました'
-    if (error.name === 'AbortError') {
-      errorMessage = 'API接続がタイムアウトしました（5秒以上）'
-      console.error('API request timeout')
-    } else {
-      console.error('Failed to load locations:', error)
-    }
+    logError(error, '地点データの取得')
+    const errorMessage = getErrorMessage({ 
+      error, 
+      context: '地点データの取得'
+    })
     
     console.log('Using fallback location list...')
     locationStore.setLocations([
