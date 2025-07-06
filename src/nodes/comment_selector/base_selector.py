@@ -9,7 +9,7 @@ from src.data.comment_pair import CommentPair
 from src.data.past_comment import CommentType, PastComment
 from src.data.weather_data import WeatherForecast
 from src.llm.llm_manager import LLMManager
-from src.utils.weather_comment_validator import WeatherCommentValidator
+from src.validators import WeatherCommentValidator
 from src.config.severe_weather_config import get_severe_weather_config
 
 from .llm_selector import LLMCommentSelector

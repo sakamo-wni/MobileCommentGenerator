@@ -12,7 +12,7 @@ from src.llm.llm_manager import LLMManager
 from src.config.comment_config import get_comment_config
 from src.config.severe_weather_config import get_severe_weather_config
 from src.data.forecast_cache import ForecastCache
-from src.utils.weather_comment_validator import WeatherCommentValidator
+from src.validators import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.nodes.comment_selector import CommentSelector
 

@@ -13,7 +13,7 @@ from src.data.comment_generation_state import CommentGenerationState
 from src.data.comment_pair import CommentPair
 from src.data.past_comment import PastComment, CommentType
 from src.llm.llm_manager import LLMManager
-from src.utils.weather_comment_validator import WeatherCommentValidator
+from src.validators import WeatherCommentValidator
 from src.nodes.helpers.comment_safety import check_and_fix_weather_comment_safety
 from src.nodes.helpers.ng_words import check_ng_words
 

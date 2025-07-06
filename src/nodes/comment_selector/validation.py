@@ -8,7 +8,7 @@ from typing import Optional, Tuple, List
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
-from src.utils.weather_comment_validator import WeatherCommentValidator
+from src.validators import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
 from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
