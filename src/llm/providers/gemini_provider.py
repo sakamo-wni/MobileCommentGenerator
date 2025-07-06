@@ -53,13 +53,14 @@ class GeminiProvider(LLMProvider):
                 f"{prompt}"
             )
 
-            # APIリクエスト
+            # APIリクエスト（タイムアウトを30秒に設定）
             response = self.model.generate_content(
                 full_prompt,
                 generation_config=genai.GenerationConfig(
                     temperature=0.7,
                     max_output_tokens=50,
                 ),
+                request_options={"timeout": 30}
             )
 
             # レスポンスからコメントを抽出
@@ -94,6 +95,7 @@ class GeminiProvider(LLMProvider):
                     temperature=0.7,
                     max_output_tokens=500,
                 ),
+                request_options={"timeout": 30}
             )
 
             generated_text = response.text
