@@ -7,8 +7,13 @@ from functools import lru_cache
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
+from src.config.config_loader import load_config
 
 logger = logging.getLogger(__name__)
+
+# 設定ファイルから閾値を読み込み
+_weather_config = load_config('weather_thresholds', validate=False)
+EXTREME_HEAT_THRESHOLD = _weather_config.get('temperature', {}).get('extreme_heat_threshold', 35.0)
 
 
 class CommentUtils:
@@ -16,20 +21,17 @@ class CommentUtils:
     
     @staticmethod
     @lru_cache(maxsize=128)
-    def _get_weather_summary(cache_key: str, period_forecasts_json: str) -> tuple:
+    def _get_weather_summary(cache_key: str, period_forecasts_tuple: tuple) -> tuple:
         """天気サマリーを取得（LRUキャッシュ付き）"""
-        import json
-        period_forecasts = json.loads(period_forecasts_json)
-        
         has_rain_in_timeline = False
         max_temp_in_timeline = 0.0
         
-        for forecast in period_forecasts:
-            if forecast.get('precipitation', 0) > 0:
+        # タプルの各要素は(precipitation, temperature)のペア
+        for precipitation, temperature in period_forecasts_tuple:
+            if precipitation > 0:
                 has_rain_in_timeline = True
-            temp = forecast.get('temperature', 0)
-            if temp > max_temp_in_timeline:
-                max_temp_in_timeline = temp
+            if temperature > max_temp_in_timeline:
+                max_temp_in_timeline = temperature
         
         return has_rain_in_timeline, max_temp_in_timeline
     
@@ -104,18 +106,15 @@ class CommentUtils:
             if state and hasattr(state, 'generation_metadata'):
                 period_forecasts = state.generation_metadata.get('period_forecasts', [])
                 if period_forecasts:
-                    # JSONシリアライズして不変な文字列にする
-                    import json
-                    period_forecasts_json = json.dumps([
-                        {
-                            'precipitation': getattr(f, 'precipitation', 0),
-                            'temperature': getattr(f, 'temperature', 0)
-                        } for f in period_forecasts
-                    ])
+                    # タプルを使用して効率的にキャッシュ
+                    period_forecasts_tuple = tuple(
+                        (getattr(f, 'precipitation', 0), getattr(f, 'temperature', 0))
+                        for f in period_forecasts
+                    )
                     
                     # LRUキャッシュを使用して取得
                     has_rain_in_timeline, max_temp_in_timeline = self._get_weather_summary(
-                        cache_key, period_forecasts_json
+                        cache_key, period_forecasts_tuple
                     )
                     
                     if has_rain_in_timeline:
@@ -137,8 +136,8 @@ class CommentUtils:
                     is_prioritized = True
                     logger.debug(f"雨天時のコメントを最優先に: '{comment.comment_text}'")
             
-            # 2. 高温時（35度以上）の最優先処理（4時点の最高気温を考慮）
-            if not is_prioritized and (weather_data.temperature >= 35.0 or max_temp_in_timeline >= 35.0):
+            # 2. 高温時（設定温度以上）の最優先処理（4時点の最高気温を考慮）
+            if not is_prioritized and (weather_data.temperature >= EXTREME_HEAT_THRESHOLD or max_temp_in_timeline >= EXTREME_HEAT_THRESHOLD):
                 heat_keywords = ["熱中症", "水分補給", "涼しい", "冷房", "暑さ対策", "猛暑", "高温"]
                 if any(keyword in comment.comment_text for keyword in heat_keywords):
                     severe_matched.append(candidate)  # 高温時も最優先カテゴリに入れる

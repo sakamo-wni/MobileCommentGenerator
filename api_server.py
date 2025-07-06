@@ -171,9 +171,9 @@ async def generate_comment(request: CommentGenerationRequest):
         
         # Extract metadata - pass through the entire generation_metadata
         metadata = None
-        if success and result.get('generation_metadata'):
-            # Pass through the entire metadata object instead of reconstructing it
-            metadata = result['generation_metadata']
+        if success:
+            # Safely access generation_metadata
+            metadata = result.get('generation_metadata')
         
         # Save to history if successful
         if success:

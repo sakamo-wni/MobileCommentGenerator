@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 // Import composables and utilities
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { getLocationsByRegion } from '~/constants/regions'
 import { useCommentStore } from '~/stores/comment'
@@ -155,7 +155,7 @@ const generateComment = async () => {
           const globalIdx = i + chunkIdx
           try {
             const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分のタイムアウト
+            const timeoutId = setTimeout(() => controller.abort(), BATCH_CONFIG.REQUEST_TIMEOUT)
             
             const response = await $fetch(`${apiBaseUrl}/api/generate`, {
               method: 'POST',
@@ -166,7 +166,7 @@ const generateComment = async () => {
                 exclude_previous: false
               },
               signal: controller.signal,
-              timeout: 120000 // 2分のタイムアウトを明示的に設定
+              timeout: BATCH_CONFIG.REQUEST_TIMEOUT
             })
             
             clearTimeout(timeoutId)
@@ -182,7 +182,7 @@ const generateComment = async () => {
             console.error(`Failed to generate for ${location}:`, error)
             let errorMessage = 'Unknown error'
             if (error.name === 'AbortError') {
-              errorMessage = 'タイムアウトしました（2分以上）'
+              errorMessage = `タイムアウトしました（${BATCH_CONFIG.REQUEST_TIMEOUT / 1000}秒以上）`
             } else if (error.message) {
               errorMessage = error.message
             }
@@ -291,7 +291,7 @@ const retryFailedLocation = async (location: string, index: number) => {
         exclude_previous: false
       },
       signal: controller.signal,
-      timeout: 120000
+      timeout: BATCH_CONFIG.REQUEST_TIMEOUT
     })
     
     clearTimeout(timeoutId)
@@ -408,7 +408,16 @@ onMounted(async () => {
   }
 })
 
+// Ensure interval is cleared before component unmount
+onBeforeUnmount(() => {
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval)
+    timeUpdateInterval = null
+  }
+})
+
 onUnmounted(() => {
+  // Double-check cleanup
   if (timeUpdateInterval) {
     clearInterval(timeUpdateInterval)
     timeUpdateInterval = null

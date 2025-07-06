@@ -40,16 +40,25 @@ interface BatchResultItemProps {
 const formatDateTime = (dateString: string | undefined) => {
   if (!dateString) return '不明';
   try {
-    const date = new Date(dateString.replace('Z', '+00:00'));
+    // ISO 8601形式の日付を安全にパース
+    const date = new Date(dateString);
+    
+    // 有効な日付か確認
+    if (Number.isNaN(date.getTime())) {
+      return '不明';
+    }
+    
     return date.toLocaleString('ja-JP', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Tokyo'
     });
   } catch (error) {
-    return dateString;
+    console.error('Date parsing error:', error);
+    return '不明';
   }
 };
 

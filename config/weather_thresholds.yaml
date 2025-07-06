@@ -2,6 +2,7 @@
 
 temperature:
   # 温度閾値
+  extreme_heat_threshold: 35.0  # 猛暑判定
   hot_threshold: 30.0  # 暑い判定
   cold_threshold: 12.0  # 寒い判定（15.0から変更）
   freezing_threshold: 0.0  # 氷点下
