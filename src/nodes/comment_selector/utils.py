@@ -71,22 +71,42 @@ class CommentUtils:
                 original_index=i
             )
             
-            # 悪天候時の特別な優先順位付け
-            from src.config.severe_weather_config import get_severe_weather_config
-            severe_config = get_severe_weather_config()
+            # 特別な優先順位付け（雨天時・高温時の最優先処理）
+            is_prioritized = False
             
-            if severe_config.is_severe_weather(weather_data.weather_condition):
-                if comment_validator.is_severe_weather_appropriate(comment.comment_text, weather_data):
-                    severe_matched.append(candidate)
-                elif comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
-                    weather_matched.append(candidate)
+            # 1. 雨天時の最優先処理
+            if weather_data.precipitation > 0:
+                rain_keywords = ["雨", "傘", "濡れ", "降水", "にわか雨", "雷雨"]
+                if any(keyword in comment.comment_text for keyword in rain_keywords):
+                    severe_matched.append(candidate)  # 雨天時は最優先カテゴリに入れる
+                    is_prioritized = True
+                    logger.info(f"雨天時のコメントを最優先に: '{comment.comment_text}'")
+            
+            # 2. 高温時（35度以上）の最優先処理
+            if not is_prioritized and weather_data.temperature >= 35.0:
+                heat_keywords = ["熱中症", "水分補給", "涼しい", "冷房", "暑さ対策", "猛暑", "高温"]
+                if any(keyword in comment.comment_text for keyword in heat_keywords):
+                    severe_matched.append(candidate)  # 高温時も最優先カテゴリに入れる
+                    is_prioritized = True
+                    logger.info(f"高温時（{weather_data.temperature}℃）のコメントを最優先に: '{comment.comment_text}'")
+            
+            # 3. 通常の悪天候時の処理
+            if not is_prioritized:
+                from src.config.severe_weather_config import get_severe_weather_config
+                severe_config = get_severe_weather_config()
+                
+                if severe_config.is_severe_weather(weather_data.weather_condition):
+                    if comment_validator.is_severe_weather_appropriate(comment.comment_text, weather_data):
+                        severe_matched.append(candidate)
+                    elif comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
+                        weather_matched.append(candidate)
+                    else:
+                        others.append(candidate)
                 else:
-                    others.append(candidate)
-            else:
-                if comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
-                    weather_matched.append(candidate)
-                else:
-                    others.append(candidate)
+                    if comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
+                        weather_matched.append(candidate)
+                    else:
+                        others.append(candidate)
         
         # 優先順位順に結合（設定ファイルから制限を取得）
         from src.config.config_loader import load_config
