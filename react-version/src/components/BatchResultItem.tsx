@@ -266,7 +266,7 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
                       {formatDateTime(result.metadata.weather_forecast_time)}
                     </p>
                     <p className="text-sm text-indigo-600 dark:text-indigo-400">
-                      この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
+                      翌日の9時、12時、15時、18時の天気変化を分析してコメントを生成
                     </p>
                   </div>
                 </div>

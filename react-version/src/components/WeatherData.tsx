@@ -54,7 +54,7 @@ export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
             {formatDateTime(metadata.weather_forecast_time)}
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-            この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
+            翌日の9時、12時、15時、18時の天気変化を分析してコメントを生成
           </div>
         </div>
       )}
