@@ -139,6 +139,9 @@ const generateComment = async () => {
         
         const chunkPromises = chunk.map(async (location) => {
           try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 20000) // 20秒に延長
+            
             const response = await $fetch(`${apiBaseUrl}/api/generate`, {
               method: 'POST',
               body: {
@@ -146,14 +149,17 @@ const generateComment = async () => {
                 llm_provider: selectedProvider.value.value,
                 target_datetime: new Date().toISOString(),
                 exclude_previous: false
-              }
+              },
+              signal: controller.signal
             })
+            
+            clearTimeout(timeoutId)
             return response
           } catch (error) {
             console.error(`Failed to generate for ${location}:`, error)
             let errorMessage = 'Unknown error'
             if (error.name === 'AbortError') {
-              errorMessage = 'タイムアウトしました（5秒以上）'
+              errorMessage = 'タイムアウトしました（20秒以上）'
             } else if (error.message) {
               errorMessage = error.message
             }
