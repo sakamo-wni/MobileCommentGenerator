@@ -114,8 +114,24 @@ def _find_alternative_weather_comment(
     
     # それでも見つからない場合はデフォルト（最初の有効なコメント）
     if not replacement_found and past_comments:
-        weather_comment = past_comments[0].comment_text
-        logger.info(f"🚨 デフォルト代替: '{weather_comment}'")
+        # デフォルトコメントも禁止パターンをチェック
+        for past_comment in past_comments:
+            comment_text = past_comment.comment_text
+            if not any(ng in comment_text for ng in changeable_patterns):
+                weather_comment = comment_text
+                logger.info(f"🚨 デフォルト代替（禁止ワード回避）: '{weather_comment}'")
+                replacement_found = True
+                break
+        
+        # それでも見つからない場合は、安全なデフォルトメッセージを返す
+        if not replacement_found:
+            if weather_data.temperature >= 35:
+                weather_comment = "猛烈な暑さに警戒"
+            elif weather_data.temperature >= 30:
+                weather_comment = "厳しい暑さです"
+            else:
+                weather_comment = "穏やかな晴天です"
+            logger.warning(f"🚨 適切なコメントが見つからないため、デフォルトメッセージを使用: '{weather_comment}'")
     
     return weather_comment
 
