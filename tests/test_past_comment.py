@@ -2,25 +2,64 @@
 過去コメントデータクラスのテスト
 """
 
-import pytest
 from datetime import datetime
-from src.data.past_comment import PastComment, PastCommentCollection, CommentType
+
+import pytest
+
+from src.data.past_comment import CommentType, PastComment, PastCommentCollection
+
+
+@pytest.fixture
+def base_comment_data():
+    """基本的なコメントデータ"""
+    return {
+        "location": "東京",
+        "datetime": datetime(2024, 6, 5, 12, 0),
+        "weather_condition": "晴れ",
+        "comment_text": "爽やかな朝ですね",
+        "comment_type": CommentType.WEATHER_COMMENT,
+        "temperature": 22.5,
+        "weather_code": "100"
+    }
+
+
+@pytest.fixture
+def sample_comments():
+    """テスト用のコメントリスト"""
+    return [
+        PastComment(
+            location="東京",
+            datetime=datetime(2024, 6, 5, 12, 0),
+            weather_condition="晴れ",
+            comment_text="良い天気",
+            comment_type=CommentType.WEATHER_COMMENT,
+            temperature=25.0
+        ),
+        PastComment(
+            location="大阪",
+            datetime=datetime(2024, 6, 5, 12, 0),
+            weather_condition="曇り",
+            comment_text="過ごしやすい",
+            comment_type=CommentType.WEATHER_COMMENT,
+            temperature=20.0
+        ),
+        PastComment(
+            location="東京",
+            datetime=datetime(2024, 6, 5, 12, 0),
+            weather_condition="晴れ",
+            comment_text="日焼け注意",
+            comment_type=CommentType.ADVICE,
+            temperature=25.0
+        )
+    ]
 
 
 class TestPastComment:
     """PastComment クラスのテスト"""
 
-    def test_valid_past_comment_creation(self):
+    def test_valid_past_comment_creation(self, base_comment_data):
         """正常な過去コメントデータの作成テスト"""
-        comment = PastComment(
-            location="東京",
-            datetime=datetime(2024, 6, 5, 12, 0),
-            weather_condition="晴れ",
-            comment_text="爽やかな朝ですね",
-            comment_type=CommentType.WEATHER_COMMENT,
-            temperature=22.5,
-            weather_code="100",
-        )
+        comment = PastComment(**base_comment_data)
 
         assert comment.location == "東京"
         assert comment.comment_text == "爽やかな朝ですね"
@@ -29,80 +68,55 @@ class TestPastComment:
         assert comment.get_character_count() == 8
         assert comment.is_within_length_limit()
 
-    def test_invalid_empty_comment(self):
-        """空コメントのテスト"""
-        with pytest.raises(ValueError, match="コメント本文が空です"):
-            PastComment(
-                location="東京",
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="",  # 空文字
-                comment_type=CommentType.WEATHER_COMMENT,
-            )
+    @pytest.mark.parametrize("field,value,expected_message", [
+        ("comment_text", "", "コメント本文が空です"),
+        ("location", "", "地点名が空です"),
+        ("temperature", -100.0, "異常な気温値"),
+        ("temperature", 100.0, "異常な気温値"),  # 60度から100度に変更（より極端な値）
+    ])
+    def test_invalid_input_validation(self, base_comment_data, field, value, expected_message):
+        """無効な入力値のバリデーションテスト"""
+        test_data = base_comment_data.copy()
+        test_data[field] = value
 
-    def test_invalid_empty_location(self):
-        """空地点名のテスト"""
-        with pytest.raises(ValueError, match="地点名が空です"):
-            PastComment(
-                location="",  # 空文字
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="テストコメント",
-                comment_type=CommentType.WEATHER_COMMENT,
-            )
+        with pytest.raises(ValueError, match=expected_message):
+            PastComment(**test_data)
 
-    def test_invalid_temperature(self):
-        """異常な気温値のテスト"""
-        with pytest.raises(ValueError, match="異常な気温値"):
-            PastComment(
-                location="東京",
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="テストコメント",
-                comment_type=CommentType.WEATHER_COMMENT,
-                temperature=-100.0,  # 異常値
-            )
-
-    def test_weather_condition_matching(self):
+    @pytest.mark.parametrize("target_condition,fuzzy,expected_match", [
+        ("晴れ", False, True),  # 完全一致
+        ("曇り", False, False),  # 完全一致せず
+        ("快晴", True, True),  # あいまい検索で一致
+        ("sunny", True, True),  # 英語であいまい検索
+        ("雨", True, False),  # あいまい検索でも一致せず
+    ])
+    def test_weather_condition_matching(self, base_comment_data, target_condition, fuzzy, expected_match):
         """天気状況マッチングのテスト"""
-        comment = PastComment(
-            location="大阪",
-            datetime=datetime.now(),
-            weather_condition="晴れ",
-            comment_text="良い天気",
-            comment_type=CommentType.WEATHER_COMMENT,
-        )
+        comment = PastComment(**base_comment_data)
+        assert comment.matches_weather_condition(target_condition, fuzzy=fuzzy) == expected_match
 
-        # 完全一致
-        assert comment.matches_weather_condition("晴れ", fuzzy=False)
-        assert not comment.matches_weather_condition("曇り", fuzzy=False)
+    @pytest.mark.parametrize("weather,temp,location,expected_range", [
+        ("晴れ", 22.5, "東京", (0.99, 1.0)),  # 完全一致
+        ("晴れ", 25.0, "大阪", (0.5, 0.8)),  # 部分的一致
+        ("雨", 5.0, "札幌", (0.0, 0.5)),  # 一致しない条件
+    ])
+    def test_similarity_calculation_with_range(self, base_comment_data, weather, temp, location, expected_range):
+        """類似度計算のテスト（範囲指定）"""
+        comment = PastComment(**base_comment_data)
+        score = comment.calculate_similarity_score(weather, temp, location)
+        assert expected_range[0] <= score <= expected_range[1]
 
-        # あいまい検索
-        assert comment.matches_weather_condition("快晴", fuzzy=True)
-        assert comment.matches_weather_condition("sunny", fuzzy=True)
-
-    def test_similarity_calculation(self):
-        """類似度計算のテスト"""
-        comment = PastComment(
-            location="東京",
-            datetime=datetime.now(),
-            weather_condition="晴れ",
-            comment_text="暖かい日です",
-            comment_type=CommentType.WEATHER_COMMENT,
-            temperature=20.0,
-        )
-
-        # 同じ条件での類似度
-        score1 = comment.calculate_similarity_score("晴れ", 20.0, "東京")
-        assert score1 == 1.0  # 完全一致
-
-        # 部分的一致
-        score2 = comment.calculate_similarity_score("晴れ", 25.0, "大阪")
-        assert 0.5 < score2 < 1.0  # 天気は一致、気温と地点が異なる
-
-        # 一致しない条件
-        score3 = comment.calculate_similarity_score("雨", 5.0, "札幌")
-        assert score3 < 0.5
+    @pytest.mark.parametrize("weather,temp,location,expected_score", [
+        ("晴れ", 22.5, "東京", 1.0),  # 完全一致: 天気1.0 * 温度1.0 * 地点1.0 = 1.0
+        ("晴れ", 22.5, "大阪", 0.8),  # 天気一致(0.5)、温度一致(0.3)、地点不一致(0.0) = 0.8
+        ("曇り", 22.5, "東京", 0.5),  # 天気不一致(0.0)、温度一致(0.3)、地点一致(0.2) = 0.5
+        ("晴れ", 17.5, "東京", 0.85),  # 天気一致(0.5)、温度5度差(0.3*0.5=0.15)、地点一致(0.2) = 0.85
+        ("晴れ", 12.5, "東京", 0.7),  # 天気一致(0.5)、温度10度差(0.3*0=0)、地点一致(0.2) = 0.7
+    ])
+    def test_similarity_calculation_exact_values(self, base_comment_data, weather, temp, location, expected_score):
+        """類似度計算のテスト（具体的な期待値）"""
+        comment = PastComment(**base_comment_data)
+        score = comment.calculate_similarity_score(weather, temp, location)
+        assert abs(score - expected_score) < 0.01  # 浮動小数点の誤差を考慮
 
     def test_to_dict_conversion(self):
         """辞書変換のテスト"""
@@ -144,126 +158,55 @@ class TestPastComment:
 class TestPastCommentCollection:
     """PastCommentCollection クラスのテスト"""
 
-    def test_collection_creation(self):
+    def test_collection_creation(self, sample_comments):
         """コレクション作成のテスト"""
-        comments = [
-            PastComment(
-                location="東京",
-                datetime=datetime(2024, 6, 5, 12, 0),
-                weather_condition="晴れ",
-                comment_text="良い天気",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-            PastComment(
-                location="東京",
-                datetime=datetime(2024, 6, 5, 12, 0),
-                weather_condition="晴れ",
-                comment_text="日焼け注意",
-                comment_type=CommentType.ADVICE,
-            ),
-        ]
-
-        collection = PastCommentCollection(comments=comments, source_period="202406")
+        collection = PastCommentCollection(comments=sample_comments[:2], source_period="202406")
 
         assert len(collection.comments) == 2
         assert collection.source_period == "202406"
 
-    def test_filter_by_location(self):
+    @pytest.mark.parametrize("filter_value,exact_match,expected_count,expected_location", [
+        ("東京", True, 2, "東京"),  # 完全一致で2件
+        ("大阪", True, 1, "大阪"),  # 完全一致で1件
+        ("東", False, 2, "東京"),  # 部分一致で2件（東京のみ）
+        ("京", False, 2, None),  # 部分一致で2件（東京のみ、大阪は含まれない）
+    ])
+    def test_filter_by_location(self, sample_comments, filter_value, exact_match, expected_count, expected_location):
         """地点フィルタリングのテスト"""
-        comments = [
-            PastComment(
-                location="東京",
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="東京は晴れ",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-            PastComment(
-                location="大阪",
-                datetime=datetime.now(),
-                weather_condition="曇り",
-                comment_text="大阪は曇り",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-        ]
+        collection = PastCommentCollection(comments=sample_comments)
+        filtered = collection.filter_by_location(filter_value, exact_match=exact_match)
 
-        collection = PastCommentCollection(comments=comments)
+        assert len(filtered.comments) == expected_count
+        if expected_location:
+            assert all(c.location == expected_location for c in filtered.comments)
 
-        # 完全一致フィルタ
-        tokyo_comments = collection.filter_by_location("東京", exact_match=True)
-        assert len(tokyo_comments.comments) == 1
-        assert tokyo_comments.comments[0].location == "東京"
-
-        # 部分一致フィルタ
-        east_comments = collection.filter_by_location("東", exact_match=False)
-        assert len(east_comments.comments) == 1
-
-    def test_filter_by_weather_condition(self):
+    @pytest.mark.parametrize("weather_condition,fuzzy,expected_count", [
+        ("晴れ", False, 2),  # 完全一致で2件
+        ("曇り", False, 1),  # 完全一致で1件
+        ("晴", True, 2),  # あいまい検索で2件
+        ("雨", True, 0),  # あいまい検索で0件
+    ])
+    def test_filter_by_weather_condition(self, sample_comments, weather_condition, fuzzy, expected_count):
         """天気状況フィルタリングのテスト"""
-        comments = [
-            PastComment(
-                location="東京",
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="晴天です",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-            PastComment(
-                location="大阪",
-                datetime=datetime.now(),
-                weather_condition="快晴",
-                comment_text="快晴です",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-            PastComment(
-                location="福岡",
-                datetime=datetime.now(),
-                weather_condition="雨",
-                comment_text="雨です",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-        ]
+        collection = PastCommentCollection(comments=sample_comments)
+        filtered = collection.filter_by_weather_condition(weather_condition, fuzzy=fuzzy)
 
-        collection = PastCommentCollection(comments=comments)
+        assert len(filtered.comments) == expected_count
 
-        # あいまい検索（"晴れ"で"快晴"も含む）
-        sunny_comments = collection.filter_by_weather_condition("晴れ", fuzzy=True)
-        assert len(sunny_comments.comments) == 2
-
-        # 完全一致
-        exact_sunny = collection.filter_by_weather_condition("晴れ", fuzzy=False)
-        assert len(exact_sunny.comments) == 1
-
-    def test_filter_by_comment_type(self):
+    @pytest.mark.parametrize("comment_type,expected_count,expected_text", [
+        (CommentType.WEATHER_COMMENT, 2, ["良い天気", "過ごしやすい"]),
+        (CommentType.ADVICE, 1, ["日焼け注意"]),
+        (CommentType.UNKNOWN, 0, []),
+    ])
+    def test_filter_by_comment_type(self, sample_comments, comment_type, expected_count, expected_text):
         """コメントタイプフィルタリングのテスト"""
-        comments = [
-            PastComment(
-                location="東京",
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="良い天気",
-                comment_type=CommentType.WEATHER_COMMENT,
-            ),
-            PastComment(
-                location="東京",
-                datetime=datetime.now(),
-                weather_condition="晴れ",
-                comment_text="水分補給を",
-                comment_type=CommentType.ADVICE,
-            ),
-        ]
+        collection = PastCommentCollection(comments=sample_comments)
+        filtered = collection.filter_by_comment_type(comment_type)
 
-        collection = PastCommentCollection(comments=comments)
-
-        # 天気コメントのみ
-        weather_comments = collection.filter_by_comment_type(CommentType.WEATHER_COMMENT)
-        assert len(weather_comments.comments) == 1
-        assert weather_comments.comments[0].comment_text == "良い天気"
-
-        # アドバイスのみ
-        advice_comments = collection.filter_by_comment_type(CommentType.ADVICE)
-        assert len(advice_comments.comments) == 1
-        assert advice_comments.comments[0].comment_text == "水分補給を"
+        assert len(filtered.comments) == expected_count
+        if expected_text:
+            actual_texts = [c.comment_text for c in filtered.comments]
+            assert sorted(actual_texts) == sorted(expected_text)
 
     def test_get_similar_comments(self):
         """類似コメント取得のテスト"""
@@ -318,14 +261,14 @@ class TestPastCommentCollection:
                 location="東京",
                 datetime=datetime.now(),
                 weather_condition="晴れ",
-                comment_text="短い",  # 3文字
+                comment_text="短い",  # 2文字
                 comment_type=CommentType.WEATHER_COMMENT,
             ),
             PastComment(
                 location="大阪",
                 datetime=datetime.now(),
                 weather_condition="曇り",
-                comment_text="これは少し長めのコメントです",  # 15文字
+                comment_text="これは少し長めのコメントです",  # 14文字
                 comment_type=CommentType.ADVICE,
             ),
         ]
@@ -336,19 +279,22 @@ class TestPastCommentCollection:
         assert stats["total_comments"] == 2
         assert stats["type_distribution"]["weather_comment"] == 1
         assert stats["type_distribution"]["advice"] == 1
-        assert stats["character_stats"]["min_length"] == 3
-        assert stats["character_stats"]["max_length"] == 15
+        assert stats["character_stats"]["min_length"] == 2
+        assert stats["character_stats"]["max_length"] == 14
         assert stats["character_stats"]["within_15_chars"] == 2
 
 
 class TestCommentType:
     """CommentType 列挙型のテスト"""
 
-    def test_comment_type_values(self):
+    @pytest.mark.parametrize("comment_type,expected_str_value", [
+        (CommentType.WEATHER_COMMENT, "weather_comment"),
+        (CommentType.ADVICE, "advice"),
+        (CommentType.UNKNOWN, "unknown"),
+    ])
+    def test_comment_type_values(self, comment_type, expected_str_value):
         """コメントタイプの値テスト"""
-        assert CommentType.WEATHER_COMMENT.value == "weather_comment"
-        assert CommentType.ADVICE.value == "advice"
-        assert CommentType.UNKNOWN.value == "unknown"
+        assert comment_type.value == expected_str_value
 
 
 if __name__ == "__main__":
