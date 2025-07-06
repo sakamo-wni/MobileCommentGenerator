@@ -19,10 +19,19 @@ class WeatherCommentValidator:
     
     def __init__(self):
         """各種バリデーターを初期化"""
+        # デフォルトのバリデーターを登録
+        self._validators = []
         self.weather_validator = WeatherValidator()
         self.temperature_validator = TemperatureValidator()
         self.humidity_validator = HumidityValidator()
         self.consistency_validator = ConsistencyValidator()
+        
+        # デフォルトバリデーターをリストに追加
+        self._validators.extend([
+            ('weather', self.weather_validator),
+            ('temperature', self.temperature_validator),
+            ('humidity', self.humidity_validator)
+        ])
         
         # 基底クラスから共通データを参照
         self.required_keywords = self.weather_validator.required_keywords
@@ -42,29 +51,32 @@ class WeatherCommentValidator:
             comment_text = comment.text
             comment_type = "weather_comment" if comment.comment_type == CommentType.WEATHER else "advice"
             
-            # 1. 天気条件チェック
-            is_valid, reason = self.weather_validator.check_weather_conditions(
-                comment_text, comment_type, weather_data
-            )
-            if not is_valid:
-                logger.debug(f"天気条件チェックで除外: {reason}")
-                return False, reason
-            
-            # 2. 気温条件チェック
-            is_valid, reason = self.temperature_validator.check_temperature_conditions(
-                comment_text, comment_type, weather_data
-            )
-            if not is_valid:
-                logger.debug(f"気温条件チェックで除外: {reason}")
-                return False, reason
-            
-            # 3. 湿度条件チェック
-            is_valid, reason = self.humidity_validator.check_humidity_conditions(
-                comment_text, comment_type, weather_data
-            )
-            if not is_valid:
-                logger.debug(f"湿度条件チェックで除外: {reason}")
-                return False, reason
+            # 動的に登録されたバリデーターを実行
+            for validator_name, validator in self._validators:
+                # 各バリデーターの適切なメソッドを呼び出す
+                if validator_name == 'weather':
+                    is_valid, reason = validator.check_weather_conditions(
+                        comment_text, comment_type, weather_data
+                    )
+                elif validator_name == 'temperature':
+                    is_valid, reason = validator.check_temperature_conditions(
+                        comment_text, comment_type, weather_data
+                    )
+                elif validator_name == 'humidity':
+                    is_valid, reason = validator.check_humidity_conditions(
+                        comment_text, comment_type, weather_data
+                    )
+                else:
+                    # カスタムバリデーターの場合、validate メソッドを探す
+                    if hasattr(validator, 'validate'):
+                        is_valid, reason = validator.validate(comment_text, comment_type, weather_data)
+                    else:
+                        logger.warning(f"バリデーター '{validator_name}' に適切なメソッドが見つかりません")
+                        continue
+                
+                if not is_valid:
+                    logger.debug(f"{validator_name}チェックで除外: {reason}")
+                    return False, reason
             
             # 4. 必須キーワードチェック
             is_valid, reason = self._check_required_keywords(
@@ -231,3 +243,43 @@ class WeatherCommentValidator:
     def _get_season_from_month(self, month: int) -> str:
         """月から季節を判定"""
         return self.weather_validator._get_season_from_month(month)
+    
+    def register_validator(self, name: str, validator: Any) -> None:
+        """動的にバリデーターを追加
+        
+        Args:
+            name: バリデーターの識別名
+            validator: check_* メソッドを持つバリデーターオブジェクト
+        """
+        # 既存のバリデーターを置き換える場合は削除
+        self._validators = [(n, v) for n, v in self._validators if n != name]
+        # 新しいバリデーターを追加
+        self._validators.append((name, validator))
+        logger.info(f"バリデーター '{name}' を登録しました")
+    
+    def unregister_validator(self, name: str) -> bool:
+        """バリデーターを削除
+        
+        Args:
+            name: 削除するバリデーターの識別名
+            
+        Returns:
+            bool: 削除成功の場合True
+        """
+        original_count = len(self._validators)
+        self._validators = [(n, v) for n, v in self._validators if n != name]
+        
+        if len(self._validators) < original_count:
+            logger.info(f"バリデーター '{name}' を削除しました")
+            return True
+        else:
+            logger.warning(f"バリデーター '{name}' は見つかりませんでした")
+            return False
+    
+    def list_validators(self) -> List[str]:
+        """登録されているバリデーターの名前リストを返す
+        
+        Returns:
+            List[str]: バリデーター名のリスト
+        """
+        return [name for name, _ in self._validators]
