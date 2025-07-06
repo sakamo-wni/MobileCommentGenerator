@@ -229,7 +229,7 @@ class CommentValidator:
         
         for pattern in inappropriate_patterns:
             if pattern in comment_text:
-                logger.info(f"晴天時に不適切な表現検出: '{comment_text}' - パターン「{pattern}」")
+                logger.debug(f"晴天時に不適切な表現検出: '{comment_text}' - パターン「{pattern}」")
                 return True
         
         return False
@@ -254,7 +254,7 @@ class CommentValidator:
         
         for pattern in sunshine_patterns:
             if pattern in comment_text:
-                logger.info(f"曇り天気時に不適切な日差し表現検出: '{comment_text}' - パターン「{pattern}」")
+                logger.debug(f"曇り天気時に不適切な日差し表現検出: '{comment_text}' - パターン「{pattern}」")
                 return True
         
         return False
@@ -276,7 +276,7 @@ class CommentValidator:
         
         for pattern in rain_patterns:
             if pattern in comment_text:
-                logger.info(f"降水なし天気時に不適切な雨・雷表現検出: '{comment_text}' - パターン「{pattern}」")
+                logger.debug(f"降水なし天気時に不適切な雨・雷表現検出: '{comment_text}' - パターン「{pattern}」")
                 return True
         
         return False
@@ -301,7 +301,7 @@ class CommentValidator:
                 
             for pattern in inappropriate_patterns:
                 if pattern in comment_text:
-                    logger.info(f"{month}月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
+                    logger.debug(f"{month}月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
                     return True
                     
         elif month == 9:
@@ -309,7 +309,7 @@ class CommentValidator:
             inappropriate_patterns = ["真夏", "盛夏", "初夏", "梅雨"]
             for pattern in inappropriate_patterns:
                 if pattern in comment_text:
-                    logger.info(f"9月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
+                    logger.debug(f"9月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
                     return True
                     
         return False
@@ -333,7 +333,7 @@ class CommentValidator:
         
         for pattern in unstable_patterns:
             if pattern in comment_text:
-                logger.info(f"安定天気時に不適切な表現検出: '{comment_text}' - パターン「{pattern}」")
+                logger.debug(f"安定天気時に不適切な表現検出: '{comment_text}' - パターン「{pattern}」")
                 return True
         
         return False
@@ -387,9 +387,9 @@ class CommentValidator:
         
         if len(next_day_forecasts) < 4:
             # 4つの時間帯のデータが揃わない場合は不安定とする
-            logger.info(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
-            logger.info(f"  検索対象日: {target_date}")
-            logger.info(f"  検索時間帯: {target_hours}")
+            logger.debug(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
+            logger.debug(f"  検索対象日: {target_date}")
+            logger.debug(f"  検索時間帯: {target_hours}")
             return False
         
         # 天気タイプの時系列を作成
@@ -403,7 +403,7 @@ class CommentValidator:
         
         # WEATHER_CHANGE_THRESHOLD回以上変化する場合は不安定
         if type_changes >= WEATHER_CHANGE_THRESHOLD:
-            logger.info(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
+            logger.debug(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
             return False
         
         # 異なる天気タイプが複数ある場合でも、変化が1回だけなら追加チェック
@@ -411,7 +411,7 @@ class CommentValidator:
             # 朝だけ違って、その後同じ天気が続く場合は安定とみなす
             if type_changes == 1 and len(weather_type_sequence) >= 4:
                 if weather_type_sequence[1] == weather_type_sequence[2] == weather_type_sequence[3]:
-                    logger.info(f"朝だけ天気が異なるが、その後安定: {weather_type_sequence}")
+                    logger.debug(f"朝だけ天気が異なるが、その後安定: {weather_type_sequence}")
                     # 朝が曇りで日中晴れ続きなら安定
                     if weather_type_sequence[0] == "cloudy" and weather_type_sequence[1] == "sunny":
                         return True
@@ -420,10 +420,10 @@ class CommentValidator:
                         # 曇りの安定性を確認（下の曇り判定へ）
                         pass
                 else:
-                    logger.info(f"翌日の天気が変化: {weather_types}")
+                    logger.debug(f"翌日の天気が変化: {weather_types}")
                     return False
             else:
-                logger.info(f"翌日の天気が変化: {weather_types}")
+                logger.debug(f"翌日の天気が変化: {weather_types}")
                 return False
         
         # 単一の天気タイプの場合、その種類に応じて判定
@@ -432,7 +432,7 @@ class CommentValidator:
             
             # 全てが晴れの場合は安定
             if weather_type == "sunny":
-                logger.info("翌日は終日晴天で安定")
+                logger.debug("翌日は終日晴天で安定")
                 return True
             
             # 全てが曇りの場合、追加条件を確認
@@ -440,18 +440,18 @@ class CommentValidator:
                 # 降水量、風速、雷のチェック
                 for forecast in next_day_forecasts:
                     if forecast.precipitation > 1.0 or forecast.wind_speed > 10.0:
-                        logger.info(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
+                        logger.debug(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
                         return False
                     if "雷" in forecast.weather_description or "thunder" in forecast.weather_description.lower():
-                        logger.info("翌日に雷が含まれるため不安定")
+                        logger.debug("翌日に雷が含まれるため不安定")
                         return False
-                logger.info("翌日は終日曇天で安定")
+                logger.debug("翌日は終日曇天で安定")
                 return True
             
-            # 雨の場合は不安定とする
+            # 雨の場合も、同じ天気が続くなら安定とする
             else:
-                logger.info(f"翌日の天気タイプ「{weather_type}」は不安定")
-                return False
+                logger.debug(f"翌日は終日{weather_type}で安定")
+                return True
         
         # その他の場合は不安定
         return False

@@ -2,6 +2,7 @@
 
 temperature:
   # 温度閾値
+  extreme_heat_threshold: 35.0  # 猛暑判定
   hot_threshold: 30.0  # 暑い判定
   cold_threshold: 12.0  # 寒い判定（15.0から変更）
   freezing_threshold: 0.0  # 氷点下
@@ -52,6 +53,12 @@ generation:
   weather_candidates_limit: 100  # 天気コメント候補数を大幅増加
   advice_candidates_limit: 100   # アドバイスコメント候補数を大幅増加
   fallback_candidates_limit: 20  # フォールバック候補数も増加
+  
+  # 日付計算の境界時刻（時）
+  date_boundary_hour: 6  # この時刻より前は当日、以降は翌日を対象
+  
+  # バッチ処理設定
+  batch_size: 3  # 同時処理する地点数
   
   # 候補カテゴリ別比率
   candidate_ratios:

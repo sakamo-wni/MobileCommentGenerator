@@ -42,6 +42,7 @@
               :is-batch-mode="isBatchMode"
               :result="result"
               :results="results"
+              @retry="retryFailedLocation"
             />
             
             <WeatherData
@@ -61,12 +62,13 @@
 
 <script setup lang="ts">
 // Import composables and utilities
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { getLocationsByRegion } from '~/constants/regions'
 import { useCommentStore } from '~/stores/comment'
 import { useLocationStore } from '~/stores/location'
 import { BATCH_CONFIG } from '../../src/config/constants'
+import { getErrorMessage, logError } from '~/utils/error'
 
 // Runtime config
 const config = useRuntimeConfig()
@@ -130,17 +132,32 @@ const generateComment = async () => {
   
   try {
     if (locationStore.isBatchMode && locationStore.selectedLocations.length > 0) {
-      // Batch mode: Process multiple locations with parallel processing
+      // Batch mode: Process locations in chunks for progressive display
       selectedWeatherIndex.value = 0
       
-      // Process in chunks for better performance
+      // Initialize results with placeholders to maintain order
+      const placeholderResults = locationStore.selectedLocations.map(location => ({
+        success: false,
+        location: location,
+        comment: null,
+        advice_comment: null,
+        metadata: null,
+        loading: true
+      }))
+      commentStore.setResults(placeholderResults)
+      
+      // Process in chunks for better performance and progressive display
       // This limits the number of simultaneous requests to prevent overwhelming the server
       // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
       for (let i = 0; i < locationStore.selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
         const chunk = locationStore.selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT)
         
-        const chunkPromises = chunk.map(async (location) => {
+        const chunkPromises = chunk.map(async (location, chunkIdx) => {
+          const globalIdx = i + chunkIdx
           try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), BATCH_CONFIG.REQUEST_TIMEOUT)
+            
             const response = await $fetch(`${apiBaseUrl}/api/generate`, {
               method: 'POST',
               body: {
@@ -148,50 +165,47 @@ const generateComment = async () => {
                 llm_provider: selectedProvider.value.value,
                 target_datetime: new Date().toISOString(),
                 exclude_previous: false
-              }
+              },
+              signal: controller.signal,
+              timeout: BATCH_CONFIG.REQUEST_TIMEOUT
             })
-            return response
-          } catch (error) {
-            console.error(`Failed to generate for ${location}:`, error)
-            let errorMessage = 'Unknown error'
-            if (error.name === 'AbortError') {
-              errorMessage = 'タイムアウトしました（5秒以上）'
-            } else if (error.message) {
-              errorMessage = error.message
-            }
             
-            return {
+            clearTimeout(timeoutId)
+            
+            // Update result at specific index for progressive display
+            const successResult = {
+              ...response,
+              loading: false
+            }
+            commentStore.updateResultAtIndex(globalIdx, successResult)
+            return successResult
+          } catch (error) {
+            logError(error, `${location}のコメント生成`)
+            const errorMessage = getErrorMessage({ 
+              error, 
+              context: `${location}のコメント生成`
+            })
+            
+            const errorResult = {
               success: false,
               location: location,
               error: `生成エラー: ${errorMessage}`,
               comment: null,
               advice_comment: null,
-              metadata: null
+              metadata: null,
+              loading: false
             }
+            
+            // Update error result at specific index
+            commentStore.updateResultAtIndex(globalIdx, errorResult)
+            return errorResult
           }
         })
         
-        // Wait for all requests in the chunk to complete
-        const chunkResults = await Promise.allSettled(chunkPromises)
-        const processedResults = chunkResults.map((result, index) => {
-          if (result.status === 'fulfilled') {
-            return result.value
-          } else {
-            return {
-              success: false,
-              location: chunk[index],
-              error: '生成エラー: Promise rejected',
-              comment: null,
-              advice_comment: null,
-              metadata: null
-            }
-          }
-        })
-        
-        // Add results to store incrementally (3 locations at a time)
-        // Use batch update for better performance - this reduces the number of reactive updates
-        // and provides immediate feedback to users as results come in
-        commentStore.addResults(processedResults)
+        // Wait for all requests in the chunk to complete before processing next chunk
+        // We use individual addResult calls instead of batch addResults to ensure
+        // immediate progressive display as each location completes
+        await Promise.allSettled(chunkPromises)
       }
       
       // Add batch to history
@@ -226,7 +240,7 @@ const generateComment = async () => {
     }
     
   } catch (error) {
-    console.error('Generation failed:', error)
+    logError(error, 'コメント生成')
     if (isBatchMode.value) {
       // In batch mode, errors should have been handled per location
       // This catch is for unexpected errors
@@ -246,6 +260,65 @@ const generateComment = async () => {
     }
   } finally {
     commentStore.setGenerating(false)
+  }
+}
+
+const retryFailedLocation = async (location: string, index: number) => {
+  console.log(`Retrying generation for ${location} at index ${index}`)
+  
+  // Mark as loading
+  commentStore.updateResultAtIndex(index, {
+    success: false,
+    location: location,
+    comment: null,
+    advice_comment: null,
+    metadata: null,
+    loading: true,
+    error: null
+  })
+  
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分のタイムアウト
+    
+    const response = await $fetch(`${apiBaseUrl}/api/generate`, {
+      method: 'POST',
+      body: {
+        location: location,
+        llm_provider: selectedProvider.value.value,
+        target_datetime: new Date().toISOString(),
+        exclude_previous: false
+      },
+      signal: controller.signal,
+      timeout: BATCH_CONFIG.REQUEST_TIMEOUT
+    })
+    
+    clearTimeout(timeoutId)
+    
+    // Update with success result
+    const successResult = {
+      ...response,
+      loading: false
+    }
+    commentStore.updateResultAtIndex(index, successResult)
+  } catch (error) {
+    logError(error, `${location}の再試行`)
+    const errorMessage = getErrorMessage({ 
+      error, 
+      context: `${location}の再試行`
+    })
+    
+    // Update with error result
+    const errorResult = {
+      success: false,
+      location: location,
+      error: `生成エラー: ${errorMessage}`,
+      comment: null,
+      advice_comment: null,
+      metadata: null,
+      loading: false
+    }
+    commentStore.updateResultAtIndex(index, errorResult)
   }
 }
 
@@ -279,13 +352,11 @@ const loadLocations = async () => {
     console.log('API response received:', response)
     locationStore.setLocations(response.locations || [])
   } catch (error) {
-    let errorMessage = '地点データの取得に失敗しました'
-    if (error.name === 'AbortError') {
-      errorMessage = 'API接続がタイムアウトしました（5秒以上）'
-      console.error('API request timeout')
-    } else {
-      console.error('Failed to load locations:', error)
-    }
+    logError(error, '地点データの取得')
+    const errorMessage = getErrorMessage({ 
+      error, 
+      context: '地点データの取得'
+    })
     
     console.log('Using fallback location list...')
     locationStore.setLocations([
@@ -332,7 +403,16 @@ onMounted(async () => {
   }
 })
 
+// Ensure interval is cleared before component unmount
+onBeforeUnmount(() => {
+  if (timeUpdateInterval) {
+    clearInterval(timeUpdateInterval)
+    timeUpdateInterval = null
+  }
+})
+
 onUnmounted(() => {
+  // Double-check cleanup
   if (timeUpdateInterval) {
     clearInterval(timeUpdateInterval)
     timeUpdateInterval = null

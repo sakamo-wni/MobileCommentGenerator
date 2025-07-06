@@ -21,8 +21,13 @@ class CommentGenerationController(ICommentGenerationController):
     """コメント生成のビジネスロジックを管理するコントローラー"""
 
     def __init__(self, config: AppConfig | None = None):
-        self.config = config or get_config()
+        self._config = config or get_config()
         self._generation_history = None
+
+    @property
+    def config(self) -> AppConfig:
+        """設定を取得"""
+        return self._config
 
     @property
     def generation_history(self) -> list[dict[str, Any]]:
@@ -63,7 +68,9 @@ class CommentGenerationController(ICommentGenerationController):
                 'result': result,
                 'success': result.get('success', False),
                 'comment': result.get('final_comment', ''),
-                'error': result.get('error', None)
+                'advice_comment': result.get('advice_comment', ''),
+                'error': result.get('error', None),
+                'metadata': result.get('generation_metadata', {})  # metadataを追加
             }
 
             # ソースファイル情報を抽出

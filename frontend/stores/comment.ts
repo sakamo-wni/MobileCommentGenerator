@@ -29,6 +29,12 @@ export const useCommentStore = defineStore('comment', () => {
     results.value.push(...values)
   }
   
+  const updateResultAtIndex = (index: number, value: BatchResult) => {
+    if (index >= 0 && index < results.value.length) {
+      results.value[index] = value
+    }
+  }
+  
   const clearResults = () => {
     result.value = null
     results.value = []
@@ -66,6 +72,7 @@ export const useCommentStore = defineStore('comment', () => {
     setResults,
     addResult,
     addResults,
+    updateResultAtIndex,
     clearResults,
     
     // Getters

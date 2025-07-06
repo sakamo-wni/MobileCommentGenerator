@@ -909,6 +909,36 @@ class WeatherCommentValidator:
             count = comment.raw_data['count']
             score += min(count / 1000, 10.0)  # 最大10点のボーナス
         
+        # 高温時（35度以上）のスコアリング
+        if weather_data.temperature >= 35.0:
+            heat_keywords = ["熱中症", "水分補給", "涼しい", "冷房", "暑さ対策", "猛暑", "高温", "酷暑"]
+            for keyword in heat_keywords:
+                if keyword in comment_text:
+                    score += 30.0  # 高温時は大幅にスコアを上げる
+                    break  # 複数マッチしても加算は1回のみ
+            
+            # 高温時に不適切な表現にペナルティ
+            cold_keywords = ["肌寒い", "冷える", "防寒", "暖房", "あたたか"]
+            for keyword in cold_keywords:
+                if keyword in comment_text:
+                    score -= 40.0
+                    break
+        
+        # 雨天時のスコアリング強化
+        if weather_data.precipitation > 0:
+            rain_keywords = ["雨", "傘", "濡れ", "降水", "にわか雨", "雷雨", "レインコート"]
+            for keyword in rain_keywords:
+                if keyword in comment_text:
+                    score += 25.0  # 雨天時はスコアを上げる
+                    break
+            
+            # 雨天時に不適切な表現にペナルティ
+            sunny_keywords = ["快晴", "日差し", "紫外線", "カラッと"]
+            for keyword in sunny_keywords:
+                if keyword in comment_text:
+                    score -= 35.0
+                    break
+        
         return score
     
     def _get_season_from_month(self, month: int) -> str:

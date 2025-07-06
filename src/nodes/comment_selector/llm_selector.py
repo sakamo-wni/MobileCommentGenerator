@@ -163,10 +163,17 @@ class LLMCommentSelector:
         # 降水量の詳細
         if weather_data.precipitation > 10:
             context += "- 強雨（10mm/h以上）：外出時は十分な雨具を\n"
+            context += "【最重要】雨に関するコメントを最優先で選択してください\n"
         elif weather_data.precipitation > 1:
             context += "- 軽雨～中雨：傘の携帯を推奨\n"
+            context += "【重要】雨に関するコメントを優先的に選択してください\n"
         elif weather_data.precipitation > 0:
             context += "- 小雨：念のため傘があると安心\n"
+            context += "【重要】雨に関するコメントを優先的に選択してください\n"
+        
+        # 高温時の特別な優先度
+        if weather_data.temperature >= 35.0:
+            context += "\n【最重要】猛暑日のため、熱中症対策に関するコメントを最優先で選択してください\n"
         
         return context
     
@@ -215,12 +222,13 @@ class LLMCommentSelector:
 {candidates_text}
 
 選択基準（重要度順）:
-1. 現在の天気・気温に最も適している
-2. 天気の安定性や変化パターンに合致している
-3. 時系列変化（12時間前後）を考慮した適切性
-4. 地域特性（北海道の寒さ、沖縄の暑さなど）
-5. 季節感が適切（月に応じた適切な表現）
-6. 自然で読みやすい表現
+1. 【最優先】降水がある場合は雨関連のコメント、35℃以上の場合は熱中症対策のコメント
+2. 現在の天気・気温に最も適している
+3. 天気の安定性や変化パターンに合致している
+4. 時系列変化（12時間前後）を考慮した適切性
+5. 地域特性（北海道の寒さ、沖縄の暑さなど）
+6. 季節感が適切（月に応じた適切な表現）
+7. 自然で読みやすい表現
 
 {sunny_warning}
 {month_warning}

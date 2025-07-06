@@ -26,7 +26,11 @@
       </div>
       
       <div v-for="(batchResult, index) in results" :key="index" class="border rounded-lg p-4">
-        <div v-if="batchResult.success">
+        <div v-if="batchResult.loading" class="text-center py-4">
+          <Icon name="heroicons:arrow-path" class="w-6 h-6 text-blue-500 animate-spin mx-auto mb-2" />
+          <div class="text-sm text-gray-600">{{ batchResult.location }} - 生成中...</div>
+        </div>
+        <div v-else-if="batchResult.success">
           <AppAlert
             color="green"
             :title="`${batchResult.location} - 生成完了`"
@@ -53,6 +57,13 @@
             :description="batchResult.error"
             icon="heroicons:exclamation-triangle"
           />
+          <button
+            @click="$emit('retry', batchResult.location, index)"
+            class="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <Icon name="heroicons:arrow-path" class="w-4 h-4 inline mr-1" />
+            再試行
+          </button>
         </div>
       </div>
     </div>
@@ -133,29 +144,19 @@
 
 <script setup lang="ts">
 import { defineProps } from 'vue'
+import type { GenerationResult, BatchResult } from '~/types/store'
+import { formatDateTime } from '../../../shared/src/utils/date'
 
 interface Props {
   generating: boolean
   isBatchMode: boolean
-  result: any
-  results: any[]
+  result: GenerationResult | null
+  results: BatchResult[]
 }
 
 const props = defineProps<Props>()
 
-const formatDateTime = (dateString: any) => {
-  if (!dateString) return '不明'
-  try {
-    const date = new Date(dateString.replace('Z', '+00:00'))
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return dateString
-  }
-}
+defineEmits<{
+  retry: [location: string, index: number]
+}>()
 </script>

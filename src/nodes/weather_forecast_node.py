@@ -21,6 +21,7 @@ from src.data.weather_data import WeatherForecastCollection, WeatherForecast
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
+from src.config.config_loader import load_config
 from src.nodes.weather_forecast import WeatherDataFetcher, WeatherDataTransformer, WeatherDataValidator
 
 # ログ設定
@@ -330,13 +331,24 @@ def fetch_weather_forecast_node(state):
         jst = pytz.timezone("Asia/Tokyo")
         now_jst = datetime.now(jst)
         
-        # 常に翌日を対象にする
-        target_date = now_jst.date() + timedelta(days=1)
+        # 深夜0時前後の処理を考慮した日付計算
+        # 設定ファイルから境界時刻を取得
+        weather_config = load_config('weather_thresholds', validate=False)
+        date_boundary_hour = weather_config.get('generation', {}).get('date_boundary_hour', 6)
+        
+        # 境界時刻より前は当日、以降は翌日を対象とする
+        # これにより深夜の実行でも一貫した動作を保証
+        if now_jst.hour < date_boundary_hour:
+            # 深夜〜早朝は当日を対象
+            target_date = now_jst.date()
+        else:
+            # 境界時刻以降は翌日を対象
+            target_date = now_jst.date() + timedelta(days=1)
         
         forecast_start = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=9)))
         forecast_end = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=18)))
         
-        logger.info(f"翌日対象: {target_date} (現在時刻: {now_jst.strftime('%Y-%m-%d %H:%M')})")
+        logger.info(f"対象日: {target_date} (現在時刻: {now_jst.strftime('%Y-%m-%d %H:%M')})")
         
         # 対象時刻のリスト（9:00, 12:00, 15:00, 18:00）
         target_hours = [9, 12, 15, 18]
@@ -367,6 +379,10 @@ def fetch_weather_forecast_node(state):
         # ターゲット時刻に最も近い予報を選択
         validator = WeatherDataValidator()
         selected_forecast = validator.select_forecast_by_time(period_forecasts, target_datetime)
+        
+        # 4時点の予報データをstateに保存（コメント選択時に使用）
+        state.update_metadata("period_forecasts", period_forecasts)
+        logger.info(f"4時点の予報データを保存: {len(period_forecasts)}件")
         
         # 気象変化傾向の分析
         if len(period_forecasts) >= 2:

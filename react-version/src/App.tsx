@@ -62,14 +62,27 @@ function App() {
         // Batch generation with improved parallel processing
         // Clear previous results before starting new batch
         setBatchResults([]);
+        
+        // Initialize results array with placeholders to maintain order
+        const placeholderResults: BatchResult[] = selectedLocations.map((location: string) => ({
+          location,
+          success: false,
+          loading: true,
+          comment: null,
+          metadata: null,
+          error: null
+        }));
+        setBatchResults(placeholderResults);
 
         // Process all locations with controlled concurrency
         // This limits the number of simultaneous requests to prevent overwhelming the server
         // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
         for (let i = 0; i < selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
           const chunk = selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT);
+          const chunkIndices = chunk.map((_, idx) => i + idx);
           
-          const chunkPromises = chunk.map(async (locationName: string) => {
+          const chunkPromises = chunk.map(async (locationName: string, chunkIdx: number) => {
+            const globalIdx = i + chunkIdx;
             try {
               const locationInfo = getLocationInfo(locationName);
               const locationObj: Location = {
@@ -83,39 +96,46 @@ function App() {
                 llmProvider,
               });
 
-              return {
+              // Update state immediately for progressive display
+              const successResult = {
                 success: true,
                 location: locationName,
                 comment: result.comment,
                 metadata: result.metadata,
                 weather: result.weather,
-                adviceComment: result.adviceComment
+                adviceComment: result.adviceComment,
+                loading: false
               };
+              
+              setBatchResults(prev => {
+                const newResults = [...prev];
+                newResults[globalIdx] = successResult;
+                return newResults;
+              });
+
+              return successResult;
             } catch (error) {
-              return {
+              const errorResult = {
                 success: false,
                 location: locationName,
-                error: error instanceof Error ? error.message : 'コメント生成に失敗しました'
+                error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
+                loading: false
               };
+              
+              // Update state immediately with error
+              setBatchResults(prev => {
+                const newResults = [...prev];
+                newResults[globalIdx] = errorResult;
+                return newResults;
+              });
+              
+              return errorResult;
             }
           });
 
-          // Use Promise.allSettled for better error handling
-          const chunkResults = await Promise.allSettled(chunkPromises);
-          const processedResults = chunkResults.map(result => 
-            result.status === 'fulfilled' 
-              ? result.value 
-              : {
-                  success: false,
-                  location: 'unknown',
-                  error: 'Promise rejected'
-                }
-          );
-          
-          // Update results incrementally (3 locations at a time)
-          // This provides immediate feedback to users as results come in
-          // rather than waiting for all locations to complete
-          setBatchResults(prevResults => [...prevResults, ...processedResults]);
+          // Wait for all requests in the chunk to complete before processing next chunk
+          // Results are updated immediately within each promise for progressive display
+          await Promise.allSettled(chunkPromises);
         }
       } else {
         // Single location generation

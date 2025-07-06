@@ -16,7 +16,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import type { WeatherMetadata, WeatherData } from '@mobile-comment-generator/shared';
-import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
+import { COPY_FEEDBACK_DURATION, formatDateTime } from '@mobile-comment-generator/shared';
 import { WeatherDataDisplay } from './WeatherData';
 import { WeatherTimeline } from './WeatherTimeline';
 
@@ -29,6 +29,7 @@ interface BatchResultItemProps {
     metadata?: WeatherMetadata;
     weather?: WeatherData;
     adviceComment?: string;
+    loading?: boolean;
   };
   isExpanded: boolean;
   onToggleExpanded: () => void;
@@ -36,21 +37,6 @@ interface BatchResultItemProps {
   isRegenerating?: boolean;
 }
 
-const formatDateTime = (dateString: string | undefined) => {
-  if (!dateString) return '不明';
-  try {
-    const date = new Date(dateString.replace('Z', '+00:00'));
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (error) {
-    return dateString;
-  }
-};
 
 export const BatchResultItem: React.FC<BatchResultItemProps> = ({
   result,
@@ -71,6 +57,28 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
     }
   }, []);
   
+  // Loading state
+  if (result.loading) {
+    return (
+      <div className="relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg animate-pulse">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600 animate-shimmer"></div>
+        <div className="p-6">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0 w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-900 dark:text-white text-lg">{result.location}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">生成中...</p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse w-3/4"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!result.success) {
     return (
       <div className="relative overflow-hidden bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-700 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl">
@@ -266,7 +274,7 @@ export const BatchResultItem: React.FC<BatchResultItemProps> = ({
                       {formatDateTime(result.metadata.weather_forecast_time)}
                     </p>
                     <p className="text-sm text-indigo-600 dark:text-indigo-400">
-                      この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
+                      翌日の9時、12時、15時、18時の天気変化を分析してコメントを生成
                     </p>
                   </div>
                 </div>

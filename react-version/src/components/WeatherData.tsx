@@ -1,6 +1,7 @@
 import React from 'react';
 import { Cloud, Thermometer, Droplets, Wind, Gauge, TrendingUp, Clock, CloudRain, Info } from 'lucide-react';
 import type { WeatherData, WeatherMetadata } from '@mobile-comment-generator/shared';
+import { formatDateTime } from '@mobile-comment-generator/shared';
 import { WeatherTimeline } from './WeatherTimeline';
 
 interface WeatherDataProps {
@@ -9,21 +10,6 @@ interface WeatherDataProps {
   className?: string;
 }
 
-const formatDateTime = (dateString: string | undefined) => {
-  if (!dateString) return '不明';
-  try {
-    const date = new Date(dateString.replace('Z', '+00:00'));
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (error) {
-    return dateString;
-  }
-};
 
 export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
   weather,
@@ -54,7 +40,7 @@ export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
             {formatDateTime(metadata.weather_forecast_time)}
           </div>
           <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-            この時刻を中心とした前後24時間の天気変化を分析してコメントを生成
+            翌日の9時、12時、15時、18時の天気変化を分析してコメントを生成
           </div>
         </div>
       )}
