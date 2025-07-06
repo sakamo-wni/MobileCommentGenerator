@@ -14,8 +14,9 @@ CHANGEABLE_WEATHER_PATTERNS = [
     "変化しやすい空", "移ろいやすい空", "気まぐれな空", "不安定な空模様"
 ]
 
-# 晴天を表すキーワード
+# 晴天を表すキーワード（weather_comment_validator.pyと整合）
 SUNNY_KEYWORDS = ["晴", "日差し", "太陽", "快晴", "青空"]
+SUNNY_WEATHER_DESCRIPTIONS = ["晴", "快晴", "晴天", "薄曇", "うすぐもり", "薄ぐもり", "薄曇り", "うす曇り", "猛暑"]
 
 # 雨天に適したアドバイスパターン
 RAIN_ADVICE_PATTERNS = ["雨にご注意", "傘", "濡れ", "雨具", "足元", "滑り"]
@@ -46,7 +47,7 @@ def check_and_fix_weather_comment_safety(
     logger.info(f"🚨 選択されたコメント: 天気='{weather_comment}', アドバイス='{advice_comment}'")
     
     # 晴天・快晴時の「変わりやすい空」は絶対に不適切 - 既存コメントから再選択
-    if any(sunny in weather_data.weather_description for sunny in ["晴", "快晴", "猛暑"]) and weather_comment:
+    if any(sunny in weather_data.weather_description for sunny in SUNNY_WEATHER_DESCRIPTIONS) and weather_comment:
         for pattern in CHANGEABLE_WEATHER_PATTERNS:
             if pattern in weather_comment:
                 logger.warning(f"🚨 緊急修正: 晴天時に「{pattern}」は不適切 - 代替コメント検索")
