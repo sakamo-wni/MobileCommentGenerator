@@ -129,8 +129,13 @@ class WeatherTimelineFormatter:
                 weather_type = classify_weather_type(condition)
                 weather_type_sequence.append(weather_type or "other")
             
+            # デバッグログ
+            logger.debug(f"天気条件: {weather_conditions}")
+            logger.debug(f"天気タイプ: {weather_type_sequence}")
+            
             # タイプレベルでの変化回数をカウント
             type_changes = count_weather_type_changes(weather_type_sequence)
+            logger.debug(f"タイプ変化回数: {type_changes}")
             
             # 判定ロジック
             # WEATHER_CHANGE_THRESHOLD回以上タイプが変わる場合は変わりやすい
