@@ -72,12 +72,26 @@ class CommentUtils:
                 original_index=i
             )
             
-            # 雨天時の特別な優先順位付け
-            if weather_data.precipitation > 0:
-                rain_keywords = ["雨", "降雨", "雨が", "にわか雨", "雨模様", "雨音", "雨降り"]
+            # 雨天時の特別な優先順位付け（現在または将来の予報を考慮）
+            has_rain_now = weather_data.precipitation > 0
+            has_rain_forecast = False
+            max_future_precipitation = 0.0
+            
+            # 将来の予報データをチェック
+            if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+                for forecast in weather_data.hourly_forecasts:
+                    if hasattr(forecast, 'precipitation_mm') and forecast.precipitation_mm > 0:
+                        has_rain_forecast = True
+                        max_future_precipitation = max(max_future_precipitation, forecast.precipitation_mm)
+                    elif hasattr(forecast, 'precipitation') and forecast.precipitation > 0:
+                        has_rain_forecast = True
+                        max_future_precipitation = max(max_future_precipitation, forecast.precipitation)
+            
+            if has_rain_now or has_rain_forecast:
+                rain_keywords = ["雨", "降雨", "雨が", "にわか雨", "雨模様", "雨音", "雨降り", "傘"]
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     rain_priority.append(candidate)
-                    logger.debug(f"雨天時優先候補に追加: '{comment.comment_text}'")
+                    logger.debug(f"雨天時優先候補に追加: '{comment.comment_text}' (現在雨: {has_rain_now}, 予報雨: {has_rain_forecast}, 最大降水量: {max_future_precipitation}mm)")
                     continue
             
             # 悪天候時の特別な優先順位付け
@@ -105,8 +119,16 @@ class CommentUtils:
         except:
             limit = 100  # デフォルト値
         
-        # 雨天時は雨関連コメントを最優先
-        if weather_data.precipitation > 0 and rain_priority:
+        # 雨天時は雨関連コメントを最優先（現在または将来の予報を考慮）
+        has_rain = weather_data.precipitation > 0
+        if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+            has_rain = has_rain or any(
+                (hasattr(f, 'precipitation_mm') and f.precipitation_mm > 0) or 
+                (hasattr(f, 'precipitation') and f.precipitation > 0) 
+                for f in weather_data.hourly_forecasts
+            )
+        
+        if has_rain and rain_priority:
             # 雨天時は雨関連候補を50%以上確保
             rain_limit = max(limit // 2, len(rain_priority))
             remaining_limit = limit - min(len(rain_priority), rain_limit)
@@ -190,12 +212,23 @@ class CommentUtils:
                 
             candidate = self._create_candidate_dict(len(rain_priority) + len(candidates), comment, original_index=i)
             
-            # 雨天時の特別な優先順位付け
-            if weather_data.precipitation > 0:
+            # 雨天時の特別な優先順位付け（現在または将来の予報を考慮）
+            has_rain_now = weather_data.precipitation > 0
+            has_rain_forecast = False
+            
+            # 将来の予報データをチェック
+            if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+                for forecast in weather_data.hourly_forecasts:
+                    if (hasattr(forecast, 'precipitation_mm') and forecast.precipitation_mm > 0) or \
+                       (hasattr(forecast, 'precipitation') and forecast.precipitation > 0):
+                        has_rain_forecast = True
+                        break
+            
+            if has_rain_now or has_rain_forecast:
                 rain_keywords = ["傘", "雨具", "雨対策", "濡れ", "レインコート", "雨よけ", "雨宿り"]
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     rain_priority.append(candidate)
-                    logger.debug(f"雨天時優先アドバイス候補に追加: '{comment.comment_text}'")
+                    logger.debug(f"雨天時優先アドバイス候補に追加: '{comment.comment_text}' (現在雨: {has_rain_now}, 予報雨: {has_rain_forecast})")
                     continue
             
             candidates.append(candidate)
@@ -208,8 +241,16 @@ class CommentUtils:
         except:
             limit = 100  # デフォルト値
         
-        # 雨天時は雨関連アドバイスを最優先
-        if weather_data.precipitation > 0 and rain_priority:
+        # 雨天時は雨関連アドバイスを最優先（現在または将来の予報を考慮）
+        has_rain = weather_data.precipitation > 0
+        if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+            has_rain = has_rain or any(
+                (hasattr(f, 'precipitation_mm') and f.precipitation_mm > 0) or 
+                (hasattr(f, 'precipitation') and f.precipitation > 0) 
+                for f in weather_data.hourly_forecasts
+            )
+        
+        if has_rain and rain_priority:
             # 雨天時は雨関連候補を50%以上確保
             rain_limit = max(limit // 2, len(rain_priority))
             remaining_limit = limit - min(len(rain_priority), rain_limit)

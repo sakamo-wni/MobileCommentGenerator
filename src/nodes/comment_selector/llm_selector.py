@@ -168,6 +168,24 @@ class LLMCommentSelector:
         elif weather_data.precipitation > 0:
             context += "- 小雨：念のため傘があると安心\n"
         
+        # 将来の降水予報も追加
+        if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+            future_rain = []
+            for forecast in weather_data.hourly_forecasts:
+                precip = 0
+                if hasattr(forecast, 'precipitation_mm'):
+                    precip = forecast.precipitation_mm
+                elif hasattr(forecast, 'precipitation'):
+                    precip = forecast.precipitation
+                    
+                if precip > 0 and hasattr(forecast, 'datetime'):
+                    future_rain.append((forecast.datetime.strftime('%H時'), precip))
+            
+            if future_rain:
+                context += "\n【降水予報】\n"
+                for time, precip in future_rain:
+                    context += f"- {time}: {precip}mm/hの降水予想\n"
+        
         return context
     
     def _create_selection_prompt(self, candidates_text: str, weather_context: str, comment_type: CommentType) -> str:
@@ -186,19 +204,32 @@ class LLMCommentSelector:
         
         # 雨天時の特別な注意事項を追加
         rain_warning = ""
-        if "雨" in weather_context or "降水量" in weather_context:
-            # weather_contextから降水量を抽出
-            import re
-            precip_match = re.search(r'降水量:\s*([\d.]+)mm', weather_context)
-            if precip_match:
-                precipitation = float(precip_match.group(1))
-                if precipitation > 0:
-                    rain_warning = f"""
+        # 現在の降水量チェック
+        import re
+        current_precip = 0
+        precip_match = re.search(r'降水量:\s*([\d.]+)mm', weather_context)
+        if precip_match:
+            current_precip = float(precip_match.group(1))
+        
+        # 予報の降水量チェック
+        has_future_rain = "【降水予報】" in weather_context
+        
+        if current_precip > 0 or has_future_rain:
+            if current_precip > 0:
+                rain_warning = f"""
 【雨天時の特別注意】:
-- 現在降水量が{precipitation}mmあります。必ず雨に言及したコメントを選んでください
+- 現在降水量が{current_precip}mmあります。必ず雨に言及したコメントを選んでください
 - 天気コメントでは「雨」「降雨」「雨が」「にわか雨」などの雨関連表現を含むものを優先
 - アドバイスコメントでは「傘」「雨具」「雨対策」などの実用的なアドバイスを含むものを優先
 - 「晴れ」「青空」「日差し」などの晴天表現を含むコメントは絶対に選ばないでください
+"""
+            else:
+                rain_warning = """
+【降水予報がある場合の特別注意】:
+- 今後降水が予想されています。雨への備えに言及したコメントを選んでください
+- 天気コメントでは「にわか雨」「天気の変化」「傘の準備」などの表現を含むものを優先
+- アドバイスコメントでは「傘」「雨具」などの準備を促すものを優先
+- 現在晴れていても、将来の雨を考慮したコメントを選んでください
 """
         
         # 月別の不適切表現の注意事項を追加
