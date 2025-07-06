@@ -57,8 +57,7 @@ MobileCommentGenerator/
 │   │       ├── gemini_provider.py       # Google Gemini Integration
 │   │       └── anthropic_provider.py    # Anthropic Claude Integration
 │   ├── repositories/             # Data Repository
-│   │   ├── local_comment_repository.py # Local Data Access
-│   │   └── s3_comment_repository.py     # S3 Data Access
+│   │   └── local_comment_repository.py # Local Data Access
 │   ├── utils/                    # Utilities
 │   │   ├── common_utils.py       # Common Utilities
 │   │   └── weather_comment_validator.py # Weather Comment Validation
