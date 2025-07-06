@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 import logging
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.weather_data import WeatherForecast
-from src.data.past_comment import PastComment
+from src.data.past_comment import PastComment, CommentType
 
 logger = logging.getLogger(__name__)
 
@@ -52,19 +52,19 @@ def check_and_fix_weather_comment_safety(
             if pattern in weather_comment:
                 logger.warning(f"🚨 緊急修正: 晴天時に「{pattern}」は不適切 - 代替コメント検索")
                 weather_comment = _find_alternative_weather_comment(
-                    weather_data, state.past_weather_comments, CHANGEABLE_WEATHER_PATTERNS
+                    weather_data, state.past_comments, CHANGEABLE_WEATHER_PATTERNS
                 )
                 break
     
     # 雨天で熱中症警告は絶対に不適切 - 既存コメントから再選択
     if "雨" in weather_data.weather_description and weather_data.temperature < 30.0 and advice_comment and "熱中症" in advice_comment:
         logger.warning(f"🚨 緊急修正: 雨天+低温で熱中症警告を除外 - 代替アドバイス検索")
-        advice_comment = _find_rain_advice(state.past_advice_comments, advice_comment)
+        advice_comment = _find_rain_advice(state.past_comments, advice_comment)
     
     # 大雨・嵐でムシムシ暑いは不適切 - 既存コメントから再選択
     if ("大雨" in weather_data.weather_description or "嵐" in weather_data.weather_description) and weather_comment and "ムシムシ" in weather_comment:
         logger.warning(f"🚨 緊急修正: 悪天候でムシムシコメントを除外 - 代替コメント検索")
-        weather_comment = _find_storm_weather_comment(state.past_weather_comments, weather_comment)
+        weather_comment = _find_storm_weather_comment(state.past_comments, weather_comment)
     
     return weather_comment, advice_comment
 
@@ -90,7 +90,10 @@ def _find_alternative_weather_comment(
     replacement_found = False
     weather_comment = ""
     
-    for past_comment in past_comments:
+    # 天気コメントのみをフィルタリング
+    weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
+    
+    for past_comment in weather_comments:
         comment_text = past_comment.comment_text
         # 優先パターンに一致するものを探す
         for preferred in preferred_patterns:
@@ -104,7 +107,7 @@ def _find_alternative_weather_comment(
     
     # 優先パターンが見つからない場合、晴天系の任意のコメントを選択
     if not replacement_found:
-        for past_comment in past_comments:
+        for past_comment in weather_comments:
             comment_text = past_comment.comment_text
             if any(keyword in comment_text for keyword in SUNNY_KEYWORDS) and \
                not any(ng in comment_text for ng in changeable_patterns):
@@ -114,9 +117,9 @@ def _find_alternative_weather_comment(
                 break
     
     # それでも見つからない場合はデフォルト（最初の有効なコメント）
-    if not replacement_found and past_comments:
+    if not replacement_found and weather_comments:
         # デフォルトコメントも禁止パターンをチェック
-        for past_comment in past_comments:
+        for past_comment in weather_comments:
             comment_text = past_comment.comment_text
             if not any(ng in comment_text for ng in changeable_patterns):
                 weather_comment = comment_text
@@ -142,16 +145,19 @@ def _find_rain_advice(past_comments: Optional[List[PastComment]], current_advice
     if not past_comments:
         return current_advice
     
+    # アドバイスコメントのみをフィルタリング
+    advice_comments = [c for c in past_comments if c.comment_type == CommentType.ADVICE]
+    
     # 雨天に適したアドバイスを検索
-    for past_comment in past_comments:
+    for past_comment in advice_comments:
         comment_text = past_comment.comment_text
         if any(pattern in comment_text for pattern in RAIN_ADVICE_PATTERNS):
             logger.info(f"🚨 雨天用代替アドバイス: '{comment_text}'")
             return comment_text
     
     # 見つからない場合はデフォルト
-    if past_comments:
-        advice = past_comments[0].comment_text
+    if advice_comments:
+        advice = advice_comments[0].comment_text
         logger.info(f"🚨 デフォルト代替アドバイス: '{advice}'")
         return advice
     
@@ -163,16 +169,19 @@ def _find_storm_weather_comment(past_comments: Optional[List[PastComment]], curr
     if not past_comments:
         return current_comment
     
+    # 天気コメントのみをフィルタリング
+    weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
+    
     # 悪天候に適したコメントを検索
-    for past_comment in past_comments:
+    for past_comment in weather_comments:
         comment_text = past_comment.comment_text
         if any(pattern in comment_text for pattern in STORM_WEATHER_PATTERNS):
             logger.info(f"🚨 悪天候用代替コメント: '{comment_text}'")
             return comment_text
     
     # 見つからない場合はデフォルト
-    if past_comments:
-        comment = past_comments[0].comment_text
+    if weather_comments:
+        comment = weather_comments[0].comment_text
         logger.info(f"🚨 デフォルト代替: '{comment}'")
         return comment
     

@@ -104,8 +104,8 @@ class TestCommentSafety:
             location_name="東京"
         )
         state.weather_data = self.sunny_weather
-        state.past_weather_comments = past_weather_comments
-        state.past_advice_comments = past_advice_comments
+        # past_commentsに両方のコメントを統合
+        state.past_comments = past_weather_comments + past_advice_comments
         
         # 安全性チェック実行
         fixed_weather, fixed_advice = check_and_fix_weather_comment_safety(
