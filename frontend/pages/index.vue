@@ -66,6 +66,7 @@ import { storeToRefs } from 'pinia'
 import { getLocationsByRegion } from '~/constants/regions'
 import { useCommentStore } from '~/stores/comment'
 import { useLocationStore } from '~/stores/location'
+import { BATCH_CONFIG } from '../../src/config/constants'
 
 // Runtime config
 const config = useRuntimeConfig()
@@ -133,9 +134,10 @@ const generateComment = async () => {
       selectedWeatherIndex.value = 0
       
       // Process in chunks for better performance and progressive display
-      const CONCURRENT_LIMIT = 3
-      for (let i = 0; i < locationStore.selectedLocations.length; i += CONCURRENT_LIMIT) {
-        const chunk = locationStore.selectedLocations.slice(i, i + CONCURRENT_LIMIT)
+      // This limits the number of simultaneous requests to prevent overwhelming the server
+      // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
+      for (let i = 0; i < locationStore.selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
+        const chunk = locationStore.selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT)
         
         const chunkPromises = chunk.map(async (location) => {
           try {
@@ -184,6 +186,8 @@ const generateComment = async () => {
         })
         
         // Wait for all requests in the chunk to complete before processing next chunk
+        // We use individual addResult calls instead of batch addResults to ensure
+        // immediate progressive display as each location completes
         await Promise.allSettled(chunkPromises)
       }
       

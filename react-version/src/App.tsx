@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Cloud, Sparkles, Sun, Moon, ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
-import type { Location, GeneratedComment } from '@mobile-comment-generator/shared';
+import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
 import { GeneratedCommentDisplay } from './components/GeneratedComment';
@@ -9,17 +9,7 @@ import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { REGIONS } from './constants/regions';
-
-interface BatchResult {
-  success: boolean;
-  location: string;
-  comment?: string;
-  error?: string;
-  metadata?: Record<string, unknown>;
-  loading?: boolean;
-  weather?: Record<string, unknown>;
-  adviceComment?: string;
-}
+import { BATCH_CONFIG } from '../../src/config/constants';
 
 interface RegeneratingState {
   [location: string]: boolean;
@@ -70,8 +60,8 @@ function App() {
     try {
       if (isBatchMode) {
         // Batch generation with improved parallel processing
-        const CONCURRENT_LIMIT = 3;
-        setBatchResults([]); // Clear previous results
+        // Clear previous results before starting new batch
+        setBatchResults([]);
         
         // Initialize results array with placeholders to maintain order
         const placeholderResults: BatchResult[] = selectedLocations.map((location: string) => ({
@@ -85,8 +75,10 @@ function App() {
         setBatchResults(placeholderResults);
 
         // Process all locations with controlled concurrency
-        for (let i = 0; i < selectedLocations.length; i += CONCURRENT_LIMIT) {
-          const chunk = selectedLocations.slice(i, i + CONCURRENT_LIMIT);
+        // This limits the number of simultaneous requests to prevent overwhelming the server
+        // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
+        for (let i = 0; i < selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
+          const chunk = selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT);
           const chunkIndices = chunk.map((_, idx) => i + idx);
           
           const chunkPromises = chunk.map(async (locationName: string, chunkIdx: number) => {
@@ -142,6 +134,7 @@ function App() {
           });
 
           // Wait for all requests in the chunk to complete before processing next chunk
+          // Results are updated immediately within each promise for progressive display
           await Promise.allSettled(chunkPromises);
         }
       } else {

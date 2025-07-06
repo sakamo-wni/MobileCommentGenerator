@@ -25,6 +25,10 @@ export const useCommentStore = defineStore('comment', () => {
     results.value.push(value)
   }
   
+  const addResults = (values: BatchResult[]) => {
+    results.value.push(...values)
+  }
+  
   const clearResults = () => {
     result.value = null
     results.value = []
@@ -61,6 +65,7 @@ export const useCommentStore = defineStore('comment', () => {
     setResult,
     setResults,
     addResult,
+    addResults,
     clearResults,
     
     // Getters
