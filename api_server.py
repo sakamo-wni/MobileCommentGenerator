@@ -90,6 +90,15 @@ class HealthResponse(BaseModel):
     status: str
     version: str
 
+class BulkGenerationRequest(BaseModel):
+    locations: List[str]
+    llm_provider: LLMProvider = "gemini"
+
+class BulkGenerationResponse(BaseModel):
+    results: List[CommentGenerationResponse]
+    total: int
+    success_count: int
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
@@ -201,6 +210,65 @@ async def get_llm_providers():
             {"id": "anthropic", "name": "Claude", "description": "Anthropic's Claude AI"}
         ]
     }
+
+@app.post("/api/generate/bulk", response_model=BulkGenerationResponse)
+async def generate_comments_bulk(request: BulkGenerationRequest):
+    """Generate weather comments for multiple locations"""
+    try:
+        # Import here to avoid circular dependency
+        from app_controller import CommentGenerationController
+        
+        # Initialize controller
+        controller = CommentGenerationController()
+        
+        # Process locations in parallel (3 at a time)
+        results = []
+        BATCH_SIZE = 3
+        
+        for i in range(0, len(request.locations), BATCH_SIZE):
+            batch = request.locations[i:i + BATCH_SIZE]
+            
+            # Run batch generation in thread pool
+            batch_results = await asyncio.to_thread(
+                controller.generate_comments_batch,
+                locations=batch,
+                llm_provider=request.llm_provider,
+                max_workers=3
+            )
+            
+            # Convert results to API response format
+            for location, generation_result in zip(batch, batch_results):
+                if generation_result.success:
+                    result = CommentGenerationResponse(
+                        success=True,
+                        location=location,
+                        comment=generation_result.data.comment,
+                        advice_comment=generation_result.data.advice_comment,
+                        metadata=generation_result.data.metadata.dict() if generation_result.data.metadata else None
+                    )
+                else:
+                    result = CommentGenerationResponse(
+                        success=False,
+                        location=location,
+                        comment=None,
+                        advice_comment=None,
+                        error=generation_result.error_message,
+                        metadata=None
+                    )
+                results.append(result)
+        
+        # Calculate success count
+        success_count = sum(1 for r in results if r.success)
+        
+        return BulkGenerationResponse(
+            results=results,
+            total=len(results),
+            success_count=success_count
+        )
+        
+    except Exception as e:
+        logger.error(f"Bulk generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
