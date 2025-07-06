@@ -93,5 +93,8 @@ export interface TimelineForecast {
   precipitation: number;
 }
 
+// バッチ処理関連の型定義を再エクスポート
+export type { BatchResult, GenerationResult } from './batch';
+
 // UI定数
 export const COPY_FEEDBACK_DURATION = 2000; // コピー済み表示の持続時間（ミリ秒）

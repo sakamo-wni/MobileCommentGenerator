@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Cloud, Sparkles, Sun, Moon, ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
-import type { Location, GeneratedComment } from '@mobile-comment-generator/shared';
+import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
 import { GeneratedCommentDisplay } from './components/GeneratedComment';
@@ -9,16 +9,7 @@ import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { REGIONS } from './constants/regions';
-
-interface BatchResult {
-  success: boolean;
-  location: string;
-  comment?: string;
-  error?: string;
-  metadata?: Record<string, unknown>;
-  weather?: Record<string, unknown>;
-  adviceComment?: string;
-}
+import { BATCH_CONFIG } from '../../src/config/constants';
 
 interface RegeneratingState {
   [location: string]: boolean;
@@ -69,12 +60,14 @@ function App() {
     try {
       if (isBatchMode) {
         // Batch generation with improved parallel processing
-        const CONCURRENT_LIMIT = 3;
-        const results: BatchResult[] = [];
+        // Clear previous results before starting new batch
+        setBatchResults([]);
 
         // Process all locations with controlled concurrency
-        for (let i = 0; i < selectedLocations.length; i += CONCURRENT_LIMIT) {
-          const chunk = selectedLocations.slice(i, i + CONCURRENT_LIMIT);
+        // This limits the number of simultaneous requests to prevent overwhelming the server
+        // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
+        for (let i = 0; i < selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
+          const chunk = selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT);
           
           const chunkPromises = chunk.map(async (locationName: string) => {
             try {
@@ -119,10 +112,11 @@ function App() {
                 }
           );
           
-          results.push(...processedResults);
+          // Update results incrementally (3 locations at a time)
+          // This provides immediate feedback to users as results come in
+          // rather than waiting for all locations to complete
+          setBatchResults(prevResults => [...prevResults, ...processedResults]);
         }
-
-        setBatchResults(results);
       } else {
         // Single location generation
         const result = await generateComment(selectedLocation!, {
