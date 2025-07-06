@@ -68,7 +68,9 @@ class CommentGenerationController(ICommentGenerationController):
                 'result': result,
                 'success': result.get('success', False),
                 'comment': result.get('final_comment', ''),
-                'error': result.get('error', None)
+                'advice_comment': result.get('advice_comment', ''),
+                'error': result.get('error', None),
+                'metadata': result.get('generation_metadata', {})  # metadataを追加
             }
 
             # ソースファイル情報を抽出

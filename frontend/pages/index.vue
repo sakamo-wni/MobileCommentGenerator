@@ -129,49 +129,62 @@ const generateComment = async () => {
   
   try {
     if (locationStore.isBatchMode && locationStore.selectedLocations.length > 0) {
-      // Batch mode: Use new bulk generation endpoint
+      // Batch mode: Process locations in chunks for progressive display
       selectedWeatherIndex.value = 0
       
-      try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分のタイムアウト
+      // Process in chunks for better performance and progressive display
+      const CONCURRENT_LIMIT = 3
+      for (let i = 0; i < locationStore.selectedLocations.length; i += CONCURRENT_LIMIT) {
+        const chunk = locationStore.selectedLocations.slice(i, i + CONCURRENT_LIMIT)
         
-        const response = await $fetch(`${apiBaseUrl}/api/generate/bulk`, {
-          method: 'POST',
-          body: {
-            locations: locationStore.selectedLocations,
-            llm_provider: selectedProvider.value.value
-          },
-          signal: controller.signal,
-          timeout: 120000 // 2分のタイムアウトを明示的に設定
+        const chunkPromises = chunk.map(async (location) => {
+          try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分のタイムアウト
+            
+            const response = await $fetch(`${apiBaseUrl}/api/generate`, {
+              method: 'POST',
+              body: {
+                location: location,
+                llm_provider: selectedProvider.value.value,
+                target_datetime: new Date().toISOString(),
+                exclude_previous: false
+              },
+              signal: controller.signal,
+              timeout: 120000 // 2分のタイムアウトを明示的に設定
+            })
+            
+            clearTimeout(timeoutId)
+            
+            // Add result immediately for progressive display
+            commentStore.addResult(response)
+            return response
+          } catch (error) {
+            console.error(`Failed to generate for ${location}:`, error)
+            let errorMessage = 'Unknown error'
+            if (error.name === 'AbortError') {
+              errorMessage = 'タイムアウトしました（2分以上）'
+            } else if (error.message) {
+              errorMessage = error.message
+            }
+            
+            const errorResult = {
+              success: false,
+              location: location,
+              error: `生成エラー: ${errorMessage}`,
+              comment: null,
+              advice_comment: null,
+              metadata: null
+            }
+            
+            // Add error result immediately
+            commentStore.addResult(errorResult)
+            return errorResult
+          }
         })
         
-        clearTimeout(timeoutId)
-        
-        // Add all results to store
-        if (response.results) {
-          response.results.forEach(result => commentStore.addResult(result))
-        }
-      } catch (error) {
-        console.error('Bulk generation failed:', error)
-        let errorMessage = 'Unknown error'
-        if (error.name === 'AbortError') {
-          errorMessage = 'タイムアウトしました（2分以上）'
-        } else if (error.message) {
-          errorMessage = error.message
-        }
-        
-        // Add error result for all locations
-        locationStore.selectedLocations.forEach(location => {
-          commentStore.addResult({
-            success: false,
-            location: location,
-            error: `一括生成エラー: ${errorMessage}`,
-            comment: null,
-            advice_comment: null,
-            metadata: null
-          })
-        })
+        // Wait for all requests in the chunk to complete before processing next chunk
+        await Promise.allSettled(chunkPromises)
       }
       
       // Add batch to history
