@@ -266,19 +266,32 @@ class CommentValidator:
         
         # 将来の予報もチェック
         has_rain_forecast = False
+        max_precipitation = 0.0
+        
         if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+            logger.debug(f"降水チェック: 予報データ数={len(weather_data.hourly_forecasts)}")
             for forecast in weather_data.hourly_forecasts:
                 precip = 0
                 if hasattr(forecast, 'precipitation_mm'):
                     precip = forecast.precipitation_mm
                 elif hasattr(forecast, 'precipitation'):
                     precip = forecast.precipitation
-                if precip >= 0.5:
+                
+                if precip > 0:
+                    logger.debug(f"  予報降水量: {forecast.datetime if hasattr(forecast, 'datetime') else '時刻不明'} - {precip}mm")
+                    max_precipitation = max(max_precipitation, precip)
+                
+                if precip >= 0.1:  # 0.1mm以上で雨と判定（より緩い基準）
                     has_rain_forecast = True
-                    break
         
-        # 現在も将来も雨がある場合は、雨コメントOK
-        if has_rain_now or has_rain_forecast:
+        # 天気の説明文にも雨が含まれているかチェック
+        weather_desc = weather_data.weather_description.lower()
+        has_rain_in_description = any(rain_word in weather_desc for rain_word in ['雨', 'rain', 'shower'])
+        
+        logger.info(f"降水判定結果: 現在={weather_data.precipitation}mm (雨={has_rain_now}), 予報最大={max_precipitation}mm (雨予報={has_rain_forecast}), 説明に雨={has_rain_in_description}, 天気説明={weather_data.weather_description}")
+        
+        # 現在も将来も雨がある場合、または天気説明に雨が含まれる場合は、雨コメントOK
+        if has_rain_now or has_rain_forecast or has_rain_in_description:
             return False
         
         # 不適切な雨・雷関連表現パターン
@@ -391,18 +404,30 @@ class CommentValidator:
         logger.debug(f"  予報データ数: {len(forecast_collection.forecasts)}")
         
         next_day_forecasts = []
-        for forecast in forecast_collection.forecasts:
-            forecast_dt = forecast.datetime
-            if forecast_dt.tzinfo is None:
-                forecast_dt = jst.localize(forecast_dt)
+        # 各目標時刻に最も近い予報を選択
+        for target_hour in target_hours:
+            target_time = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=target_hour)))
+            closest_forecast = None
+            min_diff = float('inf')
             
-            # 対象日の9:00-18:00の予報のみ抽出
-            if forecast_dt.date() == target_date and forecast_dt.hour in target_hours:
-                next_day_forecasts.append(forecast)
-                logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
+            for forecast in forecast_collection.forecasts:
+                forecast_dt = forecast.datetime
+                if forecast_dt.tzinfo is None:
+                    forecast_dt = jst.localize(forecast_dt)
+                
+                # 対象日のデータのみ考慮
+                if forecast_dt.date() == target_date:
+                    time_diff = abs((forecast_dt - target_time).total_seconds())
+                    if time_diff < min_diff:
+                        min_diff = time_diff
+                        closest_forecast = forecast
+            
+            if closest_forecast and min_diff <= 3600 * 3:  # 3時間以内の誤差なら許容
+                next_day_forecasts.append(closest_forecast)
+                logger.debug(f"  {target_hour}時の予報: {closest_forecast.datetime.strftime('%H:%M')} - {closest_forecast.weather_description}")
         
-        if len(next_day_forecasts) < 4:
-            # 4つの時間帯のデータが揃わない場合は不安定とする
+        if len(next_day_forecasts) < 3:
+            # 3つ以上のデータがあれば判定可能とする
             logger.info(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
             logger.info(f"  検索対象日: {target_date}")
             logger.info(f"  検索時間帯: {target_hours}")

@@ -138,8 +138,8 @@ class WxTechAPIClient:
         # 最大の時間数を取得（4つの時刻すべてをカバーするため）
         max_hours = max(hours_to_targets)
         
-        # 余裕を持たせて+1時間
-        forecast_hours = max(int(max_hours) + 1, 1)
+        # 余裕を持たせて+2時間（APIの返すデータ間隔を考慮）
+        forecast_hours = int(max_hours) + 2
         
         # ログ出力で各時刻を表示
         time_info = []
@@ -149,7 +149,15 @@ class WxTechAPIClient:
         logger.info(f"翌日の4時刻: {', '.join(time_info)}, API取得時間: {forecast_hours}時間")
         
         # 4つの時刻すべてをカバーする時間でデータを取得
-        return self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        
+        # 取得したデータの詳細をログ出力
+        logger.info(f"取得したデータ件数: {len(forecast_collection.forecasts)}件")
+        if forecast_collection.forecasts:
+            for i, forecast in enumerate(forecast_collection.forecasts[:10]):  # 最初の10件まで表示
+                logger.debug(f"  データ{i+1}: {forecast.datetime.strftime('%Y-%m-%d %H:%M')} - {forecast.weather_description}")
+        
+        return forecast_collection
     
     def test_specific_time_parameters(self, lat: float, lon: float) -> Dict[str, Any]:
         """特定時刻指定パラメータのテスト

@@ -2,6 +2,7 @@
 
 import logging
 from typing import Dict, Any
+import time
 
 import google.generativeai as genai
 
@@ -61,24 +62,66 @@ class GeminiProvider(LLMProvider):
 
                 logger.info(f"Gemini API呼び出し開始 (試行 {attempt + 1}/{max_retries})")
                 
+                # タイマー開始
+                start_time = time.time()
+                
                 # APIリクエスト（さらに簡潔な設定）
-                response = self.model.generate_content(
-                    full_prompt,
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.5,  # より確定的な出力
-                        max_output_tokens=30,  # さらに短く
-                        candidate_count=1,
-                        top_p=0.8,  # 確率分布を制限
-                        top_k=10,  # 候補トークンを制限
-                    ),
-                    safety_settings={
-                        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-                        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-                        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
-                    }
-                )
+                # タイムアウトを30秒に設定
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        self.model.generate_content,
+                        full_prompt,
+                        generation_config=genai.GenerationConfig(
+                            temperature=0.5,  # より確定的な出力
+                            max_output_tokens=50,  # 少し増やす
+                            candidate_count=1,
+                            top_p=0.8,  # 確率分布を制限
+                            top_k=10,  # 候補トークンを制限
+                        ),
+                        safety_settings={
+                            "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                            "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                            "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                            "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+                        }
+                    )
+                    try:
+                        response = future.result(timeout=30)  # 30秒のタイムアウト
+                    except concurrent.futures.TimeoutError:
+                        logger.error(f"Gemini API timeout after 30 seconds (attempt {attempt + 1})")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay * (attempt + 1))
+                            continue
+                        else:
+                            raise Exception("Gemini API timeout after all retries")
+                
+                # レスポンス時間を記録
+                response_time = time.time() - start_time
+                logger.info(f"Gemini APIレスポンス時間: {response_time:.2f}秒")
 
+                # レスポンスの検証
+                if not response.parts:
+                    logger.warning(f"Response has no parts. Candidates: {response.candidates}")
+                    if response.candidates and len(response.candidates) > 0:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'finish_reason'):
+                            logger.error(f"Finish reason: {candidate.finish_reason}")
+                            if candidate.finish_reason == 2:  # MAX_TOKENS
+                                logger.error("Output truncated due to max tokens limit")
+                                # より短い出力を求めて再試行
+                                if attempt < max_retries - 1:
+                                    logger.info("Retrying with shorter output request...")
+                                    time.sleep(retry_delay)
+                                    continue
+                            elif candidate.finish_reason == 3:  # SAFETY
+                                logger.error("Content blocked by safety filters")
+                                if attempt < max_retries - 1:
+                                    logger.info("Retrying with safer prompt...")
+                                    time.sleep(retry_delay)
+                                    continue
+                    return "本日の天気情報です"
+                
                 # レスポンスからコメントを抽出
                 generated_comment = response.text.strip()
                 # 改行や余分な記号を除去
@@ -125,24 +168,65 @@ class GeminiProvider(LLMProvider):
         for attempt in range(max_retries):
             try:
                 logger.info(f"Generating text with Gemini (attempt {attempt + 1}/{max_retries})")
+                
+                # タイマー開始
+                start_time = time.time()
 
-                response = self.model.generate_content(
-                    simplified_prompt,
-                    generation_config=genai.GenerationConfig(
-                        temperature=0.5,
-                        max_output_tokens=200,  # 短めに制限
-                        candidate_count=1,
-                        top_p=0.8,
-                        top_k=20,
-                    ),
-                    safety_settings={
-                        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-                        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-                        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-                        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
-                    }
-                )
+                # タイムアウトを30秒に設定
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        self.model.generate_content,
+                        simplified_prompt,
+                        generation_config=genai.GenerationConfig(
+                            temperature=0.5,
+                            max_output_tokens=300,  # 少し増やす
+                            candidate_count=1,
+                            top_p=0.8,
+                            top_k=20,
+                        ),
+                        safety_settings={
+                            "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                            "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                            "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                            "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+                        }
+                    )
+                    try:
+                        response = future.result(timeout=30)  # 30秒のタイムアウト
+                    except concurrent.futures.TimeoutError:
+                        logger.error(f"Gemini API timeout after 30 seconds (attempt {attempt + 1})")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay * (attempt + 1))
+                            continue
+                        else:
+                            raise Exception("Gemini API timeout after all retries")
+                
+                # レスポンス時間を記録
+                response_time = time.time() - start_time
+                logger.info(f"Gemini APIレスポンス時間: {response_time:.2f}秒")
 
+                # レスポンスの検証
+                if not response.parts:
+                    logger.warning(f"Response has no parts. Candidates: {response.candidates}")
+                    if response.candidates and len(response.candidates) > 0:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'finish_reason'):
+                            logger.error(f"Finish reason: {candidate.finish_reason}")
+                            if candidate.finish_reason == 2:  # MAX_TOKENS
+                                logger.error("Output truncated due to max tokens limit")
+                                if attempt < max_retries - 1:
+                                    logger.info("Retrying with shorter output request...")
+                                    time.sleep(retry_delay)
+                                    continue
+                            elif candidate.finish_reason == 3:  # SAFETY
+                                logger.error("Content blocked by safety filters")
+                                if attempt < max_retries - 1:
+                                    logger.info("Retrying with safer prompt...")
+                                    time.sleep(retry_delay)
+                                    continue
+                    raise Exception("Response generation failed")
+                
                 generated_text = response.text
                 logger.info(f"Generated text: {generated_text[:100]}...")
 

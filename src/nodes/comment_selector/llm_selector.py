@@ -52,7 +52,7 @@ class LLMCommentSelector:
             
             # LLMによる選択を実行
             selected_candidate = self._perform_llm_selection(
-                candidates, weather_data, location_name, target_datetime, comment_type
+                candidates, weather_data, location_name, target_datetime, comment_type, state
             )
             
             if selected_candidate:
@@ -75,14 +75,15 @@ class LLMCommentSelector:
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
-        comment_type: CommentType
+        comment_type: CommentType,
+        state=None
     ) -> Optional[Dict[str, Any]]:
         """LLMによる実際の選択処理"""
         # 候補リストを文字列として整形
         candidates_text = self._format_candidates_for_llm(candidates)
         
         # 天気情報を整形
-        weather_context = self._format_weather_context(weather_data, location_name, target_datetime)
+        weather_context = self._format_weather_context(weather_data, location_name, target_datetime, state)
         
         # コメントタイプ別のプロンプトを作成
         prompt = self._create_selection_prompt(candidates_text, weather_context, comment_type)
@@ -121,7 +122,7 @@ class LLMCommentSelector:
             )
         return "\n".join(formatted_candidates)
     
-    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime) -> str:
+    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime, state=None) -> str:
         """天気情報をLLM用に整形（時系列分析を含む）"""
         
         # 基本天気情報
@@ -168,23 +169,24 @@ class LLMCommentSelector:
         elif weather_data.precipitation > 0:
             context += "- 小雨：念のため傘があると安心\n"
         
-        # 将来の降水予報も追加
-        if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
-            future_rain = []
-            for forecast in weather_data.hourly_forecasts:
-                precip = 0
-                if hasattr(forecast, 'precipitation_mm'):
-                    precip = forecast.precipitation_mm
-                elif hasattr(forecast, 'precipitation'):
-                    precip = forecast.precipitation
-                    
-                if precip > 0 and hasattr(forecast, 'datetime'):
-                    future_rain.append((forecast.datetime.strftime('%H時'), precip))
-            
-            if future_rain:
-                context += "\n【降水予報】\n"
-                for time, precip in future_rain:
-                    context += f"- {time}: {precip}mm/hの降水予想\n"
+        # 将来の降水予報も追加（forecast_collectionから取得）
+        if state and hasattr(state, 'generation_metadata'):
+            forecast_collection = state.generation_metadata.get('forecast_collection')
+            if forecast_collection and hasattr(forecast_collection, 'forecasts'):
+                future_rain = []
+                # 翌日の予報のみ対象
+                target_date = (weather_data.datetime.date() if hasattr(weather_data, 'datetime') 
+                              else datetime.now().date())
+                
+                for forecast in forecast_collection.forecasts:
+                    if forecast.datetime.date() == target_date:
+                        if forecast.precipitation > 0:
+                            future_rain.append((forecast.datetime.strftime('%H時'), forecast.precipitation))
+                
+                if future_rain:
+                    context += "\n【降水予報】\n"
+                    for time, precip in future_rain:
+                        context += f"- {time}: {precip}mm/hの降水予想\n"
         
         return context
     

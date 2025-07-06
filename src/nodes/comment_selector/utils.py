@@ -1,6 +1,7 @@
 """コメント選択のユーティリティ関数"""
 
 import logging
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 
 from src.data.past_comment import PastComment
@@ -77,18 +78,20 @@ class CommentUtils:
             has_rain_forecast = False
             max_future_precipitation = 0.0
             
-            # 将来の予報データをチェック
-            if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
-                logger.info(f"予報データ数: {len(weather_data.hourly_forecasts)}")
-                for forecast in weather_data.hourly_forecasts:
-                    if hasattr(forecast, 'precipitation_mm') and forecast.precipitation_mm > 0:
-                        has_rain_forecast = True
-                        max_future_precipitation = max(max_future_precipitation, forecast.precipitation_mm)
-                        logger.info(f"雨予報検出: {forecast.datetime if hasattr(forecast, 'datetime') else '時刻不明'} - {forecast.precipitation_mm}mm")
-                    elif hasattr(forecast, 'precipitation') and forecast.precipitation > 0:
-                        has_rain_forecast = True
-                        max_future_precipitation = max(max_future_precipitation, forecast.precipitation)
-                        logger.info(f"雨予報検出: {forecast.datetime if hasattr(forecast, 'datetime') else '時刻不明'} - {forecast.precipitation}mm")
+            # 将来の予報データをチェック（forecast_collectionから取得）
+            if state and hasattr(state, 'generation_metadata'):
+                forecast_collection = state.generation_metadata.get('forecast_collection')
+                if forecast_collection and hasattr(forecast_collection, 'forecasts'):
+                    logger.info(f"予報データ数: {len(forecast_collection.forecasts)}")
+                    # 翌日の予報のみ対象
+                    target_date = (weather_data.datetime.date() if hasattr(weather_data, 'datetime')
+                                  else datetime.now().date())
+                    
+                    for forecast in forecast_collection.forecasts:
+                        if forecast.datetime.date() == target_date and forecast.precipitation > 0:
+                            has_rain_forecast = True
+                            max_future_precipitation = max(max_future_precipitation, forecast.precipitation)
+                            logger.info(f"雨予報検出: {forecast.datetime.strftime('%Y-%m-%d %H:%M')} - {forecast.precipitation}mm")
             
             if has_rain_now or has_rain_forecast:
                 rain_keywords = ["雨", "降雨", "雨が", "にわか雨", "雨模様", "雨音", "雨降り", "傘"]
