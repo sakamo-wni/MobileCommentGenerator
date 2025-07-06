@@ -1,6 +1,6 @@
 """NGワード管理モジュール"""
 
-from typing import List
+from typing import List, Dict, Any
 import logging
 from pathlib import Path
 import yaml
@@ -39,3 +39,27 @@ def get_ng_words() -> List[str]:
         logger.error(f"Error loading NG words config: {e}")
         # フォールバック
         return DEFAULT_NG_WORDS
+
+
+def check_ng_words(text: str) -> Dict[str, Any]:
+    """テキストにNGワードが含まれているかチェック
+    
+    Args:
+        text: チェック対象のテキスト
+        
+    Returns:
+        Dict with keys:
+            - is_valid: NGワードが含まれていない場合True
+            - found_words: 見つかったNGワードのリスト
+    """
+    ng_words = get_ng_words()
+    found_words = []
+    
+    for ng_word in ng_words:
+        if ng_word in text:
+            found_words.append(ng_word)
+    
+    return {
+        "is_valid": len(found_words) == 0,
+        "found_words": found_words
+    }

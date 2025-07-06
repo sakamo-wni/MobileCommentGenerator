@@ -35,12 +35,18 @@ logger = logging.getLogger(__name__)
 
 try:
     from src.workflows.comment_generation_workflow import run_comment_generation
+    from src.workflows.unified_comment_generation_workflow import run_unified_comment_generation
+    from src.workflows.parallel_comment_generation_workflow import run_parallel_comment_generation
     from src.ui.streamlit_utils import load_locations, load_history, save_to_history
     logger.info("Successfully imported backend modules")
 except ImportError as e:
     logger.error(f"Failed to import backend modules: {e}")
     # Fallback imports for testing
     def run_comment_generation(*args, **kwargs):
+        return {"success": False, "error": "Backend not available"}
+    def run_unified_comment_generation(*args, **kwargs):
+        return {"success": False, "error": "Backend not available"}
+    def run_parallel_comment_generation(*args, **kwargs):
         return {"success": False, "error": "Backend not available"}
     def load_locations():
         return ["東京", "神戸", "大阪", "名古屋", "福岡"]
@@ -76,6 +82,9 @@ class CommentGenerationRequest(BaseModel):
     llm_provider: LLMProvider = "gemini"
     target_datetime: Optional[str] = None
     exclude_previous: Optional[bool] = False
+    use_unified_mode: Optional[bool] = False  # 統合モード（選択と生成を1回で）
+    use_parallel_mode: Optional[bool] = False  # 並列処理モード
+    use_indexed_csv: Optional[bool] = False  # インデックス化されたCSVを使用
 
 class CommentGenerationResponse(BaseModel):
     success: bool
@@ -157,14 +166,47 @@ async def generate_comment(request: CommentGenerationRequest):
         
         logger.info(f"Target datetime: {target_dt} (current time for forecast calculation)")
         
-        # Run comment generation
-        result = await asyncio.to_thread(
-            run_comment_generation,
-            location_name=request.location,
-            target_datetime=target_dt,
-            llm_provider=request.llm_provider,
-            exclude_previous=request.exclude_previous
-        )
+        # Select appropriate workflow based on flags
+        logger.info(f"Request flags - unified: {request.use_unified_mode}, parallel: {request.use_parallel_mode}, indexed_csv: {request.use_indexed_csv}")
+        
+        # インデックス化されたCSVを使用する場合の設定
+        extra_kwargs = {}
+        if request.use_indexed_csv:
+            extra_kwargs["use_optimized_repository"] = True
+        
+        # 適切なワークフローを選択
+        if request.use_unified_mode:
+            logger.info("Using unified generation mode for better performance")
+            result = await asyncio.to_thread(
+                run_unified_comment_generation,
+                location_name=request.location,
+                target_datetime=target_dt,
+                llm_provider=request.llm_provider,
+                exclude_previous=request.exclude_previous,
+                **extra_kwargs
+            )
+        elif request.use_parallel_mode:
+            logger.info("Using parallel mode with optimized performance")
+            result = await asyncio.to_thread(
+                run_parallel_comment_generation,
+                location_name=request.location,
+                target_datetime=target_dt,
+                llm_provider=request.llm_provider,
+                exclude_previous=request.exclude_previous,
+                use_unified_mode=request.use_unified_mode,
+                **extra_kwargs
+            )
+        else:
+            # デフォルト: 従来のワークフロー
+            logger.info("Using traditional workflow")
+            result = await asyncio.to_thread(
+                run_comment_generation,
+                location_name=request.location,
+                target_datetime=target_dt,
+                llm_provider=request.llm_provider,
+                exclude_previous=request.exclude_previous,
+                **extra_kwargs
+            )
         
         logger.info(f"Generation result: success={result.get('success', False)}")
         

@@ -7,6 +7,7 @@ from typing import Dict, Any
 from src.data.past_comment import CommentType
 from src.data.weather_data import WeatherForecast
 from src.repositories.local_comment_repository import LocalCommentRepository
+from src.repositories.optimized_local_comment_repository import OptimizedLocalCommentRepository
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,13 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
         if not location_name:
             raise ValueError("location_name が指定されていません")
             
-        # リポジトリ初期化
-        repository = LocalCommentRepository()
+        # リポジトリ初期化（最適化フラグに基づいて選択）
+        use_optimized = getattr(state, 'use_optimized_repository', False)
+        if use_optimized:
+            logger.info("Using optimized CSV repository with indexing")
+            repository = OptimizedLocalCommentRepository()
+        else:
+            repository = LocalCommentRepository()
         
         # WeatherForecastチェック
         if not isinstance(weather_data, WeatherForecast):
