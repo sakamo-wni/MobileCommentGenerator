@@ -45,10 +45,10 @@ class CommentSelector:
         
         # 事前フィルタリング
         filtered_weather = self.validator.get_weather_appropriate_comments(
-            weather_comments, weather_data, CommentType.WEATHER_COMMENT, limit=500
+            weather_comments, weather_data, limit=500
         )
         filtered_advice = self.validator.get_weather_appropriate_comments(
-            advice_comments, weather_data, CommentType.ADVICE, limit=500
+            advice_comments, weather_data, limit=500
         )
         
         # 除外対象のコメントを削除
