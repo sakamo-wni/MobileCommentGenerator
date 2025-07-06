@@ -297,6 +297,13 @@ def fetch_weather_forecast_node(state):
         # 天気予報の取得（翌日9, 12, 15, 18時JSTのみ）
         try:
             forecast_collection = client.get_forecast_for_next_day_hours(lat, lon)
+            
+            # forecast_collectionが空でないことを確認
+            if not forecast_collection or not forecast_collection.forecasts:
+                error_msg = f"地点 '{location_name}' の天気予報データが取得できませんでした"
+                logger.error(f"{error_msg} - forecast_collection is empty or has no forecasts")
+                state.add_error(error_msg, "weather_forecast")
+                raise ValueError(error_msg)
         except WxTechAPIError as e:
             # エラータイプに基づいて適切なエラーメッセージを設定
             if e.error_type == 'api_key_invalid':
@@ -357,6 +364,8 @@ def fetch_weather_forecast_node(state):
         
         # 各対象時刻に最も近い予報を抽出
         period_forecasts = []
+        logger.info(f"Total forecasts in collection: {len(forecast_collection.forecasts)}")
+        
         for target_time in target_times:
             closest_forecast = None
             min_diff = float('inf')
@@ -375,6 +384,16 @@ def fetch_weather_forecast_node(state):
             
             if closest_forecast:
                 period_forecasts.append(closest_forecast)
+                logger.debug(f"Found forecast for {target_time.strftime('%H:%M')}: {closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')}")
+            else:
+                logger.warning(f"No forecast found for target time {target_time.strftime('%H:%M')}")
+        
+        # period_forecastsが空でないことを確認
+        if not period_forecasts:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(f"{error_msg} - period_forecasts is empty")
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
         
         # ターゲット時刻に最も近い予報を選択
         validator = WeatherDataValidator()
