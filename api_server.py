@@ -229,7 +229,7 @@ async def generate_comments_bulk(request: BulkGenerationRequest):
             batch = request.locations[i:i + BATCH_SIZE]
             
             # Run batch generation in thread pool
-            batch_results = await asyncio.to_thread(
+            batch_result = await asyncio.to_thread(
                 controller.generate_comments_batch,
                 locations=batch,
                 llm_provider=request.llm_provider,
@@ -237,22 +237,22 @@ async def generate_comments_bulk(request: BulkGenerationRequest):
             )
             
             # Convert results to API response format
-            for location, generation_result in zip(batch, batch_results):
-                if generation_result.success:
+            for generation_result in batch_result['results']:
+                if generation_result['success']:
                     result = CommentGenerationResponse(
                         success=True,
-                        location=location,
-                        comment=generation_result.data.comment,
-                        advice_comment=generation_result.data.advice_comment,
-                        metadata=generation_result.data.metadata.dict() if generation_result.data.metadata else None
+                        location=generation_result['location'],
+                        comment=generation_result['comment'],
+                        advice_comment=generation_result.get('advice_comment'),
+                        metadata=generation_result.get('metadata')
                     )
                 else:
                     result = CommentGenerationResponse(
                         success=False,
-                        location=location,
+                        location=generation_result['location'],
                         comment=None,
                         advice_comment=None,
-                        error=generation_result.error_message,
+                        error=generation_result.get('error', 'Unknown error'),
                         metadata=None
                     )
                 results.append(result)
