@@ -20,6 +20,10 @@ class CommentCache:
         self._cache: Optional[List[PastComment]] = None
         self._cache_loaded_at: Optional[datetime] = None
         self._cache_ttl = timedelta(minutes=cache_ttl_minutes)
+        # キャッシュ統計の追加
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._total_requests = 0
     
     def is_cache_valid(self) -> bool:
         """キャッシュが有効かどうかを確認"""
@@ -31,8 +35,13 @@ class CommentCache:
     
     def get(self) -> Optional[List[PastComment]]:
         """キャッシュを取得（有効な場合のみ）"""
+        self._total_requests += 1
         if self.is_cache_valid():
+            self._cache_hits += 1
+            logger.debug(f"Cache hit (hit rate: {self.get_hit_rate():.1%})")
             return self._cache
+        self._cache_misses += 1
+        logger.debug(f"Cache miss (hit rate: {self.get_hit_rate():.1%})")
         return None
     
     def set(self, comments: List[PastComment]) -> None:
@@ -45,7 +54,14 @@ class CommentCache:
         """キャッシュをクリア"""
         self._cache = None
         self._cache_loaded_at = None
+        # 統計はリセットしない（累積値として保持）
         logger.info("Cache cleared")
+    
+    def get_hit_rate(self) -> float:
+        """キャッシュヒット率を計算"""
+        if self._total_requests == 0:
+            return 0.0
+        return self._cache_hits / self._total_requests
     
     def get_stats(self) -> Dict[str, Any]:
         """キャッシュの統計情報を取得"""
@@ -53,7 +69,12 @@ class CommentCache:
             'is_valid': self.is_cache_valid(),
             'size': len(self._cache) if self._cache else 0,
             'loaded_at': self._cache_loaded_at.isoformat() if self._cache_loaded_at else None,
-            'ttl_minutes': self._cache_ttl.total_seconds() / 60
+            'ttl_minutes': self._cache_ttl.total_seconds() / 60,
+            # 新しい統計情報
+            'hits': self._cache_hits,
+            'misses': self._cache_misses,
+            'total_requests': self._total_requests,
+            'hit_rate': self.get_hit_rate()
         }
 
 

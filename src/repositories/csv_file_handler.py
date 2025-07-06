@@ -3,7 +3,7 @@
 import csv
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 
 from src.data.past_comment import PastComment, CommentType
@@ -44,6 +44,10 @@ class CSVFileHandler:
     
     def validate_csv_headers(self, file_path: Path, expected_columns: List[str]) -> bool:
         """CSVファイルのヘッダーを検証"""
+        # ファイルが存在しない場合は検証しない（read_csv_fileで警告される）
+        if not file_path.exists():
+            return True
+            
         try:
             with open(file_path, 'r', encoding=self.encoding) as f:
                 reader = csv.DictReader(f)
@@ -107,10 +111,27 @@ class CommentParser:
             return None
     
     @staticmethod
-    def _parse_count(count_str: str, line_number: int) -> int:
-        """カウント値を整数に変換"""
+    def _parse_count(count_str: Union[str, int, None], line_number: int) -> int:
+        """カウント値を整数に変換
+        
+        Args:
+            count_str: カウント値（文字列、整数、またはNone）
+            line_number: CSVファイルの行番号（デバッグ用）
+            
+        Returns:
+            整数に変換されたカウント値
+        """
+        # すでに整数の場合はそのまま返す
+        if isinstance(count_str, int):
+            return count_str
+        
+        # Noneまたは空文字列の場合は0を返す
+        if count_str is None or count_str == '':
+            return 0
+        
+        # 文字列を整数に変換
         try:
-            return int(count_str) if count_str else 0
+            return int(count_str)
         except ValueError:
             logger.warning(f"Invalid count value '{count_str}' at line {line_number}. Using 0.")
             return 0
