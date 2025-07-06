@@ -1,7 +1,7 @@
 import React from 'react';
 import { Cloud, Thermometer, Droplets, Wind, Gauge, TrendingUp, Clock, CloudRain, Info } from 'lucide-react';
 import type { WeatherData, WeatherMetadata } from '@mobile-comment-generator/shared';
-import { formatDateTime } from '@mobile-comment-generator/shared/src/utils/date';
+import { formatDateTime } from '@mobile-comment-generator/shared';
 import { WeatherTimeline } from './WeatherTimeline';
 
 interface WeatherDataProps {

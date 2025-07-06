@@ -16,8 +16,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import type { WeatherMetadata, WeatherData } from '@mobile-comment-generator/shared';
-import { COPY_FEEDBACK_DURATION } from '@mobile-comment-generator/shared';
-import { formatDateTime } from '@mobile-comment-generator/shared/src/utils/date';
+import { COPY_FEEDBACK_DURATION, formatDateTime } from '@mobile-comment-generator/shared';
 import { WeatherDataDisplay } from './WeatherData';
 import { WeatherTimeline } from './WeatherTimeline';
 
