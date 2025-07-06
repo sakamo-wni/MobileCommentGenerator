@@ -9,6 +9,7 @@ import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { REGIONS } from './constants/regions';
+import { BATCH_CONFIG } from '../../src/config/constants';
 
 interface BatchResult {
   success: boolean;
@@ -69,14 +70,14 @@ function App() {
     try {
       if (isBatchMode) {
         // Batch generation with improved parallel processing
-        const CONCURRENT_LIMIT = 3;
-        
         // Clear previous results before starting new batch
         setBatchResults([]);
 
         // Process all locations with controlled concurrency
-        for (let i = 0; i < selectedLocations.length; i += CONCURRENT_LIMIT) {
-          const chunk = selectedLocations.slice(i, i + CONCURRENT_LIMIT);
+        // This limits the number of simultaneous requests to prevent overwhelming the server
+        // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
+        for (let i = 0; i < selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
+          const chunk = selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT);
           
           const chunkPromises = chunk.map(async (locationName: string) => {
             try {
@@ -122,6 +123,8 @@ function App() {
           );
           
           // Update results incrementally (3 locations at a time)
+          // This provides immediate feedback to users as results come in
+          // rather than waiting for all locations to complete
           setBatchResults(prevResults => [...prevResults, ...processedResults]);
         }
       } else {

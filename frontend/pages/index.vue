@@ -66,6 +66,7 @@ import { storeToRefs } from 'pinia'
 import { getLocationsByRegion } from '~/constants/regions'
 import { useCommentStore } from '~/stores/comment'
 import { useLocationStore } from '~/stores/location'
+import { BATCH_CONFIG } from '../../src/config/constants'
 
 // Runtime config
 const config = useRuntimeConfig()
@@ -133,9 +134,10 @@ const generateComment = async () => {
       selectedWeatherIndex.value = 0
       
       // Process in chunks for better performance
-      const CONCURRENT_LIMIT = 3
-      for (let i = 0; i < locationStore.selectedLocations.length; i += CONCURRENT_LIMIT) {
-        const chunk = locationStore.selectedLocations.slice(i, i + CONCURRENT_LIMIT)
+      // This limits the number of simultaneous requests to prevent overwhelming the server
+      // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
+      for (let i = 0; i < locationStore.selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
+        const chunk = locationStore.selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT)
         
         const chunkPromises = chunk.map(async (location) => {
           try {
@@ -187,7 +189,9 @@ const generateComment = async () => {
         })
         
         // Add results to store incrementally (3 locations at a time)
-        processedResults.forEach(result => commentStore.addResult(result))
+        // Use batch update for better performance - this reduces the number of reactive updates
+        // and provides immediate feedback to users as results come in
+        commentStore.addResults(processedResults)
       }
       
       // Add batch to history
