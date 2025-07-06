@@ -261,8 +261,24 @@ class CommentValidator:
     
     def is_no_rain_weather_with_rain_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """降水なしの天気時に雨・雷関連のコメントが含まれているかチェック"""
-        # 降水量が0または極めて少ない場合（0.5mm未満）
-        if weather_data.precipitation >= 0.5:
+        # 現在の降水量をチェック
+        has_rain_now = weather_data.precipitation >= 0.5
+        
+        # 将来の予報もチェック
+        has_rain_forecast = False
+        if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+            for forecast in weather_data.hourly_forecasts:
+                precip = 0
+                if hasattr(forecast, 'precipitation_mm'):
+                    precip = forecast.precipitation_mm
+                elif hasattr(forecast, 'precipitation'):
+                    precip = forecast.precipitation
+                if precip >= 0.5:
+                    has_rain_forecast = True
+                    break
+        
+        # 現在も将来も雨がある場合は、雨コメントOK
+        if has_rain_now or has_rain_forecast:
             return False
         
         # 不適切な雨・雷関連表現パターン

@@ -23,7 +23,8 @@ class AnthropicProvider(LLMProvider):
             api_key: Anthropic APIキー
             model: 使用するモデル名
         """
-        self.client = Anthropic(api_key=api_key)
+        # タイムアウトを30秒に設定
+        self.client = Anthropic(api_key=api_key, timeout=30.0)
         self.model = model
         logger.info(f"Initialized Anthropic provider with model: {model}")
 

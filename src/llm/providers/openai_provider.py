@@ -24,7 +24,8 @@ class OpenAIProvider(LLMProvider):
             api_key: OpenAI APIキー
             model: 使用するモデル名
         """
-        self.client = OpenAI(api_key=api_key)
+        # タイムアウトを30秒に設定（60秒だとタイムアウトエラーが発生するため）
+        self.client = OpenAI(api_key=api_key, timeout=30.0)
         self.model = model
         logger.info(f"Initialized OpenAI provider with model: {model}")
 
