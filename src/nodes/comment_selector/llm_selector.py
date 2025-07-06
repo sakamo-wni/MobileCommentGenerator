@@ -184,6 +184,23 @@ class LLMCommentSelector:
 - 「爽やか」「穏やか」「安定」「良好」などの表現が適切です
 """
         
+        # 雨天時の特別な注意事項を追加
+        rain_warning = ""
+        if "雨" in weather_context or "降水量" in weather_context:
+            # weather_contextから降水量を抽出
+            import re
+            precip_match = re.search(r'降水量:\s*([\d.]+)mm', weather_context)
+            if precip_match:
+                precipitation = float(precip_match.group(1))
+                if precipitation > 0:
+                    rain_warning = f"""
+【雨天時の特別注意】:
+- 現在降水量が{precipitation}mmあります。必ず雨に言及したコメントを選んでください
+- 天気コメントでは「雨」「降雨」「雨が」「にわか雨」などの雨関連表現を含むものを優先
+- アドバイスコメントでは「傘」「雨具」「雨対策」などの実用的なアドバイスを含むものを優先
+- 「晴れ」「青空」「日差し」などの晴天表現を含むコメントは絶対に選ばないでください
+"""
+        
         # 月別の不適切表現の注意事項を追加
         import re
         month_match = re.search(r'(\d+)月', weather_context)
@@ -223,6 +240,7 @@ class LLMCommentSelector:
 6. 自然で読みやすい表現
 
 {sunny_warning}
+{rain_warning}
 {month_warning}
 
 特に以下を重視してください:
