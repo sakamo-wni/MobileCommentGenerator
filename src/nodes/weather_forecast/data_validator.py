@@ -30,11 +30,23 @@ class WeatherDataValidator:
             logger.error(error_msg)
             raise ValueError(error_msg)
         
+        # タイムゾーンの処理
+        import pytz
+        jst = pytz.timezone('Asia/Tokyo')
+        
+        # target_datetimeがnaiveな場合はJSTとして扱う
+        if target_datetime.tzinfo is None:
+            target_datetime = jst.localize(target_datetime)
+        
         # ターゲット時刻に最も近い予報を選択
-        closest_forecast = min(
-            forecasts, 
-            key=lambda f: abs((f.datetime - target_datetime).total_seconds())
-        )
+        def time_diff(forecast):
+            # forecastのdatetimeがnaiveな場合はJSTとして扱う
+            forecast_dt = forecast.datetime
+            if forecast_dt.tzinfo is None:
+                forecast_dt = jst.localize(forecast_dt)
+            return abs((forecast_dt - target_datetime).total_seconds())
+        
+        closest_forecast = min(forecasts, key=time_diff)
         
         logger.info(
             f"指定時刻 {target_datetime.strftime('%H:%M')} に最も近い予報を選択: "
