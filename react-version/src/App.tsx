@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Cloud, Sparkles, Sun, Moon, ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
-import type { Location, GeneratedComment } from '@mobile-comment-generator/shared';
+import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
 import { GeneratedCommentDisplay } from './components/GeneratedComment';
@@ -10,16 +10,6 @@ import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { REGIONS } from './constants/regions';
 import { BATCH_CONFIG } from '../../src/config/constants';
-
-interface BatchResult {
-  success: boolean;
-  location: string;
-  comment?: string;
-  error?: string;
-  metadata?: Record<string, unknown>;
-  weather?: Record<string, unknown>;
-  adviceComment?: string;
-}
 
 interface RegeneratingState {
   [location: string]: boolean;
