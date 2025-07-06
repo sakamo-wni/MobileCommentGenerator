@@ -330,13 +330,20 @@ def fetch_weather_forecast_node(state):
         jst = pytz.timezone("Asia/Tokyo")
         now_jst = datetime.now(jst)
         
-        # 常に翌日を対象にする
-        target_date = now_jst.date() + timedelta(days=1)
+        # 深夜0時前後の処理を考慮した日付計算
+        # 午前6時を境界として、6時前は当日、6時以降は翌日を対象とする
+        # これにより深夜の実行でも一貫した動作を保証
+        if now_jst.hour < 6:
+            # 深夜〜早朝（0:00-5:59）は当日を対象
+            target_date = now_jst.date()
+        else:
+            # 朝〜深夜（6:00-23:59）は翌日を対象
+            target_date = now_jst.date() + timedelta(days=1)
         
         forecast_start = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=9)))
         forecast_end = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=18)))
         
-        logger.info(f"翌日対象: {target_date} (現在時刻: {now_jst.strftime('%Y-%m-%d %H:%M')})")
+        logger.info(f"対象日: {target_date} (現在時刻: {now_jst.strftime('%Y-%m-%d %H:%M')})")
         
         # 対象時刻のリスト（9:00, 12:00, 15:00, 18:00）
         target_hours = [9, 12, 15, 18]

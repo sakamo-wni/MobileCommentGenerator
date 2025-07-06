@@ -2,6 +2,7 @@
 
 import logging
 from typing import Dict, Any, Optional, List
+from functools import lru_cache
 
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
@@ -12,6 +13,25 @@ logger = logging.getLogger(__name__)
 
 class CommentUtils:
     """コメント選択に関するユーティリティクラス"""
+    
+    @staticmethod
+    @lru_cache(maxsize=128)
+    def _get_weather_summary(cache_key: str, period_forecasts_json: str) -> tuple:
+        """天気サマリーを取得（LRUキャッシュ付き）"""
+        import json
+        period_forecasts = json.loads(period_forecasts_json)
+        
+        has_rain_in_timeline = False
+        max_temp_in_timeline = 0.0
+        
+        for forecast in period_forecasts:
+            if forecast.get('precipitation', 0) > 0:
+                has_rain_in_timeline = True
+            temp = forecast.get('temperature', 0)
+            if temp > max_temp_in_timeline:
+                max_temp_in_timeline = temp
+        
+        return has_rain_in_timeline, max_temp_in_timeline
     
     def prepare_weather_candidates(
         self, 
@@ -32,32 +52,32 @@ class CommentUtils:
             # バリデーターによる除外チェック（強化版）
             is_valid, reason = weather_validator.validate_comment(comment, weather_data)
             if not is_valid:
-                logger.info(f"バリデーター除外: '{comment.comment_text}' - 理由: {reason}")
+                logger.debug(f"バリデーター除外: '{comment.comment_text}' - 理由: {reason}")
                 continue
             
             # 晴天時の「変わりやすい」表現の追加チェック（強化）
             if comment_validator.is_sunny_weather_with_changeable_comment(comment.comment_text, weather_data):
-                logger.info(f"晴天時不適切表現を強制除外: '{comment.comment_text}'")
+                logger.debug(f"晴天時不適切表現を強制除外: '{comment.comment_text}'")
                 continue
             
             # 曇り天気時の日差し表現の追加チェック
             if comment_validator.is_cloudy_weather_with_sunshine_comment(comment.comment_text, weather_data):
-                logger.info(f"曇り天気時の日差し表現を強制除外: '{comment.comment_text}'")
+                logger.debug(f"曇り天気時の日差し表現を強制除外: '{comment.comment_text}'")
                 continue
             
             # 降水なし時の雨・雷表現の追加チェック
             if comment_validator.is_no_rain_weather_with_rain_comment(comment.comment_text, weather_data):
-                logger.info(f"降水なし時の雨・雷表現を強制除外: '{comment.comment_text}'")
+                logger.debug(f"降水なし時の雨・雷表現を強制除外: '{comment.comment_text}'")
                 continue
             
             # 月に不適切な季節表現のチェック
             if comment_validator.is_inappropriate_seasonal_comment(comment.comment_text, target_datetime):
-                logger.info(f"月に不適切な季節表現を強制除外: '{comment.comment_text}'")
+                logger.debug(f"月に不適切な季節表現を強制除外: '{comment.comment_text}'")
                 continue
             
             # 安定した天気での急変表現の追加チェック
             if comment_validator.is_stable_weather_with_unstable_comment(comment.comment_text, weather_data, state):
-                logger.info(f"安定天気時の急変表現を強制除外: '{comment.comment_text}'")
+                logger.debug(f"安定天気時の急変表現を強制除外: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）
@@ -78,45 +98,36 @@ class CommentUtils:
             has_rain_in_timeline = False
             max_temp_in_timeline = weather_data.temperature  # デフォルトは現在の温度
             
-            # stateから事前計算された値を取得（メモ化）
-            if not hasattr(self, '_weather_summary_cache'):
-                self._weather_summary_cache = {}
-                
+            # stateから事前計算された値を取得（LRUキャッシュ使用）
             cache_key = f"{weather_data.datetime}_{weather_data.location_id if hasattr(weather_data, 'location_id') else ''}"
             
-            if cache_key not in self._weather_summary_cache:
-                # 初回のみ計算
-                if state and hasattr(state, 'generation_metadata'):
-                    period_forecasts = state.generation_metadata.get('period_forecasts', [])
-                    if period_forecasts:
-                        # 4時点のデータを一度だけスキャン
-                        for forecast in period_forecasts:
-                            if forecast.precipitation > 0:
-                                has_rain_in_timeline = True
-                            if forecast.temperature > max_temp_in_timeline:
-                                max_temp_in_timeline = forecast.temperature
-                        
-                        if has_rain_in_timeline:
-                            logger.debug(f"4時点予報で雨を検出（キャッシュ済み）")
-                    else:
-                        # weather_timelineをフォールバック
-                        weather_timeline = state.generation_metadata.get('weather_timeline', {})
-                        future_forecasts = weather_timeline.get('future_forecasts', [])
-                        for forecast in future_forecasts:
-                            if forecast.get('precipitation', 0) > 0:
-                                has_rain_in_timeline = True
-                                break
-                
-                # キャッシュに保存
-                self._weather_summary_cache[cache_key] = {
-                    'has_rain': has_rain_in_timeline,
-                    'max_temp': max_temp_in_timeline
-                }
-            else:
-                # キャッシュから取得
-                cached = self._weather_summary_cache[cache_key]
-                has_rain_in_timeline = cached['has_rain']
-                max_temp_in_timeline = cached['max_temp']
+            if state and hasattr(state, 'generation_metadata'):
+                period_forecasts = state.generation_metadata.get('period_forecasts', [])
+                if period_forecasts:
+                    # JSONシリアライズして不変な文字列にする
+                    import json
+                    period_forecasts_json = json.dumps([
+                        {
+                            'precipitation': getattr(f, 'precipitation', 0),
+                            'temperature': getattr(f, 'temperature', 0)
+                        } for f in period_forecasts
+                    ])
+                    
+                    # LRUキャッシュを使用して取得
+                    has_rain_in_timeline, max_temp_in_timeline = self._get_weather_summary(
+                        cache_key, period_forecasts_json
+                    )
+                    
+                    if has_rain_in_timeline:
+                        logger.debug(f"4時点予報で雨を検出（LRUキャッシュ使用）")
+                else:
+                    # period_forecastsが空の場合、weather_timelineをフォールバック
+                    weather_timeline = state.generation_metadata.get('weather_timeline', {})
+                    future_forecasts = weather_timeline.get('future_forecasts', [])
+                    for forecast in future_forecasts:
+                        if forecast.get('precipitation', 0) > 0:
+                            has_rain_in_timeline = True
+                            break
             
             # 1. 雨天時の最優先処理（単一時点または時系列データで雨がある場合）
             if weather_data.precipitation > 0 or has_rain_in_timeline:
@@ -198,22 +209,22 @@ class CommentUtils:
             # バリデーターによる除外チェック
             is_valid, reason = weather_validator.validate_comment(comment, weather_data)
             if not is_valid:
-                logger.info(f"アドバイスバリデーター除外: '{comment.comment_text}' - 理由: {reason}")
+                logger.debug(f"アドバイスバリデーター除外: '{comment.comment_text}' - 理由: {reason}")
                 continue
             
             # 曇り天気時の日差し表現の追加チェック（アドバイスも同様）
             if comment_validator.is_cloudy_weather_with_sunshine_comment(comment.comment_text, weather_data):
-                logger.info(f"曇り天気時の日差し表現を強制除外（アドバイス）: '{comment.comment_text}'")
+                logger.debug(f"曇り天気時の日差し表現を強制除外（アドバイス）: '{comment.comment_text}'")
                 continue
             
             # 降水なし時の雨・雷表現の追加チェック（アドバイスも同様）
             if comment_validator.is_no_rain_weather_with_rain_comment(comment.comment_text, weather_data):
-                logger.info(f"降水なし時の雨・雷表現を強制除外（アドバイス）: '{comment.comment_text}'")
+                logger.debug(f"降水なし時の雨・雷表現を強制除外（アドバイス）: '{comment.comment_text}'")
                 continue
             
             # 月に不適切な季節表現のチェック（アドバイスも同様）
             if comment_validator.is_inappropriate_seasonal_comment(comment.comment_text, target_datetime):
-                logger.info(f"月に不適切な季節表現を強制除外（アドバイス）: '{comment.comment_text}'")
+                logger.debug(f"月に不適切な季節表現を強制除外（アドバイス）: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）

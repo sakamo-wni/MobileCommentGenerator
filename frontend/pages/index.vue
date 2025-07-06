@@ -42,6 +42,7 @@
               :is-batch-mode="isBatchMode"
               :result="result"
               :results="results"
+              @retry="retryFailedLocation"
             />
             
             <WeatherData
@@ -133,13 +134,25 @@ const generateComment = async () => {
       // Batch mode: Process locations in chunks for progressive display
       selectedWeatherIndex.value = 0
       
+      // Initialize results with placeholders to maintain order
+      const placeholderResults = locationStore.selectedLocations.map(location => ({
+        success: false,
+        location: location,
+        comment: null,
+        advice_comment: null,
+        metadata: null,
+        loading: true
+      }))
+      commentStore.setResults(placeholderResults)
+      
       // Process in chunks for better performance and progressive display
       // This limits the number of simultaneous requests to prevent overwhelming the server
       // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
       for (let i = 0; i < locationStore.selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
         const chunk = locationStore.selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT)
         
-        const chunkPromises = chunk.map(async (location) => {
+        const chunkPromises = chunk.map(async (location, chunkIdx) => {
+          const globalIdx = i + chunkIdx
           try {
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分のタイムアウト
@@ -158,9 +171,13 @@ const generateComment = async () => {
             
             clearTimeout(timeoutId)
             
-            // Add result immediately for progressive display
-            commentStore.addResult(response)
-            return response
+            // Update result at specific index for progressive display
+            const successResult = {
+              ...response,
+              loading: false
+            }
+            commentStore.updateResultAtIndex(globalIdx, successResult)
+            return successResult
           } catch (error) {
             console.error(`Failed to generate for ${location}:`, error)
             let errorMessage = 'Unknown error'
@@ -176,11 +193,12 @@ const generateComment = async () => {
               error: `生成エラー: ${errorMessage}`,
               comment: null,
               advice_comment: null,
-              metadata: null
+              metadata: null,
+              loading: false
             }
             
-            // Add error result immediately
-            commentStore.addResult(errorResult)
+            // Update error result at specific index
+            commentStore.updateResultAtIndex(globalIdx, errorResult)
             return errorResult
           }
         })
@@ -243,6 +261,67 @@ const generateComment = async () => {
     }
   } finally {
     commentStore.setGenerating(false)
+  }
+}
+
+const retryFailedLocation = async (location: string, index: number) => {
+  console.log(`Retrying generation for ${location} at index ${index}`)
+  
+  // Mark as loading
+  commentStore.updateResultAtIndex(index, {
+    success: false,
+    location: location,
+    comment: null,
+    advice_comment: null,
+    metadata: null,
+    loading: true,
+    error: null
+  })
+  
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分のタイムアウト
+    
+    const response = await $fetch(`${apiBaseUrl}/api/generate`, {
+      method: 'POST',
+      body: {
+        location: location,
+        llm_provider: selectedProvider.value.value,
+        target_datetime: new Date().toISOString(),
+        exclude_previous: false
+      },
+      signal: controller.signal,
+      timeout: 120000
+    })
+    
+    clearTimeout(timeoutId)
+    
+    // Update with success result
+    const successResult = {
+      ...response,
+      loading: false
+    }
+    commentStore.updateResultAtIndex(index, successResult)
+  } catch (error) {
+    console.error(`Retry failed for ${location}:`, error)
+    let errorMessage = 'Unknown error'
+    if (error.name === 'AbortError') {
+      errorMessage = 'タイムアウトしました（2分以上）'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    // Update with error result
+    const errorResult = {
+      success: false,
+      location: location,
+      error: `生成エラー: ${errorMessage}`,
+      comment: null,
+      advice_comment: null,
+      metadata: null,
+      loading: false
+    }
+    commentStore.updateResultAtIndex(index, errorResult)
   }
 }
 
