@@ -21,6 +21,7 @@ from src.data.weather_data import WeatherForecastCollection, WeatherForecast
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
+from src.config.config_loader import load_config
 from src.nodes.weather_forecast import WeatherDataFetcher, WeatherDataTransformer, WeatherDataValidator
 
 # ログ設定
@@ -331,13 +332,17 @@ def fetch_weather_forecast_node(state):
         now_jst = datetime.now(jst)
         
         # 深夜0時前後の処理を考慮した日付計算
-        # 午前6時を境界として、6時前は当日、6時以降は翌日を対象とする
+        # 設定ファイルから境界時刻を取得
+        weather_config = load_config('weather_thresholds', validate=False)
+        date_boundary_hour = weather_config.get('generation', {}).get('date_boundary_hour', 6)
+        
+        # 境界時刻より前は当日、以降は翌日を対象とする
         # これにより深夜の実行でも一貫した動作を保証
-        if now_jst.hour < 6:
-            # 深夜〜早朝（0:00-5:59）は当日を対象
+        if now_jst.hour < date_boundary_hour:
+            # 深夜〜早朝は当日を対象
             target_date = now_jst.date()
         else:
-            # 朝〜深夜（6:00-23:59）は翌日を対象
+            # 境界時刻以降は翌日を対象
             target_date = now_jst.date() + timedelta(days=1)
         
         forecast_start = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=9)))

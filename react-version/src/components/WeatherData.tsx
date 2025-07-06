@@ -1,6 +1,7 @@
 import React from 'react';
 import { Cloud, Thermometer, Droplets, Wind, Gauge, TrendingUp, Clock, CloudRain, Info } from 'lucide-react';
 import type { WeatherData, WeatherMetadata } from '@mobile-comment-generator/shared';
+import { formatDateTime } from '@mobile-comment-generator/shared/src/utils/date';
 import { WeatherTimeline } from './WeatherTimeline';
 
 interface WeatherDataProps {
@@ -9,30 +10,6 @@ interface WeatherDataProps {
   className?: string;
 }
 
-const formatDateTime = (dateString: string | undefined) => {
-  if (!dateString) return '不明';
-  try {
-    // ISO 8601形式の日付を安全にパース
-    const date = new Date(dateString);
-    
-    // 有効な日付か確認
-    if (Number.isNaN(date.getTime())) {
-      return '不明';
-    }
-    
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Tokyo'
-    });
-  } catch (error) {
-    console.error('Date parsing error:', error);
-    return '不明';
-  }
-};
 
 export const WeatherDataDisplay: React.FC<WeatherDataProps> = ({
   weather,

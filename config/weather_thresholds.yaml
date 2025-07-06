@@ -54,6 +54,12 @@ generation:
   advice_candidates_limit: 100   # アドバイスコメント候補数を大幅増加
   fallback_candidates_limit: 20  # フォールバック候補数も増加
   
+  # 日付計算の境界時刻（時）
+  date_boundary_hour: 6  # この時刻より前は当日、以降は翌日を対象
+  
+  # バッチ処理設定
+  batch_size: 3  # 同時処理する地点数
+  
   # 候補カテゴリ別比率
   candidate_ratios:
     severe_weather: 0.4  # 悪天候の比率

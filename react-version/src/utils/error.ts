@@ -29,7 +29,7 @@ export function getErrorMessage(details: ErrorDetails): string {
   
   // APIエラー
   if (typeof error === 'object' && error !== null && 'statusCode' in error) {
-    const statusCode = (error as any).statusCode;
+    const statusCode = (error as { statusCode: number }).statusCode;
     switch (statusCode) {
       case 400:
         return 'リクエストが不正です';

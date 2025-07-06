@@ -162,16 +162,14 @@ class CommentUtils:
                     else:
                         others.append(candidate)
         
-        # キャッシュをクリア（メモリリーク防止）
-        if hasattr(self, '_weather_summary_cache') and len(self._weather_summary_cache) > 10:
-            self._weather_summary_cache.clear()
         
         # 優先順位順に結合（設定ファイルから制限を取得）
         from src.config.config_loader import load_config
         try:
             config = load_config('weather_thresholds', validate=False)
             limit = config.get('generation', {}).get('weather_candidates_limit', 100)
-        except:
+        except (FileNotFoundError, KeyError, Exception) as e:
+            logger.debug(f"設定ファイル読み込みエラー: {e}")
             limit = 100  # デフォルト値
         
         # 設定ファイルから候補比率を取得
@@ -180,7 +178,7 @@ class CommentUtils:
             severe_ratio = ratios.get('severe_weather', 0.4)
             weather_ratio = ratios.get('weather_matched', 0.4)
             others_ratio = ratios.get('others', 0.2)
-        except:
+        except (AttributeError, NameError, Exception) as e:
             # デフォルト比率（悪天候40%, 天気マッチ40%, その他20%）
             severe_ratio, weather_ratio, others_ratio = 0.4, 0.4, 0.2
         
@@ -239,7 +237,8 @@ class CommentUtils:
             try:
                 config = load_config('weather_thresholds', validate=False)
                 limit = config.get('generation', {}).get('advice_candidates_limit', 100)
-            except:
+            except (FileNotFoundError, KeyError, Exception) as e:
+                logger.debug(f"設定ファイル読み込みエラー（アドバイス）: {e}")
                 limit = 100  # デフォルト値
             
             if len(candidates) >= limit:
