@@ -142,7 +142,8 @@ const generateComment = async () => {
             locations: locationStore.selectedLocations,
             llm_provider: selectedProvider.value.value
           },
-          signal: controller.signal
+          signal: controller.signal,
+          timeout: 120000 // 2分のタイムアウトを明示的に設定
         })
         
         clearTimeout(timeoutId)

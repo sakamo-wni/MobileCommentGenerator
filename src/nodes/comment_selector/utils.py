@@ -74,21 +74,47 @@ class CommentUtils:
             # 特別な優先順位付け（雨天時・高温時の最優先処理）
             is_prioritized = False
             
-            # 1. 雨天時の最優先処理
-            if weather_data.precipitation > 0:
+            # period_forecastsから4時点のデータを確認
+            has_rain_in_timeline = False
+            max_temp_in_timeline = weather_data.temperature  # デフォルトは現在の温度
+            
+            if state and hasattr(state, 'generation_metadata'):
+                # period_forecastsを優先的に使用
+                period_forecasts = state.generation_metadata.get('period_forecasts', [])
+                if period_forecasts:
+                    # 4時点のいずれかで雨があるか確認
+                    for forecast in period_forecasts:
+                        if forecast.precipitation > 0:
+                            has_rain_in_timeline = True
+                            logger.info(f"4時点予報で雨を検出: {forecast.datetime} - {forecast.precipitation}mm")
+                        # 最高気温も確認
+                        if forecast.temperature > max_temp_in_timeline:
+                            max_temp_in_timeline = forecast.temperature
+                else:
+                    # weather_timelineをフォールバックとして使用
+                    weather_timeline = state.generation_metadata.get('weather_timeline', {})
+                    future_forecasts = weather_timeline.get('future_forecasts', [])
+                    for forecast in future_forecasts:
+                        if forecast.get('precipitation', 0) > 0:
+                            has_rain_in_timeline = True
+                            logger.info(f"時系列データで雨を検出: {forecast.get('time')} - {forecast.get('precipitation')}mm")
+                            break
+            
+            # 1. 雨天時の最優先処理（単一時点または時系列データで雨がある場合）
+            if weather_data.precipitation > 0 or has_rain_in_timeline:
                 rain_keywords = ["雨", "傘", "濡れ", "降水", "にわか雨", "雷雨"]
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     severe_matched.append(candidate)  # 雨天時は最優先カテゴリに入れる
                     is_prioritized = True
                     logger.info(f"雨天時のコメントを最優先に: '{comment.comment_text}'")
             
-            # 2. 高温時（35度以上）の最優先処理
-            if not is_prioritized and weather_data.temperature >= 35.0:
+            # 2. 高温時（35度以上）の最優先処理（4時点の最高気温を考慮）
+            if not is_prioritized and (weather_data.temperature >= 35.0 or max_temp_in_timeline >= 35.0):
                 heat_keywords = ["熱中症", "水分補給", "涼しい", "冷房", "暑さ対策", "猛暑", "高温"]
                 if any(keyword in comment.comment_text for keyword in heat_keywords):
                     severe_matched.append(candidate)  # 高温時も最優先カテゴリに入れる
                     is_prioritized = True
-                    logger.info(f"高温時（{weather_data.temperature}℃）のコメントを最優先に: '{comment.comment_text}'")
+                    logger.info(f"高温時（最高{max_temp_in_timeline}℃）のコメントを最優先に: '{comment.comment_text}'")
             
             # 3. 通常の悪天候時の処理
             if not is_prioritized:

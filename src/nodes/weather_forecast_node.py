@@ -368,6 +368,10 @@ def fetch_weather_forecast_node(state):
         validator = WeatherDataValidator()
         selected_forecast = validator.select_forecast_by_time(period_forecasts, target_datetime)
         
+        # 4時点の予報データをstateに保存（コメント選択時に使用）
+        state.update_metadata("period_forecasts", period_forecasts)
+        logger.info(f"4時点の予報データを保存: {len(period_forecasts)}件")
+        
         # 気象変化傾向の分析
         if len(period_forecasts) >= 2:
             weather_trend = WeatherTrend.from_forecasts(period_forecasts)
