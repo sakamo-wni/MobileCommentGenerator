@@ -364,9 +364,9 @@ def fetch_weather_forecast_node(state):
             if closest_forecast:
                 period_forecasts.append(closest_forecast)
         
-        # 期間内の予報から最も重要な天気条件を選択
+        # ターゲット時刻に最も近い予報を選択
         validator = WeatherDataValidator()
-        selected_forecast = validator.select_priority_forecast(period_forecasts)
+        selected_forecast = validator.select_forecast_by_time(period_forecasts, target_datetime)
         
         # 気象変化傾向の分析
         if len(period_forecasts) >= 2:

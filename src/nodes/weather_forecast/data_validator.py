@@ -15,6 +15,47 @@ logger = logging.getLogger(__name__)
 class WeatherDataValidator:
     """天気予報データ検証・選択クラス"""
     
+    def select_forecast_by_time(self, forecasts: List[WeatherForecast], target_datetime) -> WeatherForecast:
+        """指定された時刻に最も近い予報データを選択
+        
+        Args:
+            forecasts: 予報データリスト
+            target_datetime: ターゲット時刻
+            
+        Returns:
+            ターゲット時刻に最も近い予報データ
+        """
+        if not forecasts:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # タイムゾーンの処理
+        import pytz
+        jst = pytz.timezone('Asia/Tokyo')
+        
+        # target_datetimeがnaiveな場合はJSTとして扱う
+        if target_datetime.tzinfo is None:
+            target_datetime = jst.localize(target_datetime)
+        
+        # ターゲット時刻に最も近い予報を選択
+        def time_diff(forecast):
+            # forecastのdatetimeがnaiveな場合はJSTとして扱う
+            forecast_dt = forecast.datetime
+            if forecast_dt.tzinfo is None:
+                forecast_dt = jst.localize(forecast_dt)
+            return abs((forecast_dt - target_datetime).total_seconds())
+        
+        closest_forecast = min(forecasts, key=time_diff)
+        
+        logger.info(
+            f"指定時刻 {target_datetime.strftime('%H:%M')} に最も近い予報を選択: "
+            f"{closest_forecast.datetime.strftime('%H:%M')}, {closest_forecast.weather_description}, "
+            f"{closest_forecast.temperature}°C"
+        )
+        
+        return closest_forecast
+    
     def select_priority_forecast(self, forecasts: List[WeatherForecast]) -> WeatherForecast:
         """翌日9:00-18:00の予報から最も重要な気象条件を選択
         
