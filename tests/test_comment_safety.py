@@ -148,11 +148,8 @@ class TestCommentSafety:
             self.sunny_weather, past_weather_comments, CHANGEABLE_WEATHER_PATTERNS
         )
         
-        # デフォルトメッセージのいずれかが返されることを確認
-        assert result in ["厳しい暑さです", "穏やかな晴天です", "猛烈な暑さに警戒"]
-        # 禁止パターンが含まれていないことを確認
-        for pattern in CHANGEABLE_WEATHER_PATTERNS:
-            assert pattern not in result
+        # 全てが禁止パターンの場合は空文字列が返されることを確認
+        assert result == ""
     
     def test_rainy_weather_comment_not_modified(self):
         """雨天時は「変わりやすい空」が修正されないことを確認"""
@@ -210,7 +207,7 @@ class TestCommentSafety:
             hot_weather, past_comments, CHANGEABLE_WEATHER_PATTERNS
         )
         
-        assert result == "猛烈な暑さに警戒"
+        assert result == ""  # 禁止パターンのみの場合は空文字列
         
         # 通常の晴天（30度未満）
         mild_weather = WeatherForecast(
@@ -234,4 +231,4 @@ class TestCommentSafety:
             mild_weather, past_comments, CHANGEABLE_WEATHER_PATTERNS
         )
         
-        assert result == "穏やかな晴天です"
+        assert result == ""  # 禁止パターンのみの場合は空文字列
