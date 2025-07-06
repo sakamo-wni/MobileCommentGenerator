@@ -1,1 +1,0 @@
-# このファイルは削除されました。local_comment_repository_refactored.pyを使用してください。

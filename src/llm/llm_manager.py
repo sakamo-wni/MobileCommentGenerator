@@ -52,8 +52,8 @@ class LLMManager:
                 "設定方法: export OPENAI_API_KEY='your-api-key' または .envファイルに記載"
             )
         
-        # APIキーのプレフィックスをログに記録（デバッグ用）
-        logger.info(f"Using OpenAI API key: {api_key[:20]}...")
+        # APIキーのログ出力は削除（セキュリティ対策）
+        logger.info("Using OpenAI API")
 
         model = os.getenv("OPENAI_MODEL", "gpt-4")
         return OpenAIProvider(api_key=api_key, model=model)
