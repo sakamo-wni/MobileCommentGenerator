@@ -45,6 +45,20 @@ def select_comment_pair_node(state: CommentGenerationState) -> CommentGeneration
             raise ValueError("適切なコメントタイプが見つかりません")
 
         logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
+        
+        # デバッグ用：天気データの詳細をログ出力
+        logger.info(f"🌦️ 天気データ詳細:")
+        logger.info(f"  - 天気: {weather_data.weather_description}")
+        logger.info(f"  - 気温: {weather_data.temperature}°C")
+        logger.info(f"  - 降水量: {weather_data.precipitation}mm")
+        logger.info(f"  - hourly_forecasts属性: {hasattr(weather_data, 'hourly_forecasts')}")
+        if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+            logger.info(f"  - hourly_forecasts数: {len(weather_data.hourly_forecasts)}")
+            for i, forecast in enumerate(weather_data.hourly_forecasts[:4]):  # 最初の4つだけ
+                if hasattr(forecast, 'datetime') and hasattr(forecast, 'precipitation_mm'):
+                    logger.info(f"    [{i}] {forecast.datetime}: 降水量 {forecast.precipitation_mm}mm")
+                elif hasattr(forecast, 'precipitation'):
+                    logger.info(f"    [{i}] 降水量 {forecast.precipitation}mm")
 
         # コメント選択器の初期化
         llm_manager = LLMManager(provider=llm_provider)
