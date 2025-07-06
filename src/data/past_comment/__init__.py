@@ -8,11 +8,13 @@ from src.data.past_comment.models import PastComment, CommentType
 from src.data.past_comment.collection import PastCommentCollection
 from src.data.past_comment.similarity import SimilarityCalculator
 from src.data.past_comment.filters import CommentFilter
+from src.data.past_comment.protocols import SimilarityCalculable
 
 __all__ = [
     "PastComment",
     "CommentType", 
     "PastCommentCollection",
     "SimilarityCalculator",
-    "CommentFilter"
+    "CommentFilter",
+    "SimilarityCalculable"
 ]

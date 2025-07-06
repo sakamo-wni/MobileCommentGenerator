@@ -4,10 +4,13 @@
 過去コメントと現在の天気条件の類似度を計算する機能
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 
-from src.data.past_comment.models import PastComment
+from src.data.past_comment.protocols import SimilarityCalculable
+
+if TYPE_CHECKING:
+    from src.data.past_comment.models import PastComment
 
 
 class SimilarityCalculator:
@@ -15,7 +18,7 @@ class SimilarityCalculator:
     
     @staticmethod
     def calculate_similarity_score(
-        comment: PastComment,
+        comment: SimilarityCalculable,
         target_weather: str,
         target_temp: Optional[float] = None,
         target_humidity: Optional[float] = None,
@@ -83,7 +86,7 @@ class SimilarityCalculator:
             return 0.0
     
     @staticmethod
-    def matches_weather_condition(comment: PastComment, target_condition: str, fuzzy: bool = True) -> bool:
+    def matches_weather_condition(comment: SimilarityCalculable, target_condition: str, fuzzy: bool = True) -> bool:
         """天気条件が一致するかチェック
 
         Args:
