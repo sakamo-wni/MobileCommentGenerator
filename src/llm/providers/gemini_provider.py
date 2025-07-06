@@ -23,7 +23,12 @@ class GeminiProvider(LLMProvider):
             api_key: Gemini APIキー
             model: 使用するモデル名
         """
-        genai.configure(api_key=api_key)
+        # タイムアウトを含む設定でAPIを初期化
+        genai.configure(
+            api_key=api_key,
+            transport='rest',  # RESTトランスポートを使用
+            client_options={'api_endpoint': 'https://generativelanguage.googleapis.com'}
+        )
         self.model = genai.GenerativeModel(model)
         self.model_name = model
         logger.info(f"Initialized Gemini provider with model: {model}")
@@ -53,14 +58,15 @@ class GeminiProvider(LLMProvider):
                 f"{prompt}"
             )
 
-            # APIリクエスト（タイムアウトを30秒に設定）
+            # APIリクエスト
+            # タイムアウトエラーを回避するため、短いレスポンスを要求
             response = self.model.generate_content(
                 full_prompt,
                 generation_config=genai.GenerationConfig(
                     temperature=0.7,
                     max_output_tokens=50,
-                ),
-                request_options={"timeout": 30}
+                    candidate_count=1,  # 候補数を1に制限
+                )
             )
 
             # レスポンスからコメントを抽出
@@ -94,8 +100,8 @@ class GeminiProvider(LLMProvider):
                 generation_config=genai.GenerationConfig(
                     temperature=0.7,
                     max_output_tokens=500,
-                ),
-                request_options={"timeout": 30}
+                    candidate_count=1,  # 候補数を1に制限
+                )
             )
 
             generated_text = response.text

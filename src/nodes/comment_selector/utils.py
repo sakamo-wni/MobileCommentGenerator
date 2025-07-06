@@ -79,13 +79,16 @@ class CommentUtils:
             
             # 将来の予報データをチェック
             if hasattr(weather_data, 'hourly_forecasts') and weather_data.hourly_forecasts:
+                logger.info(f"予報データ数: {len(weather_data.hourly_forecasts)}")
                 for forecast in weather_data.hourly_forecasts:
                     if hasattr(forecast, 'precipitation_mm') and forecast.precipitation_mm > 0:
                         has_rain_forecast = True
                         max_future_precipitation = max(max_future_precipitation, forecast.precipitation_mm)
+                        logger.info(f"雨予報検出: {forecast.datetime if hasattr(forecast, 'datetime') else '時刻不明'} - {forecast.precipitation_mm}mm")
                     elif hasattr(forecast, 'precipitation') and forecast.precipitation > 0:
                         has_rain_forecast = True
                         max_future_precipitation = max(max_future_precipitation, forecast.precipitation)
+                        logger.info(f"雨予報検出: {forecast.datetime if hasattr(forecast, 'datetime') else '時刻不明'} - {forecast.precipitation}mm")
             
             if has_rain_now or has_rain_forecast:
                 rain_keywords = ["雨", "降雨", "雨が", "にわか雨", "雨模様", "雨音", "雨降り", "傘"]

@@ -110,6 +110,7 @@ class WeatherForecast:
     uv_index: Optional[int] = None
     confidence: Optional[float] = None
     raw_data: Dict[str, Any] = field(default_factory=dict)
+    hourly_forecasts: Optional[List['HourlyWeather']] = None  # 時間毎の予報データ
 
     def __post_init__(self):
         """データクラス初期化後の検証処理"""
