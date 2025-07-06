@@ -68,42 +68,55 @@ class TestPastComment:
         assert comment.get_character_count() == 8
         assert comment.is_within_length_limit()
 
-    @pytest.mark.parametrize("field,value,expected_error", [
+    @pytest.mark.parametrize("field,value,expected_message", [
         ("comment_text", "", "コメント本文が空です"),
         ("location", "", "地点名が空です"),
         ("temperature", -100.0, "異常な気温値"),
         ("temperature", 100.0, "異常な気温値"),  # 60度から100度に変更（より極端な値）
     ])
-    def test_invalid_input_validation(self, base_comment_data, field, value, expected_error):
+    def test_invalid_input_validation(self, base_comment_data, field, value, expected_message):
         """無効な入力値のバリデーションテスト"""
         test_data = base_comment_data.copy()
         test_data[field] = value
 
-        with pytest.raises(ValueError, match=expected_error):
+        with pytest.raises(ValueError, match=expected_message):
             PastComment(**test_data)
 
-    @pytest.mark.parametrize("target_condition,fuzzy,expected", [
+    @pytest.mark.parametrize("target_condition,fuzzy,expected_match", [
         ("晴れ", False, True),  # 完全一致
         ("曇り", False, False),  # 完全一致せず
         ("快晴", True, True),  # あいまい検索で一致
         ("sunny", True, True),  # 英語であいまい検索
         ("雨", True, False),  # あいまい検索でも一致せず
     ])
-    def test_weather_condition_matching(self, base_comment_data, target_condition, fuzzy, expected):
+    def test_weather_condition_matching(self, base_comment_data, target_condition, fuzzy, expected_match):
         """天気状況マッチングのテスト"""
         comment = PastComment(**base_comment_data)
-        assert comment.matches_weather_condition(target_condition, fuzzy=fuzzy) == expected
+        assert comment.matches_weather_condition(target_condition, fuzzy=fuzzy) == expected_match
 
     @pytest.mark.parametrize("weather,temp,location,expected_range", [
         ("晴れ", 22.5, "東京", (0.99, 1.0)),  # 完全一致
         ("晴れ", 25.0, "大阪", (0.5, 0.8)),  # 部分的一致
         ("雨", 5.0, "札幌", (0.0, 0.5)),  # 一致しない条件
     ])
-    def test_similarity_calculation(self, base_comment_data, weather, temp, location, expected_range):
-        """類似度計算のテスト"""
+    def test_similarity_calculation_with_range(self, base_comment_data, weather, temp, location, expected_range):
+        """類似度計算のテスト（範囲指定）"""
         comment = PastComment(**base_comment_data)
         score = comment.calculate_similarity_score(weather, temp, location)
         assert expected_range[0] <= score <= expected_range[1]
+
+    @pytest.mark.parametrize("weather,temp,location,expected_score", [
+        ("晴れ", 22.5, "東京", 1.0),  # 完全一致: 天気1.0 * 温度1.0 * 地点1.0 = 1.0
+        ("晴れ", 22.5, "大阪", 0.8),  # 天気一致(0.5)、温度一致(0.3)、地点不一致(0.0) = 0.8
+        ("曇り", 22.5, "東京", 0.5),  # 天気不一致(0.0)、温度一致(0.3)、地点一致(0.2) = 0.5
+        ("晴れ", 17.5, "東京", 0.85),  # 天気一致(0.5)、温度5度差(0.3*0.5=0.15)、地点一致(0.2) = 0.85
+        ("晴れ", 12.5, "東京", 0.7),  # 天気一致(0.5)、温度10度差(0.3*0=0)、地点一致(0.2) = 0.7
+    ])
+    def test_similarity_calculation_exact_values(self, base_comment_data, weather, temp, location, expected_score):
+        """類似度計算のテスト（具体的な期待値）"""
+        comment = PastComment(**base_comment_data)
+        score = comment.calculate_similarity_score(weather, temp, location)
+        assert abs(score - expected_score) < 0.01  # 浮動小数点の誤差を考慮
 
     def test_to_dict_conversion(self):
         """辞書変換のテスト"""
@@ -274,14 +287,14 @@ class TestPastCommentCollection:
 class TestCommentType:
     """CommentType 列挙型のテスト"""
 
-    @pytest.mark.parametrize("comment_type,expected_value", [
+    @pytest.mark.parametrize("comment_type,expected_str_value", [
         (CommentType.WEATHER_COMMENT, "weather_comment"),
         (CommentType.ADVICE, "advice"),
         (CommentType.UNKNOWN, "unknown"),
     ])
-    def test_comment_type_values(self, comment_type, expected_value):
+    def test_comment_type_values(self, comment_type, expected_str_value):
         """コメントタイプの値テスト"""
-        assert comment_type.value == expected_value
+        assert comment_type.value == expected_str_value
 
 
 if __name__ == "__main__":
