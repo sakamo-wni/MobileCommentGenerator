@@ -42,7 +42,7 @@ export const REGIONS = [
   '沖縄'
 ] as const;
 
-// 地点名から地域を取得するマッピング（frontend/public/地点名.csvの全143地点）
+// 地点名から地域を取得するマッピング（frontend/public/地点名.csvの全142地点）
 const LOCATION_TO_REGION_MAP: Record<string, string> = {
   // 北海道
   '稚内': '北海道',
