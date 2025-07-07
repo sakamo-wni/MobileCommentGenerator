@@ -181,12 +181,16 @@ const locations = computed(() => {
 })
 
 const filteredLocations = computed(() => {
-  return locationLogic.getFilteredLocations()
+  const result = locationLogic.getFilteredLocations()
+  console.log('filteredLocations computed:', result.length, 'total locations:', allLocations.value.length)
+  return result
 })
 
 // Methods wrapper
 const loadLocations = async () => {
+  console.log('Loading locations...')
   await locationLogic.loadLocations()
+  console.log('Loaded locations:', locationLogic.locations.length)
   emitLocationChanges()
 }
 

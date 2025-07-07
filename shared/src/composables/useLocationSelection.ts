@@ -246,11 +246,17 @@ export function getAllLocationNames(): string[] {
  */
 export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): Promise<Location[]> {
   try {
+    console.log('Fetching CSV from:', csvUrl);
     const response = await fetch(csvUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+    }
     const text = await response.text();
+    console.log('CSV text length:', text.length);
     const lines = text.split('\n').filter(line => line.trim());
+    console.log('CSV lines count:', lines.length);
     
-    return lines.slice(1)
+    const result = lines.slice(1)
       .filter(line => line.trim()) // 空行を除外
       .map(line => {
         const [name, lat, lon] = line.split(',');
@@ -267,6 +273,9 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
         };
       })
       .filter(location => location !== null) as Location[];
+    
+    console.log('Loaded locations from CSV:', result.length);
+    return result;
   } catch (error) {
     console.error('Failed to load CSV:', error);
     throw new Error('地点データの読み込みに失敗しました');
@@ -313,9 +322,12 @@ export function createLocationSelectionLogic(
     
     try {
       // まずCSVファイルから読み込む（確実に142地点を取得）
+      console.log('Starting to load locations from CSV...');
       const csvLocations = await loadLocationsFromCSV();
+      console.log('CSV locations loaded:', csvLocations.length);
       state.locations = csvLocations;
       state.selectedLocations = csvLocations.map(loc => loc.name);
+      console.log('State updated. locations:', state.locations.length, 'selectedLocations:', state.selectedLocations.length);
       
     } catch (err) {
       console.error('Failed to load locations:', err);
