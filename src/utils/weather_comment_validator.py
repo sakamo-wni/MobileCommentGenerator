@@ -839,7 +839,8 @@ class WeatherCommentValidator:
         return False
     
     def filter_comments(self, comments: List[PastComment], 
-                       weather_data: WeatherForecast) -> List[PastComment]:
+                       weather_data: WeatherForecast,
+                       state: Optional[Any] = None) -> List[PastComment]:
         """
         コメントリストから不適切なものを除外
         
@@ -848,8 +849,31 @@ class WeatherCommentValidator:
         """
         valid_comments = []
         
+        # stateから全時間帯の予報データを取得して雨予報を確認
+        has_rain_forecast = False
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    has_rain_forecast = True
+                    break
+        
         for comment in comments:
             is_valid, reason = self.validate_comment(comment, weather_data)
+            
+            # 追加の雨予報チェック
+            if is_valid and has_rain_forecast:
+                rain_forbidden_words = [
+                    "穏やか", "のどか", "快適", "過ごしやすい", "心地良い",
+                    "晴れ", "青空", "日差し", "太陽", "陽射し",
+                    "お出かけ日和", "散歩日和"
+                ]
+                for word in rain_forbidden_words:
+                    if word in comment.comment_text:
+                        is_valid = False
+                        reason = f"雨予報時の禁止ワード「{word}」を含む"
+                        break
+            
             if is_valid:
                 valid_comments.append(comment)
             else:
@@ -864,15 +888,16 @@ class WeatherCommentValidator:
     def get_weather_appropriate_comments(self, comments: List[PastComment],
                                        weather_data: WeatherForecast,
                                        comment_type: CommentType,
-                                       limit: int = 30) -> List[PastComment]:
+                                       limit: int = 30,
+                                       state: Optional[Any] = None) -> List[PastComment]:
         """
         天気に最も適したコメントを優先順位付けして取得
         
         Returns:
             優先順位付けされたコメントリスト（最大limit件）
         """
-        # まず不適切なコメントを除外
-        valid_comments = self.filter_comments(comments, weather_data)
+        # まず不適切なコメントを除外（stateも渡す）
+        valid_comments = self.filter_comments(comments, weather_data, state)
         
         # スコアリング
         scored_comments = []

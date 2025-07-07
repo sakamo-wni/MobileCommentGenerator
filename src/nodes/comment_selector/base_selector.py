@@ -43,12 +43,12 @@ class CommentSelector:
     ) -> Optional[CommentPair]:
         """最適なコメントペアを選択"""
         
-        # 事前フィルタリング
+        # 事前フィルタリング（stateも渡す）
         filtered_weather = self.validator.get_weather_appropriate_comments(
-            weather_comments, weather_data, CommentType.WEATHER_COMMENT, limit=500
+            weather_comments, weather_data, CommentType.WEATHER_COMMENT, limit=500, state=state
         )
         filtered_advice = self.validator.get_weather_appropriate_comments(
-            advice_comments, weather_data, CommentType.ADVICE, limit=500
+            advice_comments, weather_data, CommentType.ADVICE, limit=500, state=state
         )
         
         # 除外対象のコメントを削除

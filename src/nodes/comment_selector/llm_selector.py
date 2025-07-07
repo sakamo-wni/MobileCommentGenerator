@@ -112,7 +112,8 @@ class LLMCommentSelector:
                         selected_candidate['comment'], 
                         weather_data,
                         location_name,
-                        target_datetime
+                        target_datetime,
+                        state
                     )
                     if not is_valid:
                         logger.warning(f"選択されたコメントに矛盾が検出されました: '{selected_candidate['comment']}'")
@@ -123,7 +124,8 @@ class LLMCommentSelector:
                                     candidate['comment'],
                                     weather_data,
                                     location_name,
-                                    target_datetime
+                                    target_datetime,
+                                    state
                                 )
                                 if is_valid:
                                     logger.info(f"代替候補を選択: '{candidate['comment']}'")
@@ -367,12 +369,24 @@ class LLMCommentSelector:
         comment_text: str, 
         weather_data: WeatherForecast,
         location_name: str,
-        target_datetime: datetime
+        target_datetime: datetime,
+        state: Optional[CommentGenerationState] = None
     ) -> bool:
         """LLMを使用してコメント内の矛盾をチェック"""
         
+        # 全時間帯の降水をチェック
+        has_rain = weather_data.precipitation > 0 or "雨" in weather_data.weather_description
+        
+        # stateから4時点の予報データも確認
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    has_rain = True
+                    break
+        
         # 雨予報時の禁止表現チェック
-        if weather_data.precipitation > 0 or "雨" in weather_data.weather_description:
+        if has_rain:
             rain_forbidden_words = [
                 "穏やか", "のどか", "快適", "過ごしやすい", "心地良い",
                 "晴れ", "青空", "日差し", "太陽", "陽射し",
