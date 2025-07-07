@@ -101,21 +101,31 @@ class WeatherCommentValidator:
             "moderate_warm": {  # 25-33°C（中程度の暖かさ）
                 "forbidden": [
                     "寒い", "冷える", "肌寒い", "防寒", "厚着",
+                    # 25°C以上で「涼しい」は不適切
+                    "涼しい", "涼やか", "爽やか", "ひんやり", "冷たい",
                     # 31°Cで「厳しい暑さ」は過大
                     "厳しい暑さ", "酷暑", "激しい暑さ", "耐え難い暑さ",
                     "猛烈な暑さ", "危険な暑さ"
                 ]
             },
             "very_hot": {  # 34°C以上（猛暑日）
-                "forbidden": ["寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着"]
+                "forbidden": [
+                    "寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着",
+                    "涼しい", "涼やか", "爽やか", "ひんやり", "冷たい",
+                    "過ごしやすい", "快適", "心地良い"
+                ]
             },
             "extreme_hot": {  # 37°C以上（危険な暑さ）
-                "forbidden": ["寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着"]
+                "forbidden": [
+                    "寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着",
+                    "涼しい", "涼やか", "爽やか", "ひんやり", "冷たい",
+                    "過ごしやすい", "快適", "心地良い", "穏やか"
+                ]
             },
             "cold": {  # 12°C未満
                 "forbidden": [
                     "暑い", "猛暑", "酷暑", "熱中症", "クーラー", "冷房",
-                    "厳しい暑さ", "激しい暑さ"
+                    "厳しい暑さ", "激しい暑さ", "蒸し暑い", "汗ばむ"
                 ]
             },
             "mild": {  # 12-25°C（快適域）
@@ -138,7 +148,8 @@ class WeatherCommentValidator:
             }
         }
     
-    def validate_comment(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate_comment(self, comment: PastComment, weather_data: WeatherForecast, 
+                        state: Optional[Any] = None) -> Tuple[bool, str]:
         """
         コメントが天気条件に適しているか検証
         
@@ -147,6 +158,16 @@ class WeatherCommentValidator:
         """
         comment_text = comment.comment_text
         comment_type = comment.comment_type.value
+        
+        # 0. 雨予報時の事前チェック（最優先）
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    rain_forbidden_words = ["穏やか", "のどか", "快適", "過ごしやすい"]
+                    for word in rain_forbidden_words:
+                        if word in comment_text:
+                            return False, f"雨予報時（{forecast.datetime.strftime('%H時')}）の禁止ワード「{word}」を含む"
         
         # 1. 天気条件チェック
         weather_check = self._check_weather_conditions(comment_text, comment_type, weather_data)
@@ -309,7 +330,7 @@ class WeatherCommentValidator:
         if temp >= 37:
             forbidden = self.temperature_forbidden_words["extreme_hot"]["forbidden"]
             temp_category = "危険な暑さ"
-        elif temp >= HEATSTROKE_SEVERE_TEMP:
+        elif temp >= HEATSTROKE_WARNING_TEMP:  # 34°C以上
             forbidden = self.temperature_forbidden_words["very_hot"]["forbidden"]
             temp_category = "猛暑日"
         elif temp >= 25:
@@ -829,7 +850,8 @@ class WeatherCommentValidator:
         return False
     
     def filter_comments(self, comments: List[PastComment], 
-                       weather_data: WeatherForecast) -> List[PastComment]:
+                       weather_data: WeatherForecast,
+                       state: Optional[Any] = None) -> List[PastComment]:
         """
         コメントリストから不適切なものを除外
         
@@ -838,8 +860,36 @@ class WeatherCommentValidator:
         """
         valid_comments = []
         
+        # stateから全時間帯の予報データを取得して雨予報を確認
+        has_rain_forecast = False
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            logger.info(f"🌧️ 降水予報チェック: {len(period_forecasts)}件の予報データ")
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    has_rain_forecast = True
+                    logger.info(f"🌧️ 雨予報検出: {forecast.datetime.strftime('%H時')} - {forecast.precipitation}mm")
+                    break
+        else:
+            logger.warning(f"🌧️ stateまたはperiod_forecastsが利用できません: state={state is not None}, has_metadata={hasattr(state, 'generation_metadata') if state else False}")
+        
         for comment in comments:
-            is_valid, reason = self.validate_comment(comment, weather_data)
+            is_valid, reason = self.validate_comment(comment, weather_data, state)
+            
+            # 追加の雨予報チェック
+            if is_valid and has_rain_forecast:
+                rain_forbidden_words = [
+                    "穏やか", "のどか", "快適", "過ごしやすい", "心地良い",
+                    "晴れ", "青空", "日差し", "太陽", "陽射し",
+                    "お出かけ日和", "散歩日和"
+                ]
+                for word in rain_forbidden_words:
+                    if word in comment.comment_text:
+                        is_valid = False
+                        reason = f"雨予報時の禁止ワード「{word}」を含む"
+                        logger.info(f"🌧️ 雨予報時禁止: '{comment.comment_text}' - 禁止ワード「{word}」")
+                        break
+            
             if is_valid:
                 valid_comments.append(comment)
             else:
@@ -854,15 +904,16 @@ class WeatherCommentValidator:
     def get_weather_appropriate_comments(self, comments: List[PastComment],
                                        weather_data: WeatherForecast,
                                        comment_type: CommentType,
-                                       limit: int = 30) -> List[PastComment]:
+                                       limit: int = 30,
+                                       state: Optional[Any] = None) -> List[PastComment]:
         """
         天気に最も適したコメントを優先順位付けして取得
         
         Returns:
             優先順位付けされたコメントリスト（最大limit件）
         """
-        # まず不適切なコメントを除外
-        valid_comments = self.filter_comments(comments, weather_data)
+        # まず不適切なコメントを除外（stateも渡す）
+        valid_comments = self.filter_comments(comments, weather_data, state)
         
         # スコアリング
         scored_comments = []

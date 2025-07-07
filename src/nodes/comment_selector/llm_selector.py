@@ -9,6 +9,7 @@ from src.data.comment_generation_state import CommentGenerationState
 from src.data.past_comment import CommentType, PastComment
 from src.data.weather_data import WeatherForecast
 from src.llm.llm_manager import LLMManager
+from src.config.weather_constants import SEASON_MONTHS, SEASONAL_TEMP_THRESHOLDS
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class LLMCommentSelector:
             
             # LLMによる選択を実行
             selected_candidate = self._perform_llm_selection(
-                candidates, weather_data, location_name, target_datetime, comment_type
+                candidates, weather_data, location_name, target_datetime, comment_type, state
             )
             
             if selected_candidate:
@@ -75,14 +76,15 @@ class LLMCommentSelector:
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
-        comment_type: CommentType
+        comment_type: CommentType,
+        state: Optional[CommentGenerationState] = None
     ) -> Optional[Dict[str, Any]]:
         """LLMによる実際の選択処理"""
         # 候補リストを文字列として整形
         candidates_text = self._format_candidates_for_llm(candidates)
         
         # 天気情報を整形
-        weather_context = self._format_weather_context(weather_data, location_name, target_datetime)
+        weather_context = self._format_weather_context(weather_data, location_name, target_datetime, state)
         
         # コメントタイプ別のプロンプトを作成
         prompt = self._create_selection_prompt(candidates_text, weather_context, comment_type)
@@ -102,7 +104,36 @@ class LLMCommentSelector:
             logger.info(f"抽出されたインデックス: {selected_index}")
             
             if selected_index is not None and 0 <= selected_index < len(candidates):
-                return candidates[selected_index]
+                # 矛盾チェックを追加
+                selected_candidate = candidates[selected_index]
+                if comment_type == CommentType.WEATHER_COMMENT:
+                    # 天気コメントが選択された場合、矛盾チェックを行う
+                    is_valid = self._check_comment_contradictions(
+                        selected_candidate['comment'], 
+                        weather_data,
+                        location_name,
+                        target_datetime,
+                        state
+                    )
+                    if not is_valid:
+                        logger.warning(f"選択されたコメントに矛盾が検出されました: '{selected_candidate['comment']}'")
+                        # 矛盾が検出された場合、次の候補を試す
+                        for i, candidate in enumerate(candidates):
+                            if i != selected_index:
+                                is_valid = self._check_comment_contradictions(
+                                    candidate['comment'],
+                                    weather_data,
+                                    location_name,
+                                    target_datetime,
+                                    state
+                                )
+                                if is_valid:
+                                    logger.info(f"代替候補を選択: '{candidate['comment']}'")
+                                    return candidate
+                        # すべて矛盾している場合は最初の候補を返す
+                        logger.warning("すべての候補に矛盾が検出されました。最初の候補を使用します。")
+                
+                return selected_candidate
             else:
                 logger.warning(f"無効な選択インデックス: {selected_index}")
                 return None
@@ -115,13 +146,13 @@ class LLMCommentSelector:
         """候補をLLM用に整形"""
         formatted_candidates = []
         for i, candidate in enumerate(candidates):
+            # 使用回数はLLMの判断を歪める可能性があるため表示しない
             formatted_candidates.append(
-                f"{i}: {candidate['comment']} "
-                f"(天気条件: {candidate['weather_condition']}, 使用回数: {candidate['usage_count']})"
+                f"{i}: {candidate['comment']}"
             )
         return "\n".join(formatted_candidates)
     
-    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime) -> str:
+    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime, state: Optional[CommentGenerationState] = None) -> str:
         """天気情報をLLM用に整形（時系列分析を含む）"""
         
         # 基本天気情報
@@ -141,33 +172,54 @@ class LLMCommentSelector:
         temp = weather_data.temperature
         
         # 季節と気温の関係
-        if month in [6, 7, 8]:  # 夏
-            if temp >= 35:
+        season = self._get_season(month)
+        
+        if season == 'summer':
+            if temp >= SEASONAL_TEMP_THRESHOLDS['summer']['extreme_hot']:
                 context += "- 猛暑日（35℃以上）です：熱中症に厳重注意\n"
-            elif temp >= 30:
+            elif temp >= SEASONAL_TEMP_THRESHOLDS['summer']['hot']:
                 context += "- 真夏日（30℃以上）です：暑さ対策を推奨\n"
-            elif temp < 25:
+            elif temp < SEASONAL_TEMP_THRESHOLDS['summer']['cool']:
                 context += "- 夏としては涼しめです\n"
-        elif month in [12, 1, 2]:  # 冬
-            if temp <= 0:
+        elif season == 'winter':
+            if temp <= SEASONAL_TEMP_THRESHOLDS['winter']['freezing']:
                 context += "- 氷点下です：凍結や防寒対策必須\n"
-            elif temp < 5:
+            elif temp < SEASONAL_TEMP_THRESHOLDS['winter']['cold']:
                 context += "- 真冬の寒さです：しっかりとした防寒が必要\n"
-            elif temp > 15:
+            elif temp > SEASONAL_TEMP_THRESHOLDS['winter']['warm']:
                 context += "- 冬としては暖かめです\n"
-        elif month in [3, 4, 5]:  # 春
+        elif season == 'spring':
             context += "- 春の気候です：気温変化に注意\n"
-        elif month in [9, 10, 11]:  # 秋
+        elif season == 'autumn':
             context += "- 秋の気候です：朝晩の冷え込みに注意\n"
         
-        # 降水量の詳細
-        if weather_data.precipitation > 10:
+        # 全時間帯の降水量をチェック
+        max_precipitation = weather_data.precipitation
+        rain_times = []
+        
+        # stateから4時点の予報データを取得
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    rain_times.append(f"{forecast.datetime.strftime('%H時')}({forecast.precipitation}mm)")
+                    max_precipitation = max(max_precipitation, forecast.precipitation)
+        
+        # 降水量の詳細（最大降水量で判定）
+        if rain_times:
+            context += f"\n【降水予報】翌日の降水時間帯: {', '.join(rain_times)}\n"
+            context += "\n🚨【厳重注意】雨が降る予報です。以下の表現は絶対に選ばないでください：\n"
+            context += "- 「穏やか」「のどか」「快適」「過ごしやすい」\n"
+            context += "- 「晴れ」「青空」「日差し」などの晴天表現\n"
+            context += "- 「お出かけ日和」「散歩日和」などの外出推奨表現\n"
+        
+        if max_precipitation > 10:
             context += "- 強雨（10mm/h以上）：外出時は十分な雨具を\n"
             context += "【最重要】雨に関するコメントを最優先で選択してください\n"
-        elif weather_data.precipitation > 1:
+        elif max_precipitation > 1:
             context += "- 軽雨～中雨：傘の携帯を推奨\n"
             context += "【重要】雨に関するコメントを優先的に選択してください\n"
-        elif weather_data.precipitation > 0:
+        elif max_precipitation > 0:
             context += "- 小雨：念のため傘があると安心\n"
             context += "【重要】雨に関するコメントを優先的に選択してください\n"
         
@@ -223,12 +275,17 @@ class LLMCommentSelector:
 
 選択基準（重要度順）:
 1. 【最優先】降水がある場合は雨関連のコメント、35℃以上の場合は熱中症対策のコメント
+   - 雨予報時に「穏やか」「快適」等を選ぶのは厳禁
 2. 現在の天気・気温に最も適している
 3. 天気の安定性や変化パターンに合致している
 4. 時系列変化（12時間前後）を考慮した適切性
 5. 地域特性（北海道の寒さ、沖縄の暑さなど）
 6. 季節感が適切（月に応じた適切な表現）
 7. 自然で読みやすい表現
+
+【絶対的ルール】
+- 降水予報がある場合、雨に言及しないコメントは選択禁止
+- 気温と矛盾する表現（34°C未満で「熱中症」、25°C以上で「涼しい」等）は選択禁止
 
 {sunny_warning}
 {month_warning}
@@ -299,3 +356,105 @@ class LLMCommentSelector:
         
         logger.error(f"数値抽出失敗: '{response_clean}' (範囲: 0-{max_index-1})")
         return None
+    
+    def _get_season(self, month: int) -> str:
+        """月から季節を判定"""
+        for season, months in SEASON_MONTHS.items():
+            if month in months:
+                return season
+        return 'unknown'
+    
+    def _check_comment_contradictions(
+        self, 
+        comment_text: str, 
+        weather_data: WeatherForecast,
+        location_name: str,
+        target_datetime: datetime,
+        state: Optional[CommentGenerationState] = None
+    ) -> bool:
+        """LLMを使用してコメント内の矛盾をチェック"""
+        
+        # 全時間帯の降水をチェック
+        has_rain = weather_data.precipitation > 0 or "雨" in weather_data.weather_description
+        
+        # stateから4時点の予報データも確認
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    has_rain = True
+                    break
+        
+        # 雨予報時の禁止表現チェック
+        if has_rain:
+            rain_forbidden_words = [
+                "穏やか", "のどか", "快適", "過ごしやすい", "心地良い",
+                "晴れ", "青空", "日差し", "太陽", "陽射し",
+                "お出かけ日和", "散歩日和", "ピクニック",
+                "カラッと", "さっぱり", "爽やか"
+            ]
+            for word in rain_forbidden_words:
+                if word in comment_text:
+                    logger.info(f"雨予報時の禁止ワード検出: '{word}' in '{comment_text}'")
+                    return False
+        
+        # 簡単な矛盾パターンを事前チェック（LLM呼び出しを減らすため）
+        contradiction_patterns = [
+            ("過ごしやすい", "蒸し暑い"),
+            ("涼しい", "暑い"),
+            ("爽やか", "じめじめ"),
+            ("快適", "厳しい"),
+            ("穏やか", "荒れ"),
+            ("カラッと", "湿っぽい"),
+            ("さわやか", "ムシムシ"),
+            ("ひんやり", "汗ばむ"),
+        ]
+        
+        comment_lower = comment_text.lower()
+        for word1, word2 in contradiction_patterns:
+            if word1 in comment_lower and word2 in comment_lower:
+                logger.info(f"矛盾パターン検出: '{word1}' と '{word2}' が同時に含まれる")
+                return False
+        
+        # より複雑な矛盾はLLMで判定
+        try:
+            prompt = f"""
+以下のコメントが、指定された天気条件において矛盾や不適切な表現を含んでいないか判定してください。
+
+【天気情報】
+- 地点: {location_name}
+- 日時: {target_datetime.strftime('%Y年%m月%d日 %H時')}
+- 天気: {weather_data.weather_description}
+- 気温: {weather_data.temperature}°C
+- 湿度: {weather_data.humidity}%
+- 降水量: {weather_data.precipitation}mm
+
+【コメント】
+{comment_text}
+
+【判定基準】
+1. コメント内に相反する表現が含まれていないか（例：「過ごしやすいが蒸し暑い」）
+2. 気温と表現が矛盾していないか（例：34°Cで「涼しい」）
+3. 天気と表現が矛盾していないか（例：雨なのに「カラッと」）
+4. 季節感が適切か（例：7月に「残暑」）
+
+矛盾がない場合は「OK」、矛盾がある場合は「NG」とだけ回答してください。
+"""
+            
+            response = self.llm_manager.generate(prompt)
+            response_clean = response.strip().upper()
+            
+            if "OK" in response_clean:
+                return True
+            elif "NG" in response_clean:
+                logger.info(f"LLMが矛盾を検出: '{comment_text}'")
+                return False
+            else:
+                # 判定が曖昧な場合は通す
+                logger.warning(f"LLM矛盾チェックの応答が不明瞭: {response}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"LLM矛盾チェックエラー: {e}")
+            # エラー時は通す
+            return True

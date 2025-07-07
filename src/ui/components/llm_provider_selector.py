@@ -90,5 +90,8 @@ def llm_provider_selector() -> str:
     elif "selected_llm_provider" in st.session_state:
         return st.session_state.selected_llm_provider
     else:
-        # デフォルトプロバイダーを返す（利用可能なものから）
-        return list(available_providers.keys())[0] if available_providers else config.ui_settings.default_llm_provider
+        # デフォルトプロバイダーを返す（設定されたデフォルトを優先）
+        if config.ui_settings.default_llm_provider in available_providers:
+            return config.ui_settings.default_llm_provider
+        else:
+            return list(available_providers.keys())[0] if available_providers else config.ui_settings.default_llm_provider

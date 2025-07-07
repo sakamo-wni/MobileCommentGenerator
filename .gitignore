@@ -82,3 +82,6 @@ Thumbs.db
 
 # Backup files
 *.bak
+
+# Temporary backup directories
+src/data/weather_backup/

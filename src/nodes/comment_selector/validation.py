@@ -620,6 +620,9 @@ class CommentValidator:
         """コメントの天気条件と実際の天気が一致するかチェック"""
         if not comment_condition:
             return True
+        # 天気条件が「不明」の場合は、マッチングをスキップしてLLMに判断を委ねる
+        if comment_condition == "不明":
+            return True
         return comment_condition.lower() in weather_description.lower()
     
     def _get_weather_type_sequence(self, forecasts: List) -> List[str]:

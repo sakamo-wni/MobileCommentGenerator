@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 
 from src.data.past_comment import PastComment, CommentType
+from src.config.weather_constants import CSV_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -92,9 +93,9 @@ class CommentParser:
             
             # PastCommentオブジェクトの作成
             return PastComment(
-                location="全国",  # CSVには地点情報がない
+                location=CSV_DEFAULTS['location'],  # CSVには地点情報がない
                 datetime=datetime.now(),
-                weather_condition="不明",
+                weather_condition=CSV_DEFAULTS['weather_condition'],  # CSVには天気条件情報がない
                 comment_text=comment_text.strip(),
                 comment_type=CommentType.WEATHER_COMMENT if comment_type == "weather_comment" else CommentType.ADVICE,
                 raw_data={
