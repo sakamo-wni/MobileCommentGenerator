@@ -88,6 +88,8 @@ class ConsistencyValidator(BaseValidator):
         temp = weather_data.temperature
         
         # 晴れまたは薄曇りなのに雲が優勢と言っている矛盾
+        # 注: うすぐもり/薄曇りは曇りの一種として扱うため、SUNNY_WEATHER_KEYWORDSには含まれません
+        # これにより、うすぐもり時には「雲が優勢」などの表現が許可されます
         if any(sunny_word in weather_desc for sunny_word in SUNNY_WEATHER_KEYWORDS):
             cloud_dominant_phrases = [
                 "雲が優勢", "雲が多い", "雲に覆われ", "厚い雲", "雲がち",

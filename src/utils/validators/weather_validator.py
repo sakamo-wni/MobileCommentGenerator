@@ -188,7 +188,11 @@ class WeatherValidator(BaseValidator):
         return True, ""
     
     def _is_stable_cloudy_weather(self, weather_data: WeatherForecast) -> bool:
-        """安定した曇天かどうかを判定"""
+        """安定した曇天かどうかを判定
+        
+        TODO: このメソッドは現在未使用ですが、将来的に安定した曇天時の
+              特別な処理（例：変わりやすい天気の警告を出さない）に使用予定
+        """
         # 現在の天気が曇りでない場合はFalse
         weather_desc = weather_data.weather_description.lower()
         if not any(cloudy in weather_desc for cloudy in ["曇", "くもり"]):
