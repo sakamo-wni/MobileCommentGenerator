@@ -42,7 +42,7 @@ export const REGIONS = [
   '沖縄'
 ] as const;
 
-// 地点名から地域を取得するマッピング
+// 地点名から地域を取得するマッピング（frontend/public/地点名.csvの全143地点）
 const LOCATION_TO_REGION_MAP: Record<string, string> = {
   // 北海道
   '稚内': '北海道',
@@ -242,15 +242,15 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
     const lines = text.split('\n').filter(line => line.trim());
     
     return lines.slice(1).map(line => {
-      const [name] = line.split(',');
+      const [name, lat, lon] = line.split(',');
       const trimmedName = name.trim();
       return {
         id: trimmedName,
         name: trimmedName,
         prefecture: '',
         region: getAreaName(trimmedName),
-        latitude: 0,
-        longitude: 0,
+        latitude: lat ? parseFloat(lat) : 0,
+        longitude: lon ? parseFloat(lon) : 0,
       };
     });
   } catch (error) {
