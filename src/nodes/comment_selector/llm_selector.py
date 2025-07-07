@@ -52,7 +52,7 @@ class LLMCommentSelector:
             
             # LLMによる選択を実行
             selected_candidate = self._perform_llm_selection(
-                candidates, weather_data, location_name, target_datetime, comment_type
+                candidates, weather_data, location_name, target_datetime, comment_type, state
             )
             
             if selected_candidate:
@@ -75,14 +75,15 @@ class LLMCommentSelector:
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
-        comment_type: CommentType
+        comment_type: CommentType,
+        state: Optional[CommentGenerationState] = None
     ) -> Optional[Dict[str, Any]]:
         """LLMによる実際の選択処理"""
         # 候補リストを文字列として整形
         candidates_text = self._format_candidates_for_llm(candidates)
         
         # 天気情報を整形
-        weather_context = self._format_weather_context(weather_data, location_name, target_datetime)
+        weather_context = self._format_weather_context(weather_data, location_name, target_datetime, state)
         
         # コメントタイプ別のプロンプトを作成
         prompt = self._create_selection_prompt(candidates_text, weather_context, comment_type)
@@ -121,7 +122,7 @@ class LLMCommentSelector:
             )
         return "\n".join(formatted_candidates)
     
-    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime) -> str:
+    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime, state: Optional[CommentGenerationState] = None) -> str:
         """天気情報をLLM用に整形（時系列分析を含む）"""
         
         # 基本天気情報
@@ -160,14 +161,29 @@ class LLMCommentSelector:
         elif month in [9, 10, 11]:  # 秋
             context += "- 秋の気候です：朝晩の冷え込みに注意\n"
         
-        # 降水量の詳細
-        if weather_data.precipitation > 10:
+        # 全時間帯の降水量をチェック
+        max_precipitation = weather_data.precipitation
+        rain_times = []
+        
+        # stateから4時点の予報データを取得
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    rain_times.append(f"{forecast.datetime.strftime('%H時')}({forecast.precipitation}mm)")
+                    max_precipitation = max(max_precipitation, forecast.precipitation)
+        
+        # 降水量の詳細（最大降水量で判定）
+        if rain_times:
+            context += f"\n【降水予報】翌日の降水時間帯: {', '.join(rain_times)}\n"
+        
+        if max_precipitation > 10:
             context += "- 強雨（10mm/h以上）：外出時は十分な雨具を\n"
             context += "【最重要】雨に関するコメントを最優先で選択してください\n"
-        elif weather_data.precipitation > 1:
+        elif max_precipitation > 1:
             context += "- 軽雨～中雨：傘の携帯を推奨\n"
             context += "【重要】雨に関するコメントを優先的に選択してください\n"
-        elif weather_data.precipitation > 0:
+        elif max_precipitation > 0:
             context += "- 小雨：念のため傘があると安心\n"
             context += "【重要】雨に関するコメントを優先的に選択してください\n"
         
