@@ -250,18 +250,23 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
     const text = await response.text();
     const lines = text.split('\n').filter(line => line.trim());
     
-    return lines.slice(1).map(line => {
-      const [name, lat, lon] = line.split(',');
-      const trimmedName = name.trim();
-      return {
-        id: trimmedName,
-        name: trimmedName,
-        prefecture: '',
-        region: getAreaName(trimmedName),
-        latitude: lat ? parseFloat(lat) : 0,
-        longitude: lon ? parseFloat(lon) : 0,
-      };
-    });
+    return lines.slice(1)
+      .filter(line => line.trim()) // 空行を除外
+      .map(line => {
+        const [name, lat, lon] = line.split(',');
+        if (!name) return null; // 名前がない行はスキップ
+        
+        const trimmedName = name.trim();
+        return {
+          id: trimmedName,
+          name: trimmedName,
+          prefecture: '',
+          region: getAreaName(trimmedName),
+          latitude: lat ? parseFloat(lat.trim()) : 0,
+          longitude: lon ? parseFloat(lon.trim()) : 0,
+        };
+      })
+      .filter(location => location !== null) as Location[];
   } catch (error) {
     console.error('Failed to load CSV:', error);
     throw new Error('地点データの読み込みに失敗しました');
@@ -307,17 +312,7 @@ export function createLocationSelectionLogic(
     state.error = null;
     
     try {
-      if (apiClient) {
-        const response = await apiClient.fetchLocations();
-        if (response.success && response.data) {
-          state.locations = response.data;
-          // デフォルトで全地点を選択
-          state.selectedLocations = response.data.map(loc => loc.name);
-          return;
-        }
-      }
-      
-      // APIが利用できない場合は、CSVファイルから読み込む
+      // まずCSVファイルから読み込む（確実に142地点を取得）
       const csvLocations = await loadLocationsFromCSV();
       state.locations = csvLocations;
       state.selectedLocations = csvLocations.map(loc => loc.name);
