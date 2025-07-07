@@ -115,9 +115,9 @@ class LLMCommentSelector:
         """候補をLLM用に整形"""
         formatted_candidates = []
         for i, candidate in enumerate(candidates):
+            # 使用回数はLLMの判断を歪める可能性があるため表示しない
             formatted_candidates.append(
-                f"{i}: {candidate['comment']} "
-                f"(天気条件: {candidate['weather_condition']}, 使用回数: {candidate['usage_count']})"
+                f"{i}: {candidate['comment']}"
             )
         return "\n".join(formatted_candidates)
     
