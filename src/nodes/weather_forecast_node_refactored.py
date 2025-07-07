@@ -10,7 +10,7 @@ import logging
 import os
 import pytz
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
@@ -30,6 +30,7 @@ from src.nodes.weather_forecast.services import (
     CacheService,
     TemperatureAnalysisService
 )
+from src.nodes.weather_forecast.service_factory import WeatherForecastServiceFactory
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -108,7 +109,10 @@ class WeatherForecastNode:
             return {**state, "error_message": f"天気予報データの取得に失敗しました: {e!s}"}
 
 
-def fetch_weather_forecast_node_refactored(state):
+def fetch_weather_forecast_node_refactored(
+    state,
+    service_factory: Optional[WeatherForecastServiceFactory] = None
+):
     """ワークフロー用の天気予報取得ノード関数（リファクタリング版）
 
     巨大な関数を責務ごとのサービスに分割して実装
@@ -143,12 +147,17 @@ def fetch_weather_forecast_node_refactored(state):
             state.add_error(error_msg, "weather_forecast")
             raise ValueError(error_msg)
         
-        # サービスの初期化
-        location_service = LocationService()
-        weather_api_service = WeatherAPIService(api_key)
-        forecast_processing_service = ForecastProcessingService()
-        cache_service = CacheService()
-        temperature_analysis_service = TemperatureAnalysisService()
+        # サービスファクトリーの初期化
+        if service_factory is None:
+            service_factory = WeatherForecastServiceFactory()
+            service_factory.set_api_key(api_key)
+        
+        # サービスの取得
+        location_service = service_factory.get_location_service()
+        weather_api_service = service_factory.get_weather_api_service()
+        forecast_processing_service = service_factory.get_forecast_processing_service()
+        cache_service = service_factory.get_cache_service()
+        temperature_analysis_service = service_factory.get_temperature_analysis_service()
         
         # === 2. 地点情報の処理 ===
         

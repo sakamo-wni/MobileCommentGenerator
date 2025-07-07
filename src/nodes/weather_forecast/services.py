@@ -19,6 +19,15 @@ from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
 from src.data.weather_trend import WeatherTrend
 from src.nodes.weather_forecast.data_validator import WeatherDataValidator
+from src.nodes.weather_forecast.constants import (
+    API_MAX_RETRIES,
+    API_INITIAL_RETRY_DELAY,
+    API_RETRY_BACKOFF_MULTIPLIER,
+    DEFAULT_TARGET_HOURS,
+    DATE_BOUNDARY_HOUR,
+    TREND_ANALYSIS_MIN_FORECASTS
+)
+from src.nodes.weather_forecast.messages import Messages
 
 
 logger = logging.getLogger(__name__)
@@ -110,8 +119,8 @@ class WeatherAPIService:
     
     def __init__(self, api_key: str):
         self.client = WxTechAPIClient(api_key)
-        self.max_retries = 3
-        self.initial_retry_delay = 1.0
+        self.max_retries = API_MAX_RETRIES
+        self.initial_retry_delay = API_INITIAL_RETRY_DELAY
     
     def fetch_forecast_with_retry(
         self, 
@@ -154,7 +163,7 @@ class WeatherAPIService:
                             f"天気予報データが空です。{retry_delay}秒後にリトライします。"
                         )
                         time.sleep(retry_delay)
-                        retry_delay *= 2  # 指数バックオフ
+                        retry_delay *= API_RETRY_BACKOFF_MULTIPLIER  # 指数バックオフ
                     else:
                         raise ValueError(
                             f"地点 '{location_name}' の天気予報データが取得できませんでした"
@@ -169,7 +178,7 @@ class WeatherAPIService:
                         f"APIエラー ({e.error_type}). {retry_delay}秒後にリトライします。"
                     )
                     time.sleep(retry_delay)
-                    retry_delay *= 2
+                    retry_delay *= API_RETRY_BACKOFF_MULTIPLIER
                     continue
                 else:
                     # リトライ不可能なエラーまたは最後の試行の場合
@@ -187,15 +196,10 @@ class WeatherAPIService:
         Returns:
             エラーメッセージ
         """
-        error_messages = {
-            'api_key_invalid': "気象APIキーが無効です。\nWXTECH_API_KEYが正しく設定されているか確認してください。",
-            'rate_limit': "気象APIのレート制限に達しました。しばらく待ってから再試行してください。",
-            'network_error': "気象APIサーバーに接続できません。ネットワーク接続を確認してください。",
-            'timeout': f"気象APIへのリクエストがタイムアウトしました: {error}",
-            'server_error': "気象APIサーバーでエラーが発生しました。しばらく待ってから再試行してください。",
-        }
-        
-        error_msg = error_messages.get(error.error_type, f"気象API接続エラー: {error}")
+        error_msg = Messages.get_api_error(
+            error.error_type or 'unknown',
+            error=error
+        )
         logger.error(
             f"気象APIエラー (type: {error.error_type}, status: {error.status_code}): {error_msg}"
         )
@@ -209,7 +213,7 @@ class ForecastProcessingService:
         self.validator = WeatherDataValidator()
         self.jst = pytz.timezone("Asia/Tokyo")
     
-    def get_target_date(self, now_jst: datetime, date_boundary_hour: int = 6) -> datetime.date:
+    def get_target_date(self, now_jst: datetime, date_boundary_hour: int = DATE_BOUNDARY_HOUR) -> datetime.date:
         """対象日を計算
         
         Args:
@@ -230,7 +234,7 @@ class ForecastProcessingService:
         self, 
         forecast_collection: WeatherForecastCollection,
         target_date: datetime.date,
-        target_hours: List[int] = None
+        target_hours: Optional[List[int]] = None
     ) -> List[WeatherForecast]:
         """指定時刻の予報を抽出
         
@@ -243,7 +247,7 @@ class ForecastProcessingService:
             抽出された予報のリスト
         """
         if target_hours is None:
-            target_hours = [9, 12, 15, 18]
+            target_hours = DEFAULT_TARGET_HOURS
         
         target_times = [
             self.jst.localize(
@@ -315,7 +319,7 @@ class ForecastProcessingService:
         Returns:
             WeatherTrend オブジェクト（データ不足の場合はNone）
         """
-        if len(period_forecasts) >= 2:
+        if len(period_forecasts) >= TREND_ANALYSIS_MIN_FORECASTS:
             weather_trend = WeatherTrend.from_forecasts(period_forecasts)
             logger.info(f"気象変化傾向: {weather_trend.get_summary()}")
             return weather_trend
