@@ -148,7 +148,8 @@ class WeatherCommentValidator:
             }
         }
     
-    def validate_comment(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate_comment(self, comment: PastComment, weather_data: WeatherForecast, 
+                        state: Optional[Any] = None) -> Tuple[bool, str]:
         """
         コメントが天気条件に適しているか検証
         
@@ -157,6 +158,16 @@ class WeatherCommentValidator:
         """
         comment_text = comment.comment_text
         comment_type = comment.comment_type.value
+        
+        # 0. 雨予報時の事前チェック（最優先）
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            for forecast in period_forecasts:
+                if forecast.precipitation > 0:
+                    rain_forbidden_words = ["穏やか", "のどか", "快適", "過ごしやすい"]
+                    for word in rain_forbidden_words:
+                        if word in comment_text:
+                            return False, f"雨予報時（{forecast.datetime.strftime('%H時')}）の禁止ワード「{word}」を含む"
         
         # 1. 天気条件チェック
         weather_check = self._check_weather_conditions(comment_text, comment_type, weather_data)
@@ -853,13 +864,17 @@ class WeatherCommentValidator:
         has_rain_forecast = False
         if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
             period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            logger.info(f"🌧️ 降水予報チェック: {len(period_forecasts)}件の予報データ")
             for forecast in period_forecasts:
                 if forecast.precipitation > 0:
                     has_rain_forecast = True
+                    logger.info(f"🌧️ 雨予報検出: {forecast.datetime.strftime('%H時')} - {forecast.precipitation}mm")
                     break
+        else:
+            logger.warning(f"🌧️ stateまたはperiod_forecastsが利用できません: state={state is not None}, has_metadata={hasattr(state, 'generation_metadata') if state else False}")
         
         for comment in comments:
-            is_valid, reason = self.validate_comment(comment, weather_data)
+            is_valid, reason = self.validate_comment(comment, weather_data, state)
             
             # 追加の雨予報チェック
             if is_valid and has_rain_forecast:
@@ -872,6 +887,7 @@ class WeatherCommentValidator:
                     if word in comment.comment_text:
                         is_valid = False
                         reason = f"雨予報時の禁止ワード「{word}」を含む"
+                        logger.info(f"🌧️ 雨予報時禁止: '{comment.comment_text}' - 禁止ワード「{word}」")
                         break
             
             if is_valid:
