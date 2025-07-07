@@ -3,13 +3,12 @@
 import logging
 from typing import Tuple, Dict, List
 
+from src.config.weather_constants import SUNNY_WEATHER_KEYWORDS
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment, CommentType
 from .base_validator import BaseValidator
 
 logger = logging.getLogger(__name__)
-
-SUNNY_WEATHER_KEYWORDS = ["晴", "快晴", "晴天"]
 
 
 class WeatherValidator(BaseValidator):
@@ -206,7 +205,7 @@ class WeatherValidator(BaseValidator):
             precipitation_threshold = stability_config.get('cloudy_precipitation_threshold', 1.0)
             wind_threshold = stability_config.get('cloudy_wind_threshold', 5.0)
         except (FileNotFoundError, KeyError, ValueError) as e:
-            logger.debug(f"Failed to load stability thresholds: {e}")
+            logger.warning(f"Failed to load stability thresholds, using defaults: {e}")
             # デフォルト値を使用
             precipitation_threshold = 1.0  # 1mm/h
             wind_threshold = 5.0  # 5m/s

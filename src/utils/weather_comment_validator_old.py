@@ -7,9 +7,8 @@ from src.config.weather_constants import (
     HEATSTROKE_WARNING_TEMP,
     HEATSTROKE_SEVERE_TEMP,
     COLD_WARNING_TEMP,
+    SUNNY_WEATHER_KEYWORDS,
 )
-
-SUNNY_WEATHER_KEYWORDS = ["晴", "快晴", "晴天", "薄曇", "うすぐもり", "薄ぐもり"]
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment, CommentType
 

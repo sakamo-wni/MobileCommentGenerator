@@ -90,5 +90,8 @@ WEATHER_TYPE_KEYWORDS = {
     'rainy': ["雨", "rain"]
 }
 
+# 晴天を表すキーワード（うすぐもり/薄曇は含まない）
+SUNNY_WEATHER_KEYWORDS = ["晴", "快晴", "晴天"]
+
 # 天気変化の閾値
 WEATHER_CHANGE_THRESHOLD = 2  # 「変わりやすい」と判定する変化回数の閾値

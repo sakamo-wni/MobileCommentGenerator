@@ -7,14 +7,13 @@ from typing import Tuple, List
 from src.config.weather_constants import (
     HEATSTROKE_WARNING_TEMP,
     COLD_WARNING_TEMP,
+    SUNNY_WEATHER_KEYWORDS,
 )
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
 from .base_validator import BaseValidator
 
 logger = logging.getLogger(__name__)
-
-SUNNY_WEATHER_KEYWORDS = ["晴", "快晴", "晴天"]
 
 
 class ConsistencyValidator(BaseValidator):
