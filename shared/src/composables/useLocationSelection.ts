@@ -245,15 +245,50 @@ export function getAllLocationNames(): string[] {
  * CSVファイルから地点データを読み込む（フォールバック用）
  */
 export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): Promise<Location[]> {
-  // ハードコードされた142地点のデータを返す（CSVと同じ内容）
-  return getAllLocationNames().map(name => ({
-    id: name,
-    name: name,
-    prefecture: '',
-    region: getAreaName(name),
-    latitude: 0,
-    longitude: 0,
-  }));
+  try {
+    const response = await fetch(csvUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+    }
+    const text = await response.text();
+    const lines = text.split('\n');
+    
+    const locations: Location[] = [];
+    
+    // ヘッダー行をスキップして、各行を処理
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // 空行はスキップ
+      
+      const [name, lat, lon] = line.split(',');
+      if (!name || !name.trim()) continue; // 名前がない行はスキップ
+      
+      const trimmedName = name.trim();
+      const location: Location = {
+        id: trimmedName,
+        name: trimmedName,
+        prefecture: '',
+        region: getAreaName(trimmedName),
+        latitude: lat ? parseFloat(lat.trim()) : 0,
+        longitude: lon ? parseFloat(lon.trim()) : 0,
+      };
+      
+      locations.push(location);
+    }
+    
+    return locations;
+  } catch (error) {
+    console.error('Failed to load CSV:', error);
+    // フォールバック: ハードコードされた地点データを使用
+    return getAllLocationNames().map(name => ({
+      id: name,
+      name: name,
+      prefecture: '',
+      region: getAreaName(name),
+      latitude: 0,
+      longitude: 0,
+    }));
+  }
 }
 
 /**
@@ -273,10 +308,6 @@ export function createLocationSelectionLogic(
     ...initialState
   };
 
-  // メモ化用のキャッシュ
-  let filteredLocationsCache: { key: string; value: Location[] } | null = null;
-  let regionLocationsCache: Map<string, string[]> = new Map();
-
   // APIクライアント（後で注入）
   let apiClient: LocationApiClient | null = null;
 
@@ -287,18 +318,16 @@ export function createLocationSelectionLogic(
 
   // 地点データを読み込む
   const loadLocations = async () => {
-    // キャッシュをクリア
-    filteredLocationsCache = null;
-    regionLocationsCache.clear();
-    
     state.isLoading = true;
     state.error = null;
     
     try {
       // 確実に142地点を取得
       const csvLocations = await loadLocationsFromCSV();
+      console.log('CSV locations loaded:', csvLocations.length, csvLocations.slice(0, 3));
       state.locations = csvLocations;
       state.selectedLocations = csvLocations.map(loc => loc.name);
+      console.log('State updated:', state.locations.length, state.selectedLocations.length);
       
     } catch (err) {
       console.error('Failed to load locations:', err);
@@ -367,53 +396,35 @@ export function createLocationSelectionLogic(
     state.selectedRegion = region;
   };
 
-  // フィルタリングされた地点を取得（メモ化付き）
+  // フィルタリングされた地点を取得
   const getFilteredLocations = () => {
-    const cacheKey = `${state.selectedRegion}-${state.locations.length}`;
-    
-    // キャッシュが有効かチェック
-    if (filteredLocationsCache && filteredLocationsCache.key === cacheKey) {
-      return filteredLocationsCache.value;
-    }
-    
-    // フィルタリングを実行
-    let result: Location[];
     if (!state.selectedRegion) {
-      result = state.locations;
-    } else {
-      result = state.locations.filter(location => {
-        const area = location.region || getAreaName(location.name);
-        return area === state.selectedRegion;
-      });
+      return state.locations;
     }
     
-    // キャッシュを更新
-    filteredLocationsCache = { key: cacheKey, value: result };
-    return result;
+    return state.locations.filter(location => {
+      const area = location.region || getAreaName(location.name);
+      return area === state.selectedRegion;
+    });
   };
 
-  // 地域の地点を取得（状態から）（メモ化付き）
+  // 地域の地点を取得（状態から）
   const getRegionLocations = (region: string) => {
-    // キャッシュから取得
-    if (regionLocationsCache.has(region)) {
-      return regionLocationsCache.get(region)!;
-    }
-    
-    // 計算してキャッシュに保存
-    const result = state.locations
+    return state.locations
       .filter(location => {
         const area = location.region || getAreaName(location.name);
         return area === region;
       })
       .map(loc => loc.name);
-    
-    regionLocationsCache.set(region, result);
-    return result;
   };
 
   return {
-    // 状態
-    ...state,
+    // 状態 - getterとして公開
+    get locations() { return state.locations; },
+    get selectedLocations() { return state.selectedLocations; },
+    get isLoading() { return state.isLoading; },
+    get error() { return state.error; },
+    get selectedRegion() { return state.selectedRegion; },
     
     // アクション
     loadLocations,

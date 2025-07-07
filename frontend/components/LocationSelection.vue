@@ -88,7 +88,7 @@
             </div>
             <div class="location-details">
               <span class="location-name">{{ location.name }}</span>
-              <span class="location-region">{{ location.area || getAreaName(location.name) }}</span>
+              <span class="location-region">{{ location.region || getAreaName(location.name) }}</span>
             </div>
           </div>
         </div>
@@ -181,7 +181,15 @@ const locations = computed(() => {
 })
 
 const filteredLocations = computed(() => {
-  return locationLogic.getFilteredLocations()
+  const result = locationLogic.getFilteredLocations()
+  if (result.length === 0 && allLocations.value.length > 0) {
+    console.warn('filteredLocations is empty but allLocations has data:', {
+      allLocationsLength: allLocations.value.length,
+      selectedRegion: locationLogic.selectedRegion,
+      locationsInLogic: locationLogic.locations.length
+    })
+  }
+  return result
 })
 
 // Methods wrapper
