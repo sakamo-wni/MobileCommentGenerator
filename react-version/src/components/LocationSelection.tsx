@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, MapPin, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import type { Location } from '@mobile-comment-generator/shared';
 import { createWeatherCommentComposable } from '@mobile-comment-generator/shared/composables';
-import { getAllLocations, getLocationsByRegion } from '../constants/regions';
+import { 
+  createLocationSelectionLogic, 
+  REGIONS,
+  getAreaName,
+  getLocationsByRegion 
+} from '@mobile-comment-generator/shared/composables';
 
 interface LocationSelectionProps {
   selectedLocation: Location | null;
@@ -15,107 +20,134 @@ interface LocationSelectionProps {
 
 export const LocationSelection: React.FC<LocationSelectionProps> = ({
   selectedLocation,
-  selectedLocations,
+  selectedLocations: externalSelectedLocations,
   onLocationChange,
   onLocationsChange,
   isBatchMode,
   className = '',
 }) => {
-  const [locations, setLocations] = useState<Location[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   const { getLocations } = createWeatherCommentComposable();
+  
+  // 共通ロジックを使用
+  const locationLogicRef = useRef<ReturnType<typeof createLocationSelectionLogic> | null>(null);
+  if (!locationLogicRef.current) {
+    locationLogicRef.current = createLocationSelectionLogic({
+      selectedLocations: externalSelectedLocations
+    });
+  }
+  const locationLogic = locationLogicRef.current;
+
+  // State from logic
+  const [state, setState] = useState({
+    locations: [] as Location[],
+    isLoading: false,
+    error: null as string | null,
+    selectedLocations: [] as string[],
+    selectedRegion: '',
+  });
+
+  // locationLogicの状態をReactのstateに反映させる関数
+  const syncState = () => {
+    const newState = {
+      locations: locationLogic.locations,
+      isLoading: locationLogic.isLoading,
+      error: locationLogic.error,
+      selectedLocations: locationLogic.selectedLocations,
+      selectedRegion: locationLogic.selectedRegion,
+    };
+    setState(newState);
+  };
 
   useEffect(() => {
     let isMounted = true;
     
-    const fetchLocations = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getLocations();
+    const loadData = async () => {
+      await locationLogic.loadLocations();
+      
+      if (isMounted) {
+        // 状態を同期
+        syncState();
         
-        if (isMounted) {
-          setLocations(data);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError('地点データの取得に失敗しました');
-          console.error('Failed to fetch locations:', err);
-          
-          // Fallback to region-based data
-          const fallbackLocations = getAllLocations().map(name => ({
-            id: name,
-            name: name,
-            prefecture: '',
-            region: ''
-          }));
-          setLocations(fallbackLocations);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+        // 初回読み込み時に外部の選択状態を反映
+        if (externalSelectedLocations.length > 0) {
+          // 各地点を個別に選択
+          externalSelectedLocations.forEach(location => {
+            if (!locationLogic.selectedLocations.includes(location)) {
+              locationLogic.toggleLocation(location);
+            }
+          });
+          // 選択後に再度同期
+          syncState();
         }
       }
     };
 
-    fetchLocations();
+    loadData();
     
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const filteredLocations = Array.isArray(locations) ? locations.filter(location =>
-    location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    location.prefecture.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    location.region.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // 外部の選択状態が変更されたときに同期
+  useEffect(() => {
+    // 全選択をクリアしてから、新しい選択を設定
+    locationLogic.clearAllSelections();
+    externalSelectedLocations.forEach(location => {
+      locationLogic.toggleLocation(location);
+    });
+  }, [externalSelectedLocations]);
 
-  const regions = ['北海道', '東北', '北陸', '関東', '甲信', '東海', '近畿', '中国', '四国', '九州', '沖縄'];
+  const filteredLocations = useMemo(() => {
+    return state.locations.filter(location =>
+      location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      location.prefecture.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      location.region.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [state.locations, searchTerm]);
 
   const selectAllLocations = () => {
-    const allLocationNames = locations.map(loc => loc.name);
-    onLocationsChange(allLocationNames);
+    locationLogic.selectAllLocations();
+    syncState();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   const clearAllLocations = () => {
-    onLocationsChange([]);
+    locationLogic.clearAllSelections();
+    syncState();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   const selectRegionLocations = (regionName: string) => {
-    const regionLocationNames = getLocationsByRegion(regionName);
-    const allSelected = regionLocationNames.every(name => selectedLocations.includes(name));
-    
-    if (allSelected) {
-      // Remove all locations from this region
-      const updatedLocations = selectedLocations.filter(name => !regionLocationNames.includes(name));
-      onLocationsChange(updatedLocations);
-    } else {
-      // Add missing locations from this region
-      const newLocations = regionLocationNames.filter(name => !selectedLocations.includes(name));
-      const updatedLocations = [...selectedLocations, ...newLocations];
-      
-      onLocationsChange(updatedLocations);
+    locationLogic.selectRegionLocations(regionName);
+    syncState();
+    onLocationsChange(locationLogic.selectedLocations);
+  };
+
+  const handleRegionChange = (regionName: string) => {
+    locationLogic.setSelectedRegion(regionName);
+    if (regionName) {
+      locationLogic.selectRegionLocations(regionName);
     }
+    syncState();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   const isRegionSelected = (regionName: string) => {
     const regionLocationNames = getLocationsByRegion(regionName);
-    return regionLocationNames.length > 0 && regionLocationNames.every(name => selectedLocations.includes(name));
+    return regionLocationNames.length > 0 && 
+      regionLocationNames.every(name => state.selectedLocations.includes(name));
   };
 
   const toggleLocationSelection = (locationName: string) => {
-    if (selectedLocations.includes(locationName)) {
-      onLocationsChange(selectedLocations.filter(name => name !== locationName));
-    } else {
-      onLocationsChange([...selectedLocations, locationName]);
-    }
+    locationLogic.toggleLocation(locationName);
+    syncState();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
-  if (loading) {
+  if (state.isLoading) {
     return (
       <div className={`space-y-4 ${className}`}>
         <div className="flex items-center justify-center py-8">
@@ -126,11 +158,11 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     );
   }
 
-  if (error) {
+  if (state.error) {
     return (
       <div className={`space-y-4 ${className}`}>
         <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+          <p className="text-red-800">{state.error}</p>
         </div>
       </div>
     );
@@ -169,7 +201,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
               
               <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">地域選択:</div>
               <div className="flex flex-wrap gap-1">
-                {regions.map((region) => (
+                {REGIONS.map((region) => (
                   <button
                     key={region}
                     onClick={() => selectRegionLocations(region)}
@@ -188,7 +220,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
             
             {/* Selected count */}
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              選択中: {selectedLocations.length}地点
+              選択中: {state.selectedLocations.length}地点
             </div>
           </div>
         )}
@@ -230,7 +262,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
               key={location.id}
               className={`w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center space-x-2 transition-colors ${
                 isBatchMode
-                  ? selectedLocations.includes(location.name)
+                  ? state.selectedLocations.includes(location.name)
                     ? 'bg-blue-50 dark:bg-blue-900/30'
                     : ''
                   : selectedLocation?.id === location.id
@@ -244,14 +276,14 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
                   onLocationChange(location);
                 }
               }}
-              aria-label={`${location.name}を${isBatchMode && selectedLocations.includes(location.name) ? '選択解除' : '選択'}`}
+              aria-label={`${location.name}を${isBatchMode && state.selectedLocations.includes(location.name) ? '選択解除' : '選択'}`}
             >
               <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{location.name}</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{location.prefecture} - {location.region}</div>
               </div>
-              {isBatchMode && selectedLocations.includes(location.name) && (
+              {isBatchMode && state.selectedLocations.includes(location.name) && (
                 <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
               )}
             </button>
