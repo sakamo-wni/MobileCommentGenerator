@@ -66,6 +66,18 @@ def check_and_fix_weather_comment_safety(
         logger.warning(f"🚨 緊急修正: 悪天候でムシムシコメントを除外 - 代替コメント検索")
         weather_comment = _find_storm_weather_comment(state.past_comments, weather_comment)
     
+    # LLMを使った動的な矛盾チェック
+    has_contradiction = _check_dynamic_contradictions(
+        weather_comment, advice_comment, weather_data, state
+    )
+    
+    if has_contradiction:
+        logger.warning("🚨 LLMが矛盾を検出 - 代替コメント検索")
+        # 矛盾が検出された場合、代替コメントを検索
+        weather_comment, advice_comment = _find_non_contradictory_pair(
+            weather_data, state.past_comments, weather_comment, advice_comment
+        )
+    
     return weather_comment, advice_comment
 
 
@@ -182,3 +194,147 @@ def _find_storm_weather_comment(past_comments: Optional[List[PastComment]], curr
         return comment
     
     return current_comment
+
+
+def _check_dynamic_contradictions(
+    weather_comment: str,
+    advice_comment: str,
+    weather_data: WeatherForecast,
+    state: CommentGenerationState
+) -> bool:
+    """LLMを使用して動的に矛盾をチェック"""
+    
+    # 簡易的な矛盾パターンを事前チェック
+    simple_contradictions = [
+        ("過ごしやすい", "蒸し暑い"),
+        ("涼しい", "暑い"),
+        ("爽やか", "じめじめ"),
+        ("爽やか", "ムシムシ"),
+        ("快適", "厳しい"),
+        ("穏やか", "荒れ"),
+        ("カラッと", "湿っぽい"),
+        ("さわやか", "ムシムシ"),
+        ("ひんやり", "汗ばむ"),
+        ("心地よい", "不快"),
+        ("過ごしやすい", "厳しい"),
+        ("快適", "蒸し暑い"),
+    ]
+    
+    combined_text = f"{weather_comment} {advice_comment}".lower()
+    
+    # 簡易チェック
+    for word1, word2 in simple_contradictions:
+        if word1 in combined_text and word2 in combined_text:
+            logger.info(f"🚨 簡易矛盾検出: '{word1}' と '{word2}' が共存")
+            return True
+    
+    # LLMプロバイダーが利用可能な場合のみLLMチェックを実行
+    if hasattr(state, 'llm_provider') and state.llm_provider:
+        try:
+            from src.llm.llm_manager import LLMManager
+            llm_manager = LLMManager(provider=state.llm_provider)
+            
+            prompt = f"""
+以下のコメントペアに矛盾や不自然な表現の組み合わせがないかチェックしてください。
+
+【天気情報】
+- 天気: {weather_data.weather_description}
+- 気温: {weather_data.temperature}°C
+- 湿度: {weather_data.humidity}%
+- 降水量: {weather_data.precipitation}mm
+
+【コメント】
+天気コメント: {weather_comment}
+アドバイス: {advice_comment}
+
+【チェック項目】
+1. 天気コメントとアドバイスの間に矛盾がないか
+2. 同一コメント内に相反する表現がないか（例：「過ごしやすいが蒸し暑い」）
+3. 気温と表現が矛盾していないか（例：34°Cで「涼しい」）
+4. 天気と表現が矛盾していないか（例：雨なのに「カラッと」）
+
+矛盾がない場合は「OK」、矛盾がある場合は「NG」とだけ回答してください。
+"""
+            
+            response = llm_manager.generate(prompt)
+            response_clean = response.strip().upper()
+            
+            if "NG" in response_clean:
+                logger.info(f"🚨 LLM矛盾検出: 天気='{weather_comment}', アドバイス='{advice_comment}'")
+                return True
+                
+        except Exception as e:
+            logger.error(f"LLM矛盾チェックエラー: {e}")
+    
+    return False
+
+
+def _find_non_contradictory_pair(
+    weather_data: WeatherForecast,
+    past_comments: Optional[List[PastComment]],
+    current_weather_comment: str,
+    current_advice_comment: str
+) -> Tuple[str, str]:
+    """矛盾のないコメントペアを検索"""
+    
+    if not past_comments:
+        return current_weather_comment, current_advice_comment
+    
+    # コメントをタイプ別に分類
+    weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
+    advice_comments = [c for c in past_comments if c.comment_type == CommentType.ADVICE]
+    
+    # 天気と気温に基づいて適切なパターンを定義
+    if weather_data.temperature >= 30:
+        # 暑い時は涼しい系の表現を避ける
+        avoid_patterns = ["涼しい", "爽やか", "ひんやり", "過ごしやすい", "快適"]
+        prefer_patterns = ["暑い", "厳しい", "猛暑", "熱中症"]
+    elif weather_data.temperature <= 15:
+        # 寒い時は暑い系の表現を避ける
+        avoid_patterns = ["暑い", "蒸し暑い", "汗ばむ", "熱中症"]
+        prefer_patterns = ["寒い", "冷える", "肌寒い", "防寒"]
+    else:
+        avoid_patterns = []
+        prefer_patterns = ["過ごしやすい", "快適", "穏やか"]
+    
+    # 適切な天気コメントを検索
+    selected_weather = current_weather_comment
+    for comment in weather_comments:
+        text = comment.comment_text
+        # 避けるべきパターンが含まれていない
+        if not any(avoid in text for avoid in avoid_patterns):
+            # 好ましいパターンが含まれている
+            if any(prefer in text for prefer in prefer_patterns):
+                selected_weather = text
+                logger.info(f"🚨 矛盾回避: 天気コメント変更 '{selected_weather}'")
+                break
+    
+    # 適切なアドバイスを検索
+    selected_advice = current_advice_comment
+    for comment in advice_comments:
+        text = comment.comment_text
+        # 選択された天気コメントと矛盾しない
+        if not _has_simple_contradiction(selected_weather, text):
+            selected_advice = text
+            logger.info(f"🚨 矛盾回避: アドバイス変更 '{selected_advice}'")
+            break
+    
+    return selected_weather, selected_advice
+
+
+def _has_simple_contradiction(text1: str, text2: str) -> bool:
+    """2つのテキスト間の簡単な矛盾をチェック"""
+    contradictions = [
+        ("過ごしやすい", "厳しい"),
+        ("涼しい", "暑い"),
+        ("爽やか", "蒸し暑い"),
+        ("快適", "不快"),
+        ("穏やか", "激しい"),
+    ]
+    
+    combined = f"{text1} {text2}".lower()
+    for word1, word2 in contradictions:
+        if word1 in combined and word2 in combined:
+            return True
+    
+    return False

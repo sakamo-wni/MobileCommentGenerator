@@ -104,7 +104,34 @@ class LLMCommentSelector:
             logger.info(f"抽出されたインデックス: {selected_index}")
             
             if selected_index is not None and 0 <= selected_index < len(candidates):
-                return candidates[selected_index]
+                # 矛盾チェックを追加
+                selected_candidate = candidates[selected_index]
+                if comment_type == CommentType.WEATHER_COMMENT:
+                    # 天気コメントが選択された場合、矛盾チェックを行う
+                    is_valid = self._check_comment_contradictions(
+                        selected_candidate['comment'], 
+                        weather_data,
+                        location_name,
+                        target_datetime
+                    )
+                    if not is_valid:
+                        logger.warning(f"選択されたコメントに矛盾が検出されました: '{selected_candidate['comment']}'")
+                        # 矛盾が検出された場合、次の候補を試す
+                        for i, candidate in enumerate(candidates):
+                            if i != selected_index:
+                                is_valid = self._check_comment_contradictions(
+                                    candidate['comment'],
+                                    weather_data,
+                                    location_name,
+                                    target_datetime
+                                )
+                                if is_valid:
+                                    logger.info(f"代替候補を選択: '{candidate['comment']}'")
+                                    return candidate
+                        # すべて矛盾している場合は最初の候補を返す
+                        logger.warning("すべての候補に矛盾が検出されました。最初の候補を使用します。")
+                
+                return selected_candidate
             else:
                 logger.warning(f"無効な選択インデックス: {selected_index}")
                 return None
@@ -325,3 +352,73 @@ class LLMCommentSelector:
             if month in months:
                 return season
         return 'unknown'
+    
+    def _check_comment_contradictions(
+        self, 
+        comment_text: str, 
+        weather_data: WeatherForecast,
+        location_name: str,
+        target_datetime: datetime
+    ) -> bool:
+        """LLMを使用してコメント内の矛盾をチェック"""
+        
+        # 簡単な矛盾パターンを事前チェック（LLM呼び出しを減らすため）
+        contradiction_patterns = [
+            ("過ごしやすい", "蒸し暑い"),
+            ("涼しい", "暑い"),
+            ("爽やか", "じめじめ"),
+            ("快適", "厳しい"),
+            ("穏やか", "荒れ"),
+            ("カラッと", "湿っぽい"),
+            ("さわやか", "ムシムシ"),
+            ("ひんやり", "汗ばむ"),
+        ]
+        
+        comment_lower = comment_text.lower()
+        for word1, word2 in contradiction_patterns:
+            if word1 in comment_lower and word2 in comment_lower:
+                logger.info(f"矛盾パターン検出: '{word1}' と '{word2}' が同時に含まれる")
+                return False
+        
+        # より複雑な矛盾はLLMで判定
+        try:
+            prompt = f"""
+以下のコメントが、指定された天気条件において矛盾や不適切な表現を含んでいないか判定してください。
+
+【天気情報】
+- 地点: {location_name}
+- 日時: {target_datetime.strftime('%Y年%m月%d日 %H時')}
+- 天気: {weather_data.weather_description}
+- 気温: {weather_data.temperature}°C
+- 湿度: {weather_data.humidity}%
+- 降水量: {weather_data.precipitation}mm
+
+【コメント】
+{comment_text}
+
+【判定基準】
+1. コメント内に相反する表現が含まれていないか（例：「過ごしやすいが蒸し暑い」）
+2. 気温と表現が矛盾していないか（例：34°Cで「涼しい」）
+3. 天気と表現が矛盾していないか（例：雨なのに「カラッと」）
+4. 季節感が適切か（例：7月に「残暑」）
+
+矛盾がない場合は「OK」、矛盾がある場合は「NG」とだけ回答してください。
+"""
+            
+            response = self.llm_manager.generate(prompt)
+            response_clean = response.strip().upper()
+            
+            if "OK" in response_clean:
+                return True
+            elif "NG" in response_clean:
+                logger.info(f"LLMが矛盾を検出: '{comment_text}'")
+                return False
+            else:
+                # 判定が曖昧な場合は通す
+                logger.warning(f"LLM矛盾チェックの応答が不明瞭: {response}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"LLM矛盾チェックエラー: {e}")
+            # エラー時は通す
+            return True
