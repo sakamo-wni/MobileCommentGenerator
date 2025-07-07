@@ -61,6 +61,11 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
         selectedLocations: locationLogic.selectedLocations,
         selectedRegion: locationLogic.selectedRegion,
       };
+      console.log('React syncState:', {
+        locationsLength: newState.locations.length,
+        isLoading: newState.isLoading,
+        error: newState.error
+      });
       setState(newState);
     };
 
@@ -79,7 +84,13 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     let isMounted = true;
     
     const loadData = async () => {
+      console.log('React: Before loading locations');
       await locationLogic.loadLocations();
+      console.log('React: After loading locations', {
+        locationsLength: locationLogic.locations.length,
+        firstLocation: locationLogic.locations[0],
+        stateLocationsLength: state.locations.length
+      });
       
       if (isMounted) {
         // stateは自動的に同期されるので、ここでの更新は不要
@@ -113,11 +124,20 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   }, [externalSelectedLocations]);
 
   const filteredLocations = useMemo(() => {
-    return state.locations.filter(location =>
+    console.log('React filteredLocations:', {
+      stateLocationsLength: state.locations.length,
+      searchTerm: searchTerm,
+      firstLocation: state.locations[0]
+    });
+    
+    const result = state.locations.filter(location =>
       location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       location.prefecture.toLowerCase().includes(searchTerm.toLowerCase()) ||
       location.region.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    console.log('React filteredLocations result:', result.length);
+    return result;
   }, [state.locations, searchTerm]);
 
   const selectAllLocations = () => {
