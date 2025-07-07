@@ -66,6 +66,17 @@ def check_and_fix_weather_comment_safety(
         logger.warning(f"🚨 緊急修正: 悪天候でムシムシコメントを除外 - 代替コメント検索")
         weather_comment = _find_storm_weather_comment(state.past_comments, weather_comment)
     
+    # 雨天時に晴天表現は絶対に不適切 - 既存コメントから再選択
+    if "雨" in weather_data.weather_description and weather_comment:
+        sunny_inappropriate_patterns = ["晴れ", "快晴", "日差し", "太陽", "青空", "陽射し", "日向", "晴天"]
+        for pattern in sunny_inappropriate_patterns:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 雨天時に晴天表現「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_rain_weather_comment(
+                    state.past_comments, weather_comment, weather_data
+                )
+                break
+    
     return weather_comment, advice_comment
 
 
@@ -180,5 +191,63 @@ def _find_storm_weather_comment(past_comments: Optional[List[PastComment]], curr
         comment = weather_comments[0].comment_text
         logger.info(f"🚨 デフォルト代替: '{comment}'")
         return comment
+    
+    return current_comment
+
+
+def _find_rain_weather_comment(past_comments: Optional[List[PastComment]], 
+                              current_comment: str,
+                              weather_data: WeatherForecast) -> str:
+    """雨天時の代替天気コメントを検索"""
+    if not past_comments:
+        return current_comment
+    
+    # 天気コメントのみをフィルタリング
+    weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
+    
+    # 降水量に応じた適切なコメントのパターン
+    rain_patterns = []
+    if weather_data.precipitation >= 10:
+        # 強雨時
+        rain_patterns = [
+            "大雨", "激しい雨", "強い雨", "本格的な雨", "豪雨",
+            "荒れた天気", "悪天候", "雨が強く", "傘が必須"
+        ]
+    elif weather_data.precipitation >= 1:
+        # 中雨時
+        rain_patterns = [
+            "雨が降りやすく", "雨の降りやすい", "雨模様", "雨が降ったり",
+            "傘が必要", "傘をお忘れなく", "雨に注意"
+        ]
+    else:
+        # 小雨時
+        rain_patterns = [
+            "にわか雨", "ニワカ雨", "急な雨", "雨が心配",
+            "傘があると安心", "雨の可能性", "天気急変"
+        ]
+    
+    # 雨関連コメントを検索
+    for past_comment in weather_comments:
+        comment_text = past_comment.comment_text
+        # 優先パターンに一致するものを探す
+        for pattern in rain_patterns:
+            if pattern in comment_text:
+                logger.info(f"🚨 雨天用代替コメント発見: '{comment_text}'")
+                return comment_text
+    
+    # 汎用的な雨コメントを検索
+    general_rain_patterns = ["雨", "傘", "濡れ"]
+    for past_comment in weather_comments:
+        comment_text = past_comment.comment_text
+        if any(pattern in comment_text for pattern in general_rain_patterns):
+            # 晴天表現を含まないことを確認
+            if not any(sunny in comment_text for sunny in ["晴", "日差し", "太陽", "青空"]):
+                logger.info(f"🚨 汎用雨天コメント: '{comment_text}'")
+                return comment_text
+    
+    # それでも見つからない場合はデフォルト
+    if weather_comments:
+        logger.warning(f"🚨 適切な雨天コメントが見つかりません。最初のコメントを使用")
+        return weather_comments[0].comment_text
     
     return current_comment

@@ -164,12 +164,15 @@ class LLMCommentSelector:
         if weather_data.precipitation > 10:
             context += "- 強雨（10mm/h以上）：外出時は十分な雨具を\n"
             context += "【最重要】雨に関するコメントを最優先で選択してください\n"
+            context += "【禁止】晴天や快適さを示唆するコメントは絶対に選ばないでください\n"
         elif weather_data.precipitation > 1:
             context += "- 軽雨～中雨：傘の携帯を推奨\n"
             context += "【重要】雨に関するコメントを優先的に選択してください\n"
+            context += "【注意】雨を無視したコメントは選ばないでください\n"
         elif weather_data.precipitation > 0:
             context += "- 小雨：念のため傘があると安心\n"
             context += "【重要】雨に関するコメントを優先的に選択してください\n"
+            context += "【注意】雨の可能性に触れているコメントを優先してください\n"
         
         # 高温時の特別な優先度
         if weather_data.temperature >= 35.0:
@@ -206,6 +209,11 @@ class LLMCommentSelector:
   - 「晩夏」（8月後半の表現）
   - 「秋の気配」「秋めく」（8月後半～9月の表現）
 - 適切な表現：「真夏」「盛夏」「夏本番」「猛暑」「酷暑」など
+
+【矛盾チェック重要事項】:
+- 「昼間も涼しい　昼間は蒸し暑い」のような時間帯の温度矛盾は絶対に避けてください
+- 「涼しい」と「蒸し暑い」のような対立する温度感覚を同時に含むコメントは選ばないでください
+- 雨天時に「晴れ」「快晴」「日差し」などの表現を含むコメントは選ばないでください
 """.format(month)
             elif month == 9:
                 month_warning = """
