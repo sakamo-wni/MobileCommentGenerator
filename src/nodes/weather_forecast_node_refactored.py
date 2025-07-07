@@ -1,7 +1,8 @@
 """
-天気予報統合ノード
+天気予報統合ノード（リファクタリング版）
 
 LangGraphノードとして天気予報データの取得・処理を行う
+巨大な関数を責務ごとのサービスに分割
 """
 
 import asyncio
@@ -14,15 +15,21 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
 
-from src.apis.wxtech import WxTechAPIError
-from src.apis.wxtech.client import WxTechAPIClient
 from src.data.weather_trend import WeatherTrend
 from src.data.weather_data import WeatherForecastCollection, WeatherForecast
-from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.config.weather_config import get_config
 from src.config.comment_config import get_comment_config
 from src.config.config_loader import load_config
 from src.nodes.weather_forecast import WeatherDataFetcher, WeatherDataTransformer, WeatherDataValidator
+
+# 新しいサービスクラスをインポート
+from src.nodes.weather_forecast.services import (
+    LocationService,
+    WeatherAPIService,
+    ForecastProcessingService,
+    CacheService,
+    TemperatureAnalysisService
+)
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -100,6 +107,190 @@ class WeatherForecastNode:
             logger.error(f"天気予報データ取得エラー: {e!s}")
             return {**state, "error_message": f"天気予報データの取得に失敗しました: {e!s}"}
 
+
+def fetch_weather_forecast_node_refactored(state):
+    """ワークフロー用の天気予報取得ノード関数（リファクタリング版）
+
+    巨大な関数を責務ごとのサービスに分割して実装
+
+    Args:
+        state: CommentGenerationState
+
+    Returns:
+        更新されたCommentGenerationState
+    """
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # === 1. 初期化フェーズ ===
+        
+        # 地点情報の取得
+        location_name_raw = state.location_name
+        if not location_name_raw:
+            raise ValueError("location_name is required")
+        
+        # APIキーの取得
+        api_key = os.getenv("WXTECH_API_KEY")
+        if not api_key:
+            error_msg = (
+                "WXTECH_API_KEY環境変数が設定されていません。\n"
+                "設定方法: export WXTECH_API_KEY='your-api-key' または .envファイルに記載"
+            )
+            logger.error(error_msg)
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
+        
+        # サービスの初期化
+        location_service = LocationService()
+        weather_api_service = WeatherAPIService(api_key)
+        forecast_processing_service = ForecastProcessingService()
+        cache_service = CacheService()
+        temperature_analysis_service = TemperatureAnalysisService()
+        
+        # === 2. 地点情報の処理 ===
+        
+        # 地点名と座標を分離
+        location_name, provided_lat, provided_lon = location_service.parse_location_string(
+            location_name_raw
+        )
+        
+        # 地点情報を取得
+        try:
+            location = location_service.get_location_with_coordinates(
+                location_name, 
+                provided_lat, 
+                provided_lon
+            )
+        except ValueError as e:
+            logger.error(str(e))
+            state.add_error(str(e), "weather_forecast")
+            raise
+        
+        lat, lon = location.latitude, location.longitude
+        
+        # === 3. 天気予報の取得 ===
+        
+        try:
+            forecast_collection = weather_api_service.fetch_forecast_with_retry(
+                lat, lon, location_name
+            )
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"天気予報取得エラー: {error_msg}")
+            state.add_error(error_msg, "weather_forecast")
+            raise
+        
+        # === 4. 予報データの処理 ===
+        
+        # 設定の読み込み
+        config = get_config()
+        forecast_hours_ahead = config.weather.forecast_hours_ahead
+        target_datetime = datetime.now() + timedelta(hours=forecast_hours_ahead)
+        
+        comment_config = get_comment_config()
+        trend_hours = comment_config.trend_hours_ahead
+        
+        # 対象日の計算
+        weather_config = load_config('weather_thresholds', validate=False)
+        date_boundary_hour = weather_config.get('generation', {}).get('date_boundary_hour', 6)
+        
+        jst = pytz.timezone("Asia/Tokyo")
+        now_jst = datetime.now(jst)
+        target_date = forecast_processing_service.get_target_date(now_jst, date_boundary_hour)
+        
+        logger.info(f"対象日: {target_date} (現在時刻: {now_jst.strftime('%Y-%m-%d %H:%M')})")
+        
+        # 指定時刻の予報を抽出
+        period_forecasts = forecast_processing_service.extract_period_forecasts(
+            forecast_collection,
+            target_date
+        )
+        
+        # period_forecastsが空でないことを確認
+        if not period_forecasts:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(f"{error_msg} - period_forecasts is empty")
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
+        
+        # ターゲット時刻に最も近い予報を選択
+        selected_forecast = forecast_processing_service.select_forecast_by_time(
+            period_forecasts, 
+            target_datetime
+        )
+        
+        if not selected_forecast:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(error_msg)
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
+        
+        # デバッグ情報
+        logger.info(
+            f"fetch_weather_forecast_node - ターゲット時刻: {target_datetime}, "
+            f"選択された予報時刻: {selected_forecast.datetime}"
+        )
+        logger.info(
+            f"fetch_weather_forecast_node - 選択された天気データ: "
+            f"{selected_forecast.temperature}°C, {selected_forecast.weather_description}"
+        )
+        
+        if selected_forecast.weather_condition.is_special_condition:
+            logger.info(
+                f"特殊気象条件が選択されました: {selected_forecast.weather_condition.value} "
+                f"(優先度: {selected_forecast.weather_condition.priority})"
+            )
+        
+        # === 5. 追加処理 ===
+        
+        # 4時点の予報データをstateに保存（コメント選択時に使用）
+        state.update_metadata("period_forecasts", period_forecasts)
+        logger.info(f"4時点の予報データを保存: {len(period_forecasts)}件")
+        
+        # 気象変化傾向の分析
+        weather_trend = forecast_processing_service.analyze_weather_trend(period_forecasts)
+        if weather_trend:
+            state.update_metadata("weather_trend", weather_trend)
+        
+        # キャッシュに保存
+        cache_service.save_forecasts(
+            selected_forecast,
+            forecast_collection.forecasts,
+            location_name
+        )
+        
+        # 気温差の計算
+        temperature_differences = temperature_analysis_service.calculate_temperature_differences(
+            selected_forecast, 
+            location_name
+        )
+        
+        # === 6. 状態の更新 ===
+        
+        state.weather_data = selected_forecast
+        state.update_metadata("forecast_collection", forecast_collection)
+        state.location = location
+        state.update_metadata("location_coordinates", {"latitude": lat, "longitude": lon})
+        state.update_metadata("temperature_differences", temperature_differences)
+
+        logger.info(
+            f"Weather forecast fetched for {location_name}: {selected_forecast.weather_description}"
+        )
+
+        return state
+
+    except Exception as e:
+        logger.error(f"Failed to fetch weather forecast: {e!s}")
+        state.add_error(f"天気予報の取得に失敗しました: {e!s}", "weather_forecast")
+        # エラーをそのまま再発生させて処理を停止
+        raise
+
+
+# 元の関数との互換性を保つためのエイリアス
+fetch_weather_forecast_node = fetch_weather_forecast_node_refactored
 
 
 def create_weather_forecast_graph(api_key: str) -> StateGraph:
@@ -203,14 +394,6 @@ async def integrate_weather_into_conversation(
         logger.error(f"天気情報統合エラー: {e!s}")
         # エラー時は元のメッセージをそのまま返す
         return messages
-
-
-# ワークフロー用の関数
-# リファクタリング版のインポート
-from src.nodes.weather_forecast_node_refactored import fetch_weather_forecast_node_refactored
-
-# 互換性のため、元の関数名でエイリアスを作成
-fetch_weather_forecast_node = fetch_weather_forecast_node_refactored
 
 
 if __name__ == "__main__":
