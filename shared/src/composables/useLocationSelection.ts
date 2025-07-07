@@ -246,16 +246,12 @@ export function getAllLocationNames(): string[] {
  */
 export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): Promise<Location[]> {
   try {
-    console.log('loadLocationsFromCSV: Fetching from URL:', csvUrl);
     const response = await fetch(csvUrl);
-    console.log('loadLocationsFromCSV: Response status:', response.status);
     if (!response.ok) {
       throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
     }
     const text = await response.text();
-    console.log('loadLocationsFromCSV: CSV text length:', text.length);
     const lines = text.split('\n');
-    console.log('loadLocationsFromCSV: Number of lines:', lines.length);
     
     const locations: Location[] = [];
     
@@ -280,13 +276,10 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
       locations.push(location);
     }
     
-    console.log('loadLocationsFromCSV: Loaded locations count:', locations.length);
-    console.log('loadLocationsFromCSV: First location:', locations[0]);
     return locations;
   } catch (error) {
     console.error('Failed to load CSV:', error);
     // フォールバック: ハードコードされた地点データを使用
-    console.log('loadLocationsFromCSV: Using fallback data');
     const fallbackLocations = getAllLocationNames().map(name => ({
       id: name,
       name: name,
@@ -295,7 +288,6 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
       latitude: 0,
       longitude: 0,
     }));
-    console.log('loadLocationsFromCSV: Fallback count:', fallbackLocations.length);
     return fallbackLocations;
   }
 }
@@ -327,17 +319,15 @@ export function createLocationSelectionLogic(
 
   // 地点データを読み込む
   const loadLocations = async () => {
-    console.log('loadLocations: Starting...');
     state.isLoading = true;
     state.error = null;
     
     try {
       // 確実に142地点を取得
       const csvLocations = await loadLocationsFromCSV();
-      console.log('loadLocations: CSV returned', csvLocations.length, 'locations');
       state.locations = csvLocations;
       state.selectedLocations = csvLocations.map(loc => loc.name);
-      console.log('loadLocations: State updated with', state.locations.length, 'locations');
+      console.log('loadLocations: First location in state:', state.locations[0]);
       
     } catch (err) {
       console.error('Failed to load locations:', err);

@@ -57,8 +57,6 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     const selectedLocations = locationLogic.selectedLocations;
     const selectedRegion = locationLogic.selectedRegion;
     
-    console.log('syncState: locations from getter:', locations?.length || 0);
-    
     const newState = {
       locations: locations || [],
       isLoading: isLoading || false,
@@ -66,7 +64,6 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
       selectedLocations: selectedLocations || [],
       selectedRegion: selectedRegion || '',
     };
-    console.log('syncState: Setting new state with', newState.locations.length, 'locations');
     setState(newState);
   }, [locationLogic]);
 
@@ -74,14 +71,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     let isMounted = true;
     
     const loadData = async () => {
-      console.log('LocationSelection: Starting to load locations...');
       await locationLogic.loadLocations();
-      console.log('LocationSelection: loadLocations completed');
-      
-      // getterを直接呼び出して確認
-      const currentLocations = locationLogic.locations;
-      console.log('LocationSelection: locations from getter:', currentLocations?.length || 0);
-      console.log('LocationSelection: first location:', currentLocations?.[0]);
       
       if (isMounted) {
         // 状態を同期
