@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive, toRefs, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive, toRefs, watch } from 'vue'
 import { useApi } from '~/composables/useApi'
 import type { Location } from '~/types'
 import { 
@@ -148,7 +148,7 @@ const api = useApi()
 const locationLogic = reactive(createLocationSelectionLogic())
 
 // 共通ロジックのAPIクライアントを設定
-;(locationLogic as any).setApiClient({
+locationLogic.setApiClient({
   fetchLocations: async () => {
     const response = await api.fetchLocations()
     return {
@@ -231,13 +231,18 @@ const emitLocationChanges = () => {
 }
 
 // Watch for selectedRegion changes
-watch(selectedRegion, () => {
+const stopRegionWatcher = watch(selectedRegion, () => {
   handleRegionChange()
 })
 
 // Lifecycle
 onMounted(() => {
   loadLocations()
+})
+
+// Cleanup
+onUnmounted(() => {
+  stopRegionWatcher()
 })
 </script>
 

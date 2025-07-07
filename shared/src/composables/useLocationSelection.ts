@@ -7,6 +7,11 @@
 
 import type { Location } from '../types';
 
+// APIクライアントの型定義
+export interface LocationApiClient {
+  fetchLocations: () => Promise<{ success: boolean; data?: Location[] }>;
+}
+
 export interface LocationSelectionState {
   locations: Location[];
   selectedLocations: string[];
@@ -24,7 +29,11 @@ export interface LocationSelectionActions {
   setSelectedRegion: (region: string) => void;
   getFilteredLocations: () => Location[];
   getRegionLocations: (region: string) => string[];
-  setApiClient?: (client: any) => void;
+}
+
+// 完全なLocation Selection Logicの型
+export interface LocationSelectionLogic extends LocationSelectionState, LocationSelectionActions {
+  setApiClient: (client: LocationApiClient) => void;
 }
 
 // 地域定数（統一）
@@ -265,7 +274,7 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
  */
 export function createLocationSelectionLogic(
   initialState: Partial<LocationSelectionState> = {}
-): LocationSelectionState & LocationSelectionActions {
+): LocationSelectionLogic {
   // 状態の初期化
   const state: LocationSelectionState = {
     locations: [],
@@ -276,18 +285,24 @@ export function createLocationSelectionLogic(
     ...initialState
   };
 
+  // メモ化用のキャッシュ
+  let filteredLocationsCache: { key: string; value: Location[] } | null = null;
+  let regionLocationsCache: Map<string, string[]> = new Map();
+
   // APIクライアント（後で注入）
-  let apiClient: {
-    fetchLocations: () => Promise<{ success: boolean; data?: Location[] }>;
-  } | null = null;
+  let apiClient: LocationApiClient | null = null;
 
   // APIクライアントを設定
-  const setApiClient = (client: typeof apiClient) => {
+  const setApiClient = (client: LocationApiClient) => {
     apiClient = client;
   };
 
   // 地点データを読み込む
   const loadLocations = async () => {
+    // キャッシュをクリア
+    filteredLocationsCache = null;
+    regionLocationsCache.clear();
+    
     state.isLoading = true;
     state.error = null;
     
@@ -374,25 +389,48 @@ export function createLocationSelectionLogic(
     state.selectedRegion = region;
   };
 
-  // フィルタリングされた地点を取得
+  // フィルタリングされた地点を取得（メモ化付き）
   const getFilteredLocations = () => {
-    if (!state.selectedRegion) {
-      return state.locations;
+    const cacheKey = `${state.selectedRegion}-${state.locations.length}`;
+    
+    // キャッシュが有効かチェック
+    if (filteredLocationsCache && filteredLocationsCache.key === cacheKey) {
+      return filteredLocationsCache.value;
     }
-    return state.locations.filter(location => {
-      const area = location.region || getAreaName(location.name);
-      return area === state.selectedRegion;
-    });
+    
+    // フィルタリングを実行
+    let result: Location[];
+    if (!state.selectedRegion) {
+      result = state.locations;
+    } else {
+      result = state.locations.filter(location => {
+        const area = location.region || getAreaName(location.name);
+        return area === state.selectedRegion;
+      });
+    }
+    
+    // キャッシュを更新
+    filteredLocationsCache = { key: cacheKey, value: result };
+    return result;
   };
 
-  // 地域の地点を取得（状態から）
+  // 地域の地点を取得（状態から）（メモ化付き）
   const getRegionLocations = (region: string) => {
-    return state.locations
+    // キャッシュから取得
+    if (regionLocationsCache.has(region)) {
+      return regionLocationsCache.get(region)!;
+    }
+    
+    // 計算してキャッシュに保存
+    const result = state.locations
       .filter(location => {
         const area = location.region || getAreaName(location.name);
         return area === region;
       })
       .map(loc => loc.name);
+    
+    regionLocationsCache.set(region, result);
+    return result;
   };
 
   return {

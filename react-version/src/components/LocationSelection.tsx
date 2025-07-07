@@ -57,12 +57,37 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     return logic;
   }, []);
 
-  // State from logic
+  // State from logic - 初期値としてlocationLogicの現在の状態を使用
   const [state, setState] = useState({
     locations: locationLogic.locations,
     isLoading: locationLogic.isLoading,
     error: locationLogic.error,
+    selectedLocations: locationLogic.selectedLocations,
+    selectedRegion: locationLogic.selectedRegion,
   });
+
+  // locationLogicの状態を定期的に同期
+  useEffect(() => {
+    const syncState = () => {
+      setState({
+        locations: locationLogic.locations,
+        isLoading: locationLogic.isLoading,
+        error: locationLogic.error,
+        selectedLocations: locationLogic.selectedLocations,
+        selectedRegion: locationLogic.selectedRegion,
+      });
+    };
+
+    // 初回同期
+    syncState();
+
+    // 定期的な同期を設定（100msごと）
+    const intervalId = setInterval(syncState, 100);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [locationLogic]);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,11 +96,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
       await locationLogic.loadLocations();
       
       if (isMounted) {
-        setState({
-          locations: locationLogic.locations,
-          isLoading: locationLogic.isLoading,
-          error: locationLogic.error,
-        });
+        // stateは自動的に同期されるので、ここでの更新は不要
         
         // 初回読み込み時に外部の選択状態を反映
         if (externalSelectedLocations.length > 0) {
@@ -105,48 +126,37 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   }, [state.locations, searchTerm]);
 
   const selectAllLocations = () => {
-    const allLocationNames = state.locations.map(loc => loc.name);
-    onLocationsChange(allLocationNames);
+    locationLogic.selectAllLocations();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   const clearAllLocations = () => {
-    onLocationsChange([]);
+    locationLogic.clearAllSelections();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   const selectRegionLocations = (regionName: string) => {
-    const regionLocationNames = getLocationsByRegion(regionName);
-    const allSelected = regionLocationNames.every(name => 
-      externalSelectedLocations.includes(name)
-    );
-    
-    if (allSelected) {
-      // Remove all locations from this region
-      const updatedLocations = externalSelectedLocations.filter(name => 
-        !regionLocationNames.includes(name)
-      );
-      onLocationsChange(updatedLocations);
-    } else {
-      // Add missing locations from this region
-      const newLocations = regionLocationNames.filter(name => 
-        !externalSelectedLocations.includes(name)
-      );
-      const updatedLocations = [...externalSelectedLocations, ...newLocations];
-      onLocationsChange(updatedLocations);
+    locationLogic.selectRegionLocations(regionName);
+    onLocationsChange(locationLogic.selectedLocations);
+  };
+
+  const handleRegionChange = (regionName: string) => {
+    locationLogic.setSelectedRegion(regionName);
+    if (regionName) {
+      locationLogic.selectRegionLocations(regionName);
+      onLocationsChange(locationLogic.selectedLocations);
     }
   };
 
   const isRegionSelected = (regionName: string) => {
     const regionLocationNames = getLocationsByRegion(regionName);
     return regionLocationNames.length > 0 && 
-      regionLocationNames.every(name => externalSelectedLocations.includes(name));
+      regionLocationNames.every(name => state.selectedLocations.includes(name));
   };
 
   const toggleLocationSelection = (locationName: string) => {
-    if (externalSelectedLocations.includes(locationName)) {
-      onLocationsChange(externalSelectedLocations.filter(name => name !== locationName));
-    } else {
-      onLocationsChange([...externalSelectedLocations, locationName]);
-    }
+    locationLogic.toggleLocation(locationName);
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   if (state.isLoading) {
@@ -222,7 +232,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
             
             {/* Selected count */}
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              選択中: {externalSelectedLocations.length}地点
+              選択中: {state.selectedLocations.length}地点
             </div>
           </div>
         )}
@@ -264,7 +274,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
               key={location.id}
               className={`w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center space-x-2 transition-colors ${
                 isBatchMode
-                  ? externalSelectedLocations.includes(location.name)
+                  ? state.selectedLocations.includes(location.name)
                     ? 'bg-blue-50 dark:bg-blue-900/30'
                     : ''
                   : selectedLocation?.id === location.id
@@ -278,14 +288,14 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
                   onLocationChange(location);
                 }
               }}
-              aria-label={`${location.name}を${isBatchMode && externalSelectedLocations.includes(location.name) ? '選択解除' : '選択'}`}
+              aria-label={`${location.name}を${isBatchMode && state.selectedLocations.includes(location.name) ? '選択解除' : '選択'}`}
             >
               <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{location.name}</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{location.prefecture} - {location.region}</div>
               </div>
-              {isBatchMode && externalSelectedLocations.includes(location.name) && (
+              {isBatchMode && state.selectedLocations.includes(location.name) && (
                 <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
               )}
             </button>
