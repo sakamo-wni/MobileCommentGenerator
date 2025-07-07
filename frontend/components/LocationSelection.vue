@@ -117,10 +117,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive, toRefs, watch } from 'vue'
 import { useApi } from '~/composables/useApi'
-import { getAreaName, REGIONS } from '~/constants/locations'
 import type { Location } from '~/types'
+import { 
+  createLocationSelectionLogic, 
+  REGIONS,
+  getAreaName 
+} from '@mobile-comment-generator/shared/composables'
 
 // Props
 interface Props {
@@ -140,12 +144,35 @@ const emit = defineEmits<Emits>()
 // API composable
 const api = useApi()
 
-// State
-const selectedRegion = ref<string>('')
-const selectedLocations = ref<string[]>([])
-const allLocations = ref<Location[]>([])
-const isLoading = ref(false)
-const error = ref<string | null>(null)
+// 共通ロジックを使用
+const locationLogic = reactive(createLocationSelectionLogic())
+
+// 共通ロジックのAPIクライアントを設定
+;(locationLogic as any).setApiClient({
+  fetchLocations: async () => {
+    const response = await api.fetchLocations()
+    return {
+      success: response.success,
+      data: response.data?.map(loc => ({
+        ...loc,
+        id: loc.name,
+        prefecture: '',
+        region: loc.area || getAreaName(loc.name),
+      }))
+    }
+  }
+})
+
+// Reactive references
+const { 
+  locations: allLocations,
+  selectedLocations,
+  isLoading,
+  error,
+  selectedRegion
+} = toRefs(locationLogic)
+
+// Local state
 const regions = ref(REGIONS)
 
 // Computed
@@ -154,100 +181,45 @@ const locations = computed(() => {
 })
 
 const filteredLocations = computed(() => {
-  if (!selectedRegion.value) {
-    return allLocations.value
-  }
-  return allLocations.value.filter(location => {
-    const area = location.area || getAreaName(location.name)
-    return area === selectedRegion.value
-  })
+  return locationLogic.getFilteredLocations()
 })
 
-// Methods
+// Methods wrapper
 const loadLocations = async () => {
-  isLoading.value = true
-  error.value = null
-  
-  try {
-    const response = await api.fetchLocations()
-    if (response.success && response.data) {
-      allLocations.value = response.data
-      
-      // デフォルトで全地点を選択
-      selectedLocations.value = allLocations.value.map(loc => loc.name)
-      emitLocationChanges()
-    } else {
-      // APIが利用できない場合は、CSVファイルから読み込む
-      await loadLocationsFromCSV()
-    }
-  } catch (err) {
-    console.error('Failed to load locations:', err)
-    // フォールバック: CSVファイルから読み込む
-    await loadLocationsFromCSV()
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// CSVファイルから地点データを読み込む（フォールバック）
-const loadLocationsFromCSV = async () => {
-  try {
-    const response = await fetch('/地点名.csv')
-    const text = await response.text()
-    const lines = text.split('\n').filter(line => line.trim())
-    
-    allLocations.value = lines.slice(1).map(line => {
-      const [name] = line.split(',')
-      return {
-        name: name.trim(),
-        latitude: 0,
-        longitude: 0,
-        area: getAreaName(name.trim())
-      }
-    })
-    
-    // デフォルトで全地点を選択
-    selectedLocations.value = allLocations.value.map(loc => loc.name)
-    emitLocationChanges()
-  } catch (err) {
-    error.value = '地点データの読み込みに失敗しました'
-    console.error('Failed to load CSV:', err)
-  }
+  await locationLogic.loadLocations()
+  emitLocationChanges()
 }
 
 const toggleLocation = (location: string) => {
-  const index = selectedLocations.value.indexOf(location)
-  if (index > -1) {
-    selectedLocations.value.splice(index, 1)
-  } else {
-    selectedLocations.value.push(location)
-  }
+  locationLogic.toggleLocation(location)
   emitLocationChanges()
 }
 
 const selectAllLocations = () => {
-  selectedLocations.value = filteredLocations.value.map(loc => loc.name)
+  locationLogic.selectAllLocations()
   emitLocationChanges()
 }
 
 const clearAllSelections = () => {
-  selectedLocations.value = []
+  locationLogic.clearAllSelections()
   emitLocationChanges()
 }
 
 const selectRegionLocations = () => {
-  const regionLocations = getRegionLocations()
-  selectedLocations.value = [...new Set([...selectedLocations.value, ...regionLocations])]
-  emitLocationChanges()
+  if (selectedRegion.value) {
+    locationLogic.selectRegionLocations(selectedRegion.value)
+    emitLocationChanges()
+  }
 }
 
 const handleRegionChange = () => {
-  // 地方選択が変更されたときの処理
+  locationLogic.setSelectedRegion(selectedRegion.value)
 }
 
 const getRegionLocations = () => {
-  if (!selectedRegion.value) return []
-  return filteredLocations.value.map(loc => loc.name)
+  return selectedRegion.value 
+    ? locationLogic.getRegionLocations(selectedRegion.value)
+    : []
 }
 
 const emitLocationChanges = () => {
@@ -257,6 +229,11 @@ const emitLocationChanges = () => {
     emit('location-changed', selectedLocations.value[0])
   }
 }
+
+// Watch for selectedRegion changes
+watch(selectedRegion, () => {
+  handleRegionChange()
+})
 
 // Lifecycle
 onMounted(() => {
