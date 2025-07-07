@@ -101,21 +101,31 @@ class WeatherCommentValidator:
             "moderate_warm": {  # 25-33°C（中程度の暖かさ）
                 "forbidden": [
                     "寒い", "冷える", "肌寒い", "防寒", "厚着",
+                    # 25°C以上で「涼しい」は不適切
+                    "涼しい", "涼やか", "爽やか", "ひんやり", "冷たい",
                     # 31°Cで「厳しい暑さ」は過大
                     "厳しい暑さ", "酷暑", "激しい暑さ", "耐え難い暑さ",
                     "猛烈な暑さ", "危険な暑さ"
                 ]
             },
             "very_hot": {  # 34°C以上（猛暑日）
-                "forbidden": ["寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着"]
+                "forbidden": [
+                    "寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着",
+                    "涼しい", "涼やか", "爽やか", "ひんやり", "冷たい",
+                    "過ごしやすい", "快適", "心地良い"
+                ]
             },
             "extreme_hot": {  # 37°C以上（危険な暑さ）
-                "forbidden": ["寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着"]
+                "forbidden": [
+                    "寒い", "冷える", "肌寒い", "防寒", "暖かく", "厚着",
+                    "涼しい", "涼やか", "爽やか", "ひんやり", "冷たい",
+                    "過ごしやすい", "快適", "心地良い", "穏やか"
+                ]
             },
             "cold": {  # 12°C未満
                 "forbidden": [
                     "暑い", "猛暑", "酷暑", "熱中症", "クーラー", "冷房",
-                    "厳しい暑さ", "激しい暑さ"
+                    "厳しい暑さ", "激しい暑さ", "蒸し暑い", "汗ばむ"
                 ]
             },
             "mild": {  # 12-25°C（快適域）
@@ -309,7 +319,7 @@ class WeatherCommentValidator:
         if temp >= 37:
             forbidden = self.temperature_forbidden_words["extreme_hot"]["forbidden"]
             temp_category = "危険な暑さ"
-        elif temp >= HEATSTROKE_SEVERE_TEMP:
+        elif temp >= HEATSTROKE_WARNING_TEMP:  # 34°C以上
             forbidden = self.temperature_forbidden_words["very_hot"]["forbidden"]
             temp_category = "猛暑日"
         elif temp >= 25:
