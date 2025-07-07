@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Search, MapPin, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import type { Location } from '@mobile-comment-generator/shared';
 import { createWeatherCommentComposable } from '@mobile-comment-generator/shared/composables';
@@ -49,22 +49,39 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   });
 
   // locationLogicの状態をReactのstateに反映させる関数
-  const syncState = () => {
+  const syncState = useCallback(() => {
+    // getterを明示的に呼び出し
+    const locations = locationLogic.locations;
+    const isLoading = locationLogic.isLoading;
+    const error = locationLogic.error;
+    const selectedLocations = locationLogic.selectedLocations;
+    const selectedRegion = locationLogic.selectedRegion;
+    
+    console.log('syncState: locations from getter:', locations?.length || 0);
+    
     const newState = {
-      locations: locationLogic.locations,
-      isLoading: locationLogic.isLoading,
-      error: locationLogic.error,
-      selectedLocations: locationLogic.selectedLocations,
-      selectedRegion: locationLogic.selectedRegion,
+      locations: locations || [],
+      isLoading: isLoading || false,
+      error: error || null,
+      selectedLocations: selectedLocations || [],
+      selectedRegion: selectedRegion || '',
     };
+    console.log('syncState: Setting new state with', newState.locations.length, 'locations');
     setState(newState);
-  };
+  }, [locationLogic]);
 
   useEffect(() => {
     let isMounted = true;
     
     const loadData = async () => {
+      console.log('LocationSelection: Starting to load locations...');
       await locationLogic.loadLocations();
+      console.log('LocationSelection: loadLocations completed');
+      
+      // getterを直接呼び出して確認
+      const currentLocations = locationLogic.locations;
+      console.log('LocationSelection: locations from getter:', currentLocations?.length || 0);
+      console.log('LocationSelection: first location:', currentLocations?.[0]);
       
       if (isMounted) {
         // 状態を同期
@@ -73,11 +90,11 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
         // 初回読み込み時に外部の選択状態を反映
         if (externalSelectedLocations.length > 0) {
           // 各地点を個別に選択
-          externalSelectedLocations.forEach(location => {
+          for (const location of externalSelectedLocations) {
             if (!locationLogic.selectedLocations.includes(location)) {
               locationLogic.toggleLocation(location);
             }
-          });
+          }
           // 選択後に再度同期
           syncState();
         }
@@ -95,17 +112,20 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   useEffect(() => {
     // 全選択をクリアしてから、新しい選択を設定
     locationLogic.clearAllSelections();
-    externalSelectedLocations.forEach(location => {
+    for (const location of externalSelectedLocations) {
       locationLogic.toggleLocation(location);
-    });
+    }
   }, [externalSelectedLocations]);
 
   const filteredLocations = useMemo(() => {
-    return state.locations.filter(location =>
+    console.log('filteredLocations: Computing with', state.locations.length, 'locations');
+    const filtered = state.locations.filter(location =>
       location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       location.prefecture.toLowerCase().includes(searchTerm.toLowerCase()) ||
       location.region.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    console.log('filteredLocations: Filtered to', filtered.length, 'locations');
+    return filtered;
   }, [state.locations, searchTerm]);
 
   const selectAllLocations = () => {
