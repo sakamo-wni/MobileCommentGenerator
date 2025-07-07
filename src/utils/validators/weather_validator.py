@@ -1,7 +1,7 @@
 """天気条件バリデータ - 天気状態に基づくコメント検証"""
 
 import logging
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, TypedDict
 
 from src.config.weather_constants import SUNNY_WEATHER_KEYWORDS
 from src.data.weather_data import WeatherForecast, WeatherCondition
@@ -9,6 +9,12 @@ from src.data.past_comment import PastComment, CommentType
 from .base_validator import BaseValidator
 
 logger = logging.getLogger(__name__)
+
+
+class WeatherForbiddenWords(TypedDict):
+    """天気別禁止ワードの型定義"""
+    weather_comment: List[str]
+    advice: List[str]
 
 
 class WeatherValidator(BaseValidator):
@@ -20,7 +26,7 @@ class WeatherValidator(BaseValidator):
     
     def _initialize_weather_forbidden_words(self):
         """天気別禁止ワードの定義"""
-        self.weather_forbidden_words = {
+        self.weather_forbidden_words: Dict[str, WeatherForbiddenWords] = {
             # 雨天時（全レベル）
             "rain": {
                 "weather_comment": [

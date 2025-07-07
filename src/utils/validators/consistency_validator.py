@@ -15,6 +15,9 @@ from .base_validator import BaseValidator
 
 logger = logging.getLogger(__name__)
 
+# 正規表現パターンのプリコンパイル（パフォーマンス最適化）
+PUNCTUATION_PATTERN = re.compile(r'[。、！？\s　]')
+
 
 class ConsistencyValidator(BaseValidator):
     """天気コメントとアドバイスの一貫性を検証"""
@@ -286,8 +289,8 @@ class ConsistencyValidator(BaseValidator):
             return True
             
         # 句読点や助詞の差のみの場合も検出
-        weather_core = re.sub(r'[。、！？\s　]', '', weather_text)
-        advice_core = re.sub(r'[。、！？\s　]', '', advice_text)
+        weather_core = PUNCTUATION_PATTERN.sub('', weather_text)
+        advice_core = PUNCTUATION_PATTERN.sub('', advice_text)
         
         if weather_core == advice_core:
             logger.debug(f"句読点差のみ検出: '{weather_text}' ≈ '{advice_text}'")

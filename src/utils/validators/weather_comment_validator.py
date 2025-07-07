@@ -1,7 +1,7 @@
 """天気コメント検証システム - メインバリデータ"""
 
 import logging
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, TypedDict
 from datetime import datetime
 
 from src.config.weather_constants import (
@@ -19,6 +19,12 @@ from .regional_validator import RegionalValidator
 logger = logging.getLogger(__name__)
 
 
+class RequiredKeywords(TypedDict):
+    """必須キーワードの型定義"""
+    weather_comment: List[str]
+    advice: List[str]
+
+
 class WeatherCommentValidator:
     """天気条件に基づいてコメントの適切性を検証するメインクラス"""
     
@@ -30,7 +36,7 @@ class WeatherCommentValidator:
         self.regional_validator = RegionalValidator()
         
         # 必須キーワード（悪天候時）
-        self.required_keywords = {
+        self.required_keywords: Dict[str, RequiredKeywords] = {
             "heavy_rain": {
                 "weather_comment": ["注意", "警戒", "危険", "荒れ", "激しい", "強い", "本格的"],
                 "advice": ["傘", "雨具", "安全", "注意", "室内", "控え", "警戒", "備え", "準備"]

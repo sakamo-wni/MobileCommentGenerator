@@ -1,7 +1,7 @@
 """ベースバリデータクラス - 共通の検証機能を提供"""
 
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from abc import ABC, abstractmethod
 
 from src.data.weather_data import WeatherForecast
@@ -44,7 +44,7 @@ class BaseValidator(ABC):
         else:  # 12, 1, 2
             return "冬"
     
-    def _log_validation_result(self, is_valid: bool, reason: str, comment_id: str = None):
+    def _log_validation_result(self, is_valid: bool, reason: str, comment_id: Optional[str] = None):
         """検証結果をログに記録"""
         if not is_valid:
             logger.debug(f"Comment {comment_id} rejected: {reason}")
