@@ -174,9 +174,10 @@ class WxTechAPIClient:
                 filtered_forecasts.append(forecast)
         
         # 新しいコレクションを作成
-        collection = WeatherForecastCollection()
-        collection.forecasts = filtered_forecasts
-        collection.location = response_data.location
+        collection = WeatherForecastCollection(
+            location=response_data.location,
+            forecasts=filtered_forecasts
+        )
         
         logger.info(f"フィルタリング結果: {len(response_data.forecasts)}件 → {len(filtered_forecasts)}件")
         
