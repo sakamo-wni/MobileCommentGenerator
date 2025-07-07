@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, MapPin, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import type { Location } from '@mobile-comment-generator/shared';
 import { createWeatherCommentComposable } from '@mobile-comment-generator/shared/composables';
@@ -31,69 +31,44 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   const { getLocations } = createWeatherCommentComposable();
   
   // 共通ロジックを使用
-  const locationLogic = useMemo(() => {
-    const logic = createLocationSelectionLogic({
+  const locationLogicRef = useRef<ReturnType<typeof createLocationSelectionLogic> | null>(null);
+  if (!locationLogicRef.current) {
+    locationLogicRef.current = createLocationSelectionLogic({
       selectedLocations: externalSelectedLocations
     });
-    
-    // APIクライアントを設定しない（CSVから直接読み込む）
-    // Vue版と同じ動作にする
-    
-    return logic;
-  }, []);
+  }
+  const locationLogic = locationLogicRef.current;
 
-  // State from logic - 初期値としてlocationLogicの現在の状態を使用
+  // State from logic
   const [state, setState] = useState({
-    locations: locationLogic.locations,
-    isLoading: locationLogic.isLoading,
-    error: locationLogic.error,
-    selectedLocations: locationLogic.selectedLocations,
-    selectedRegion: locationLogic.selectedRegion,
+    locations: [] as Location[],
+    isLoading: false,
+    error: null as string | null,
+    selectedLocations: [] as string[],
+    selectedRegion: '',
   });
 
-  // locationLogicの状態を定期的に同期
-  useEffect(() => {
-    const syncState = () => {
-      const newState = {
-        locations: locationLogic.locations,
-        isLoading: locationLogic.isLoading,
-        error: locationLogic.error,
-        selectedLocations: locationLogic.selectedLocations,
-        selectedRegion: locationLogic.selectedRegion,
-      };
-      console.log('React syncState:', {
-        locationsLength: newState.locations.length,
-        isLoading: newState.isLoading,
-        error: newState.error
-      });
-      setState(newState);
+  // locationLogicの状態をReactのstateに反映させる関数
+  const syncState = () => {
+    const newState = {
+      locations: locationLogic.locations,
+      isLoading: locationLogic.isLoading,
+      error: locationLogic.error,
+      selectedLocations: locationLogic.selectedLocations,
+      selectedRegion: locationLogic.selectedRegion,
     };
-
-    // 初回同期
-    syncState();
-
-    // 定期的な同期を設定（100msごと）
-    const intervalId = setInterval(syncState, 100);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [locationLogic]);
+    setState(newState);
+  };
 
   useEffect(() => {
     let isMounted = true;
     
     const loadData = async () => {
-      console.log('React: Before loading locations');
       await locationLogic.loadLocations();
-      console.log('React: After loading locations', {
-        locationsLength: locationLogic.locations.length,
-        firstLocation: locationLogic.locations[0],
-        stateLocationsLength: state.locations.length
-      });
       
       if (isMounted) {
-        // stateは自動的に同期されるので、ここでの更新は不要
+        // 状態を同期
+        syncState();
         
         // 初回読み込み時に外部の選択状態を反映
         if (externalSelectedLocations.length > 0) {
@@ -103,6 +78,8 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
               locationLogic.toggleLocation(location);
             }
           });
+          // 選択後に再度同期
+          syncState();
         }
       }
     };
@@ -124,34 +101,28 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   }, [externalSelectedLocations]);
 
   const filteredLocations = useMemo(() => {
-    console.log('React filteredLocations:', {
-      stateLocationsLength: state.locations.length,
-      searchTerm: searchTerm,
-      firstLocation: state.locations[0]
-    });
-    
-    const result = state.locations.filter(location =>
+    return state.locations.filter(location =>
       location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       location.prefecture.toLowerCase().includes(searchTerm.toLowerCase()) ||
       location.region.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
-    console.log('React filteredLocations result:', result.length);
-    return result;
   }, [state.locations, searchTerm]);
 
   const selectAllLocations = () => {
     locationLogic.selectAllLocations();
+    syncState();
     onLocationsChange(locationLogic.selectedLocations);
   };
 
   const clearAllLocations = () => {
     locationLogic.clearAllSelections();
+    syncState();
     onLocationsChange(locationLogic.selectedLocations);
   };
 
   const selectRegionLocations = (regionName: string) => {
     locationLogic.selectRegionLocations(regionName);
+    syncState();
     onLocationsChange(locationLogic.selectedLocations);
   };
 
@@ -159,8 +130,9 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
     locationLogic.setSelectedRegion(regionName);
     if (regionName) {
       locationLogic.selectRegionLocations(regionName);
-      onLocationsChange(locationLogic.selectedLocations);
     }
+    syncState();
+    onLocationsChange(locationLogic.selectedLocations);
   };
 
   const isRegionSelected = (regionName: string) => {
@@ -171,6 +143,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
 
   const toggleLocationSelection = (locationName: string) => {
     locationLogic.toggleLocation(locationName);
+    syncState();
     onLocationsChange(locationLogic.selectedLocations);
   };
 

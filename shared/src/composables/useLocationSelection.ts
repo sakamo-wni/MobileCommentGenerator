@@ -246,14 +246,11 @@ export function getAllLocationNames(): string[] {
  */
 export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): Promise<Location[]> {
   try {
-    console.log('loadLocationsFromCSV: fetching from', csvUrl);
     const response = await fetch(csvUrl);
-    console.log('loadLocationsFromCSV: response status', response.status);
     if (!response.ok) {
       throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
     }
     const text = await response.text();
-    console.log('loadLocationsFromCSV: text length', text.length);
     const lines = text.split('\n');
     
     const locations: Location[] = [];
@@ -279,13 +276,10 @@ export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): P
       locations.push(location);
     }
     
-    console.log('loadLocationsFromCSV: parsed locations count', locations.length);
-    console.log('loadLocationsFromCSV: first 3 locations', locations.slice(0, 3));
     return locations;
   } catch (error) {
     console.error('Failed to load CSV:', error);
     // フォールバック: ハードコードされた地点データを使用
-    console.log('loadLocationsFromCSV: using fallback data');
     return getAllLocationNames().map(name => ({
       id: name,
       name: name,
