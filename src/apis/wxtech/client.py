@@ -135,10 +135,15 @@ class WxTechAPIClient:
             hours_diff = (target_time - now_jst).total_seconds() / 3600
             hours_to_targets.append(hours_diff)
         
-        # 最大の時間数を取得（4つの時刻すべてをカバーするため）
-        max_hours = max(hours_to_targets)
+        # 9時から18時までをカバーする最適化された取得
+        # 最初の時刻（9時）から最後の時刻（18時）までの範囲のみ取得
+        min_hours = min(hours_to_targets)  # 9時までの時間
+        max_hours = max(hours_to_targets)  # 18時までの時間
         
-        # 余裕を持たせて+1時間
+        # 9時〜18時の範囲（9時間分）+ 前後1時間の余裕 = 11時間分のデータ
+        range_hours = 11  # 8時〜19時の範囲
+        
+        # APIコール時は現在から18時過ぎまでの時間を指定
         forecast_hours = max(int(max_hours) + 1, 1)
         
         # ログ出力で各時刻を表示
@@ -146,10 +151,36 @@ class WxTechAPIClient:
         for i, (hour, hours_after) in enumerate(zip(target_hours, hours_to_targets)):
             time_info.append(f"{hour}時({hours_after:.1f}h後)")
         
-        logger.info(f"翌日の4時刻: {', '.join(time_info)}, API取得時間: {forecast_hours}時間")
+        logger.info(f"翌日の4時刻: {', '.join(time_info)}")
+        logger.info(f"最適化: {forecast_hours}時間分のデータを取得（従来: 24-42時間）")
         
-        # 4つの時刻すべてをカバーする時間でデータを取得
-        return self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        # データを取得
+        response_data = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        
+        # 翌日の9-18時の範囲外のデータをフィルタリング
+        filtered_forecasts = []
+        start_time = target_times[0] - timedelta(hours=1)  # 8時
+        end_time = target_times[-1] + timedelta(hours=1)   # 19時
+        
+        for forecast in response_data.forecasts:
+            # forecast.datetimeがnaiveの場合はJSTとして扱う
+            if forecast.datetime.tzinfo is None:
+                forecast_time = jst.localize(forecast.datetime)
+            else:
+                forecast_time = forecast.datetime
+            
+            # 8時〜19時の範囲内のデータのみ保持
+            if start_time <= forecast_time <= end_time:
+                filtered_forecasts.append(forecast)
+        
+        # 新しいコレクションを作成
+        collection = WeatherForecastCollection()
+        collection.forecasts = filtered_forecasts
+        collection.location = response_data.location
+        
+        logger.info(f"フィルタリング結果: {len(response_data.forecasts)}件 → {len(filtered_forecasts)}件")
+        
+        return collection
     
     def test_specific_time_parameters(self, lat: float, lon: float) -> Dict[str, Any]:
         """特定時刻指定パラメータのテスト
