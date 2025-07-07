@@ -36,23 +36,8 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
       selectedLocations: externalSelectedLocations
     });
     
-    // APIクライアントを設定
-    (logic as any).setApiClient({
-      fetchLocations: async () => {
-        try {
-          const data = await getLocations();
-          return {
-            success: true,
-            data: data.map(loc => ({
-              ...loc,
-              region: loc.region || getAreaName(loc.name),
-            }))
-          };
-        } catch (error) {
-          return { success: false };
-        }
-      }
-    });
+    // APIクライアントを設定しない（CSVから直接読み込む）
+    // Vue版と同じ動作にする
     
     return logic;
   }, []);
@@ -69,13 +54,14 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
   // locationLogicの状態を定期的に同期
   useEffect(() => {
     const syncState = () => {
-      setState({
+      const newState = {
         locations: locationLogic.locations,
         isLoading: locationLogic.isLoading,
         error: locationLogic.error,
         selectedLocations: locationLogic.selectedLocations,
         selectedRegion: locationLogic.selectedRegion,
-      });
+      };
+      setState(newState);
     };
 
     // 初回同期
@@ -100,7 +86,12 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
         
         // 初回読み込み時に外部の選択状態を反映
         if (externalSelectedLocations.length > 0) {
-          locationLogic.selectedLocations = [...externalSelectedLocations];
+          // 各地点を個別に選択
+          externalSelectedLocations.forEach(location => {
+            if (!locationLogic.selectedLocations.includes(location)) {
+              locationLogic.toggleLocation(location);
+            }
+          });
         }
       }
     };
@@ -114,7 +105,11 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
 
   // 外部の選択状態が変更されたときに同期
   useEffect(() => {
-    locationLogic.selectedLocations = [...externalSelectedLocations];
+    // 全選択をクリアしてから、新しい選択を設定
+    locationLogic.clearAllSelections();
+    externalSelectedLocations.forEach(location => {
+      locationLogic.toggleLocation(location);
+    });
   }, [externalSelectedLocations]);
 
   const filteredLocations = useMemo(() => {

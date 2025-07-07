@@ -324,10 +324,8 @@ export function createLocationSelectionLogic(
     try {
       // 確実に142地点を取得
       const csvLocations = await loadLocationsFromCSV();
-      console.log('CSV locations loaded:', csvLocations.length, csvLocations.slice(0, 3));
       state.locations = csvLocations;
       state.selectedLocations = csvLocations.map(loc => loc.name);
-      console.log('State updated:', state.locations.length, state.selectedLocations.length);
       
     } catch (err) {
       console.error('Failed to load locations:', err);

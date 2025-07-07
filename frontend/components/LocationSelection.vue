@@ -181,15 +181,7 @@ const locations = computed(() => {
 })
 
 const filteredLocations = computed(() => {
-  const result = locationLogic.getFilteredLocations()
-  if (result.length === 0 && allLocations.value.length > 0) {
-    console.warn('filteredLocations is empty but allLocations has data:', {
-      allLocationsLength: allLocations.value.length,
-      selectedRegion: locationLogic.selectedRegion,
-      locationsInLogic: locationLogic.locations.length
-    })
-  }
-  return result
+  return locationLogic.getFilteredLocations()
 })
 
 // Methods wrapper
