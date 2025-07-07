@@ -149,7 +149,17 @@ class WxTechAPIClient:
         logger.info(f"翌日の4時刻: {', '.join(time_info)}, API取得時間: {forecast_hours}時間")
         
         # 4つの時刻すべてをカバーする時間でデータを取得
-        return self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        
+        # デバッグ: 取得したデータの詳細をログ出力
+        if forecast_collection and forecast_collection.forecasts:
+            logger.debug(f"取得した予報データ数: {len(forecast_collection.forecasts)}")
+            for i, f in enumerate(forecast_collection.forecasts[:5]):  # 最初の5件を表示
+                logger.debug(f"  予報{i+1}: {f.datetime.strftime('%Y-%m-%d %H:%M')} - {f.weather_description}")
+        else:
+            logger.warning("予報データが取得できませんでした - forecast_collection is empty or has no forecasts")
+        
+        return forecast_collection
     
     def test_specific_time_parameters(self, lat: float, lon: float) -> Dict[str, Any]:
         """特定時刻指定パラメータのテスト

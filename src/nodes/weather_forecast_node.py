@@ -294,27 +294,56 @@ def fetch_weather_forecast_node(state):
         # WxTech APIクライアントの初期化
         client = WxTechAPIClient(api_key)
 
-        # 天気予報の取得（翌日9, 12, 15, 18時JSTのみ）
-        try:
-            forecast_collection = client.get_forecast_for_next_day_hours(lat, lon)
-        except WxTechAPIError as e:
-            # エラータイプに基づいて適切なエラーメッセージを設定
-            if e.error_type == 'api_key_invalid':
-                error_msg = "気象APIキーが無効です。\nWXTECH_API_KEYが正しく設定されているか確認してください。"
-            elif e.error_type == 'rate_limit':
-                error_msg = "気象APIのレート制限に達しました。しばらく待ってから再試行してください。"
-            elif e.error_type == 'network_error':
-                error_msg = "気象APIサーバーに接続できません。ネットワーク接続を確認してください。"
-            elif e.error_type == 'timeout':
-                error_msg = f"気象APIへのリクエストがタイムアウトしました: {e}"
-            elif e.error_type == 'server_error':
-                error_msg = "気象APIサーバーでエラーが発生しました。しばらく待ってから再試行してください。"
-            else:
-                error_msg = f"気象API接続エラー: {e}"
-            
-            logger.error(f"気象APIエラー (type: {e.error_type}, status: {e.status_code}): {error_msg}")
-            state.add_error(error_msg, "weather_forecast")
-            raise
+        # 天気予報の取得（翌日9, 12, 15, 18時JSTのみ）- リトライ機能付き
+        max_retries = 3
+        retry_delay = 1.0  # 秒
+        forecast_collection = None
+        
+        for attempt in range(max_retries):
+            try:
+                forecast_collection = client.get_forecast_for_next_day_hours(lat, lon)
+                
+                # forecast_collectionが空でないことを確認
+                if forecast_collection and forecast_collection.forecasts:
+                    logger.info(f"Attempt {attempt + 1}/{max_retries}: 天気予報データを正常に取得しました。")
+                    break
+                else:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Attempt {attempt + 1}/{max_retries}: 天気予報データが空です。{retry_delay}秒後にリトライします。")
+                        import time
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # 指数バックオフ
+                    else:
+                        error_msg = f"地点 '{location_name}' の天気予報データが取得できませんでした"
+                        logger.error(f"{error_msg} - forecast_collection is empty after {max_retries} attempts")
+                        state.add_error(error_msg, "weather_forecast")
+                        raise ValueError(error_msg)
+            except WxTechAPIError as e:
+                # リトライ可能なエラーかチェック
+                if e.error_type in ['network_error', 'timeout', 'server_error'] and attempt < max_retries - 1:
+                    logger.warning(f"Attempt {attempt + 1}/{max_retries}: APIエラー ({e.error_type}). {retry_delay}秒後にリトライします。")
+                    import time
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                else:
+                    # リトライ不可能なエラーまたは最後の試行の場合
+                    if e.error_type == 'api_key_invalid':
+                        error_msg = "気象APIキーが無効です。\nWXTECH_API_KEYが正しく設定されているか確認してください。"
+                    elif e.error_type == 'rate_limit':
+                        error_msg = "気象APIのレート制限に達しました。しばらく待ってから再試行してください。"
+                    elif e.error_type == 'network_error':
+                        error_msg = "気象APIサーバーに接続できません。ネットワーク接続を確認してください。"
+                    elif e.error_type == 'timeout':
+                        error_msg = f"気象APIへのリクエストがタイムアウトしました: {e}"
+                    elif e.error_type == 'server_error':
+                        error_msg = "気象APIサーバーでエラーが発生しました。しばらく待ってから再試行してください。"
+                    else:
+                        error_msg = f"気象API接続エラー: {e}"
+                    
+                    logger.error(f"気象APIエラー (type: {e.error_type}, status: {e.status_code}): {error_msg}")
+                    state.add_error(error_msg, "weather_forecast")
+                    raise
 
         # 設定から何時間後の予報を使用するか取得
         config = get_config()
@@ -357,6 +386,8 @@ def fetch_weather_forecast_node(state):
         
         # 各対象時刻に最も近い予報を抽出
         period_forecasts = []
+        logger.info(f"Total forecasts in collection: {len(forecast_collection.forecasts)}")
+        
         for target_time in target_times:
             closest_forecast = None
             min_diff = float('inf')
@@ -375,6 +406,16 @@ def fetch_weather_forecast_node(state):
             
             if closest_forecast:
                 period_forecasts.append(closest_forecast)
+                logger.debug(f"Found forecast for {target_time.strftime('%H:%M')}: {closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')}")
+            else:
+                logger.warning(f"No forecast found for target time {target_time.strftime('%H:%M')}")
+        
+        # period_forecastsが空でないことを確認
+        if not period_forecasts:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(f"{error_msg} - period_forecasts is empty")
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
         
         # ターゲット時刻に最も近い予報を選択
         validator = WeatherDataValidator()
