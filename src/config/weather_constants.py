@@ -92,3 +92,31 @@ WEATHER_TYPE_KEYWORDS = {
 
 # 天気変化の閾値
 WEATHER_CHANGE_THRESHOLD = 2  # 「変わりやすい」と判定する変化回数の閾値
+
+# 季節の定義
+SEASON_MONTHS = {
+    'spring': [3, 4, 5],      # 春
+    'summer': [6, 7, 8],      # 夏
+    'autumn': [9, 10, 11],    # 秋
+    'winter': [12, 1, 2]      # 冬
+}
+
+# 気温閾値（季節別）
+SEASONAL_TEMP_THRESHOLDS = {
+    'summer': {
+        'extreme_hot': 35.0,   # 猛暑日
+        'hot': 30.0,           # 真夏日
+        'cool': 25.0           # 夏としては涼しい
+    },
+    'winter': {
+        'freezing': 0.0,       # 氷点下
+        'cold': 5.0,           # 真冬の寒さ
+        'warm': 15.0           # 冬としては暖かい
+    }
+}
+
+# CSVデータのデフォルト値
+CSV_DEFAULTS = {
+    'location': '全国',           # デフォルト地点名
+    'weather_condition': '不明'   # デフォルト天気条件
+}

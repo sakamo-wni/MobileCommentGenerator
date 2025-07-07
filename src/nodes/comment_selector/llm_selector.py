@@ -9,6 +9,7 @@ from src.data.comment_generation_state import CommentGenerationState
 from src.data.past_comment import CommentType, PastComment
 from src.data.weather_data import WeatherForecast
 from src.llm.llm_manager import LLMManager
+from src.config.weather_constants import SEASON_MONTHS, SEASONAL_TEMP_THRESHOLDS
 
 logger = logging.getLogger(__name__)
 
@@ -142,23 +143,25 @@ class LLMCommentSelector:
         temp = weather_data.temperature
         
         # 季節と気温の関係
-        if month in [6, 7, 8]:  # 夏
-            if temp >= 35:
+        season = self._get_season(month)
+        
+        if season == 'summer':
+            if temp >= SEASONAL_TEMP_THRESHOLDS['summer']['extreme_hot']:
                 context += "- 猛暑日（35℃以上）です：熱中症に厳重注意\n"
-            elif temp >= 30:
+            elif temp >= SEASONAL_TEMP_THRESHOLDS['summer']['hot']:
                 context += "- 真夏日（30℃以上）です：暑さ対策を推奨\n"
-            elif temp < 25:
+            elif temp < SEASONAL_TEMP_THRESHOLDS['summer']['cool']:
                 context += "- 夏としては涼しめです\n"
-        elif month in [12, 1, 2]:  # 冬
-            if temp <= 0:
+        elif season == 'winter':
+            if temp <= SEASONAL_TEMP_THRESHOLDS['winter']['freezing']:
                 context += "- 氷点下です：凍結や防寒対策必須\n"
-            elif temp < 5:
+            elif temp < SEASONAL_TEMP_THRESHOLDS['winter']['cold']:
                 context += "- 真冬の寒さです：しっかりとした防寒が必要\n"
-            elif temp > 15:
+            elif temp > SEASONAL_TEMP_THRESHOLDS['winter']['warm']:
                 context += "- 冬としては暖かめです\n"
-        elif month in [3, 4, 5]:  # 春
+        elif season == 'spring':
             context += "- 春の気候です：気温変化に注意\n"
-        elif month in [9, 10, 11]:  # 秋
+        elif season == 'autumn':
             context += "- 秋の気候です：朝晩の冷え込みに注意\n"
         
         # 全時間帯の降水量をチェック
@@ -315,3 +318,10 @@ class LLMCommentSelector:
         
         logger.error(f"数値抽出失敗: '{response_clean}' (範囲: 0-{max_index-1})")
         return None
+    
+    def _get_season(self, month: int) -> str:
+        """月から季節を判定"""
+        for season, months in SEASON_MONTHS.items():
+            if month in months:
+                return season
+        return 'unknown'
