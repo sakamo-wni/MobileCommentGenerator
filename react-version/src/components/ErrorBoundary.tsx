@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
 
@@ -85,6 +86,7 @@ export class ErrorBoundary extends Component<Props, State> {
             
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={this.handleReset}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
@@ -92,6 +94,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 再試行
               </button>
               <button
+                type="button"
                 onClick={() => window.location.reload()}
                 className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
