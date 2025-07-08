@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cloud, Clock, Sparkles } from 'lucide-react';
+import { Cloud, Clock, Sparkles, MapPin } from 'lucide-react';
 import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
