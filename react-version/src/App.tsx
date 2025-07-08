@@ -52,7 +52,7 @@ function App() {
         await handleBatchGenerate(selectedLocations);
       } else {
         // Single location generation
-        const result = await generateComment(selectedLocation!, {
+        const result = await generateComment(selectedLocation as Location, {
           llmProvider,
         });
         setGeneratedComment(result);
@@ -197,7 +197,7 @@ function App() {
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
                       <BatchResultItem
-                        key={index}
+                        key={result.location}
                         result={result}
                         isExpanded={expandedLocations.has(result.location)}
                         onToggleExpanded={() => toggleLocationExpanded(result.location)}
