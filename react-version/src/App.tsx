@@ -63,8 +63,18 @@ function App() {
     try {
       if (isBatchMode) {
         // Batch generation
-        const results: BatchResult[] = [];
-        for (const locationName of selectedLocations) {
+        // Initialize all locations with pending state
+        const initialResults: BatchResult[] = selectedLocations.map((locationName, index) => ({
+          success: false,
+          location: locationName,
+          error: '生成中...',
+          id: `${locationName}-${Date.now()}-${index}`
+        } as BatchResult & { id: string }));
+        setBatchResults(initialResults);
+
+        // Process each location
+        for (let i = 0; i < selectedLocations.length; i++) {
+          const locationName = selectedLocations[i];
           try {
             const locationInfo = getLocationInfo(locationName);
             const locationObj: Location = {
@@ -75,25 +85,35 @@ function App() {
             };
 
             const result = await generateComment(locationObj, { llmProvider });
-            results.push({
-              success: true,
-              location: locationName,
-              comment: result.comment,
-              metadata: result.metadata,
-              weather: result.weather,
-              adviceComment: result.adviceComment,
-              id: `${locationName}-${Date.now()}-${results.length}` // Unique ID
-            } as BatchResult & { id: string });
+            
+            // Update the specific result
+            setBatchResults((prevResults) => {
+              const newResults = [...prevResults];
+              newResults[i] = {
+                success: true,
+                location: locationName,
+                comment: result.comment,
+                metadata: result.metadata,
+                weather: result.weather,
+                adviceComment: result.adviceComment,
+                id: newResults[i].id // Keep the same ID
+              } as BatchResult & { id: string };
+              return newResults;
+            });
           } catch (error) {
-            results.push({
-              success: false,
-              location: locationName,
-              error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
-              id: `${locationName}-${Date.now()}-${results.length}` // Unique ID
-            } as BatchResult & { id: string });
+            // Update with error
+            setBatchResults((prevResults) => {
+              const newResults = [...prevResults];
+              newResults[i] = {
+                success: false,
+                location: locationName,
+                error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
+                id: newResults[i].id // Keep the same ID
+              } as BatchResult & { id: string };
+              return newResults;
+            });
           }
         }
-        setBatchResults(results);
         setGeneratedAt(new Date().toISOString());
       } else {
         // Single location generation
