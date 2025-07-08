@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Cloud, Sparkles, Sun, Moon, ChevronDown, ChevronUp, Copy, CheckCircle } from 'lucide-react';
 import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 import { LocationSelection } from './components/LocationSelection';
@@ -8,12 +8,9 @@ import { WeatherDataDisplay } from './components/WeatherData';
 import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
+import { useAppStore } from './stores/useAppStore';
 import { REGIONS } from './constants/regions';
 import { BATCH_CONFIG } from '../../src/config/constants';
-
-interface RegeneratingState {
-  [location: string]: boolean;
-}
 
 // Constants for batch mode
 const WARN_BATCH_LOCATIONS = 20;
@@ -32,20 +29,38 @@ function getLocationInfo(locationName: string): { prefecture: string; region: st
 }
 
 function App() {
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [llmProvider, setLlmProvider] = useState<'openai' | 'gemini' | 'anthropic'>('gemini');
-  const [isBatchMode, setIsBatchMode] = useState(false);
-  const [generatedComment, setGeneratedComment] = useState<GeneratedComment | null>(null);
-  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
-  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
-  const [regeneratingStates, setRegeneratingStates] = useState<RegeneratingState>({});
-  const [isRegeneratingSingle, setIsRegeneratingSingle] = useState(false);
+  // Get state from Zustand store
+  const selectedLocation = useAppStore((state) => state.selectedLocation);
+  const selectedLocations = useAppStore((state) => state.selectedLocations);
+  const llmProvider = useAppStore((state) => state.llmProvider);
+  const isBatchMode = useAppStore((state) => state.isBatchMode);
+  const generatedComment = useAppStore((state) => state.generatedComment);
+  const batchResults = useAppStore((state) => state.batchResults);
+  const expandedLocations = useAppStore((state) => state.expandedLocations);
+  const regeneratingStates = useAppStore((state) => state.regeneratingStates);
+  const isRegeneratingSingle = useAppStore((state) => state.isRegeneratingSingle);
+
+  // Get actions from Zustand store
+  const setSelectedLocation = useAppStore((state) => state.setSelectedLocation);
+  const setSelectedLocations = useAppStore((state) => state.setSelectedLocations);
+  const setLlmProvider = useAppStore((state) => state.setLlmProvider);
+  const setIsBatchMode = useAppStore((state) => state.setIsBatchMode);
+  const setGeneratedComment = useAppStore((state) => state.setGeneratedComment);
+  const setBatchResults = useAppStore((state) => state.setBatchResults);
+  const toggleLocationExpanded = useAppStore((state) => state.toggleLocationExpanded);
+  
+  // Memoized toggle location expanded callback
+  const handleToggleLocationExpanded = useCallback((location: string) => {
+    toggleLocationExpanded(location);
+  }, [toggleLocationExpanded]);
+  const setRegeneratingState = useAppStore((state) => state.setRegeneratingState);
+  const setIsRegeneratingSingle = useAppStore((state) => state.setIsRegeneratingSingle);
+  const clearResults = useAppStore((state) => state.clearResults);
 
   const { generateComment, loading, error, clearError } = useApi();
   const { theme, toggleTheme } = useTheme();
 
-  const handleGenerateComment = async () => {
+  const handleGenerateComment = useCallback(async () => {
     if (isBatchMode) {
       if (selectedLocations.length === 0) return;
     } else {
@@ -53,9 +68,7 @@ function App() {
     }
 
     clearError();
-    setGeneratedComment(null);
-    setBatchResults([]);
-    setExpandedLocations(new Set());
+    clearResults();
 
     try {
       if (isBatchMode) {
@@ -147,26 +160,15 @@ function App() {
     } catch (err) {
       console.error('Failed to generate comment:', err);
     }
-  };
+  }, [isBatchMode, selectedLocations, selectedLocation, clearError, clearResults, setBatchResults, generateComment, llmProvider, setGeneratedComment]);
 
-  const handleCopyComment = (text: string) => {
+  const handleCopyComment = useCallback((text: string) => {
     navigator.clipboard?.writeText(text);
     console.log('Copied:', text);
-  };
+  }, []);
 
-  const toggleLocationExpanded = (location: string) => {
-    setExpandedLocations(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(location)) {
-        newSet.delete(location);
-      } else {
-        newSet.add(location);
-      }
-      return newSet;
-    });
-  };
 
-  const handleRegenerateSingle = async () => {
+  const handleRegenerateSingle = useCallback(async () => {
     if (!selectedLocation) return;
 
     setIsRegeneratingSingle(true);
@@ -183,10 +185,10 @@ function App() {
     } finally {
       setIsRegeneratingSingle(false);
     }
-  };
+  }, [selectedLocation, setIsRegeneratingSingle, clearError, generateComment, llmProvider, setGeneratedComment]);
 
-  const handleRegenerateBatch = async (locationName: string) => {
-    setRegeneratingStates(prev => ({ ...prev, [locationName]: true }));
+  const handleRegenerateBatch = useCallback(async (locationName: string) => {
+    setRegeneratingState(locationName, true);
 
     try {
       const locationInfo = getLocationInfo(locationName);
@@ -229,21 +231,17 @@ function App() {
         )
       );
     } finally {
-      setRegeneratingStates(prev => {
-        const newState = { ...prev };
-        delete newState[locationName];
-        return newState;
-      });
+      setRegeneratingState(locationName, false);
     }
-  };
+  }, [setRegeneratingState, generateComment, llmProvider, setBatchResults]);
 
-  const currentTime = new Date().toLocaleString('ja-JP', {
+  const currentTime = useMemo(() => new Date().toLocaleString('ja-JP', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  });
+  }), []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -340,11 +338,11 @@ function App() {
                 <button
                   type="button"
                   onClick={handleGenerateComment}
-                  disabled={
+                  disabled={useMemo(() => 
                     ((isBatchMode && selectedLocations.length === 0) ||
                     (!isBatchMode && !selectedLocation)) ||
                     loading
-                  }
+                  , [isBatchMode, selectedLocations.length, selectedLocation, loading])}
                   className="w-full flex items-center justify-center space-x-2 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? (
@@ -379,18 +377,20 @@ function App() {
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">一括生成結果</h2>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    成功: {batchResults.filter(r => r.success).length}件 /
-                    全体: {batchResults.length}件
+                    {useMemo(() => {
+                      const successCount = batchResults.filter(r => r.success).length;
+                      return `成功: ${successCount}件 / 全体: ${batchResults.length}件`;
+                    }, [batchResults])}
                   </div>
 
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
                       <BatchResultItem
-                        key={index}
+                        key={result.location}
                         result={result}
                         isExpanded={expandedLocations.has(result.location)}
-                        onToggleExpanded={() => toggleLocationExpanded(result.location)}
-                        onRegenerate={() => handleRegenerateBatch(result.location)}
+                        onToggleExpanded={useCallback(() => handleToggleLocationExpanded(result.location), [handleToggleLocationExpanded, result.location])}
+                        onRegenerate={useCallback(() => handleRegenerateBatch(result.location), [handleRegenerateBatch, result.location])}
                         isRegenerating={regeneratingStates[result.location] || false}
                       />
                     ))}
