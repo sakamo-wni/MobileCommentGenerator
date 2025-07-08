@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtools, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 
@@ -21,9 +21,10 @@ interface AppState {
   batchResults: BatchResult[];
   
   // UI state
-  expandedLocations: Set<string>;
+  expandedLocations: Record<string, boolean>;
   regeneratingStates: RegeneratingState;
   isRegeneratingSingle: boolean;
+  generatedAt: string | null;
   
   // Actions
   setSelectedLocation: (location: Location | null) => void;
@@ -37,11 +38,13 @@ interface AppState {
   setIsRegeneratingSingle: (state: boolean) => void;
   clearExpandedLocations: () => void;
   clearResults: () => void;
+  setGeneratedAt: (timestamp: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
   devtools(
-    immer((set) => ({
+    persist(
+      immer((set) => ({
       // Initial state
       selectedLocation: null,
       selectedLocations: [],
@@ -49,9 +52,10 @@ export const useAppStore = create<AppState>()(
       isBatchMode: false,
       generatedComment: null,
       batchResults: [],
-      expandedLocations: new Set(),
+      expandedLocations: {},
       regeneratingStates: {},
       isRegeneratingSingle: false,
+      generatedAt: null,
       
       // Actions
       setSelectedLocation: (location) => set((state) => { state.selectedLocation = location; }),
@@ -67,10 +71,10 @@ export const useAppStore = create<AppState>()(
         }
       }),
       toggleLocationExpanded: (location) => set((state) => {
-        if (state.expandedLocations.has(location)) {
-          state.expandedLocations.delete(location);
+        if (state.expandedLocations[location]) {
+          delete state.expandedLocations[location];
         } else {
-          state.expandedLocations.add(location);
+          state.expandedLocations[location] = true;
         }
       }),
       setRegeneratingState: (location, regenerating) => set((state) => {
@@ -81,13 +85,23 @@ export const useAppStore = create<AppState>()(
         }
       }),
       setIsRegeneratingSingle: (isRegenerating) => set((state) => { state.isRegeneratingSingle = isRegenerating; }),
-      clearExpandedLocations: () => set((state) => { state.expandedLocations = new Set(); }),
+      clearExpandedLocations: () => set((state) => { state.expandedLocations = {}; }),
       clearResults: () => set((state) => { 
         state.generatedComment = null;
         state.batchResults = [];
-        state.expandedLocations = new Set();
-      })
+        state.expandedLocations = {};
+        state.generatedAt = null;
+      }),
+      setGeneratedAt: (timestamp) => set((state) => { state.generatedAt = timestamp; })
     })),
+      {
+        name: 'mobile-comment-generator-store',
+        partialize: (state) => ({
+          llmProvider: state.llmProvider,
+          isBatchMode: state.isBatchMode,
+        })
+      }
+    ),
     {
       name: 'app-store',
     }

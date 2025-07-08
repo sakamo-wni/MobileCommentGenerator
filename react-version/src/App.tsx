@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { Cloud, Clock, Sparkles, MapPin } from 'lucide-react';
-import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
+import type { Location, BatchResult } from '@mobile-comment-generator/shared';
 import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
+
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
 import { GeneratedCommentDisplay } from './components/GeneratedComment';
@@ -16,6 +17,8 @@ import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { useAppStore } from './stores/useAppStore';
 import { getLocationInfo } from './constants/regions';
+
+type BatchResultWithId = BatchResult & { id: string };
 
 function App() {
   // Get state from Zustand store
@@ -40,6 +43,7 @@ function App() {
   const setRegeneratingState = useAppStore((state) => state.setRegeneratingState);
   const setIsRegeneratingSingle = useAppStore((state) => state.setIsRegeneratingSingle);
   const clearResults = useAppStore((state) => state.clearResults);
+  const setGeneratedAt = useAppStore((state) => state.setGeneratedAt);
 
   // Hooks
   const { generateComment, loading, error, clearError } = useApi();
@@ -77,28 +81,32 @@ function App() {
               comment: result.comment,
               metadata: result.metadata,
               weather: result.weather,
-              adviceComment: result.adviceComment
-            });
+              adviceComment: result.adviceComment,
+              id: `${locationName}-${Date.now()}-${results.length}` // Unique ID
+            } as BatchResult & { id: string });
           } catch (error) {
             results.push({
               success: false,
               location: locationName,
-              error: error instanceof Error ? error.message : 'コメント生成に失敗しました'
-            });
+              error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
+              id: `${locationName}-${Date.now()}-${results.length}` // Unique ID
+            } as BatchResult & { id: string });
           }
         }
         setBatchResults(results);
+        setGeneratedAt(new Date().toISOString());
       } else {
         // Single location generation
         const result = await generateComment(selectedLocation as Location, {
           llmProvider,
         });
         setGeneratedComment(result);
+        setGeneratedAt(new Date().toISOString());
       }
     } catch (err) {
       console.error('Failed to generate comment:', err);
     }
-  }, [isBatchMode, selectedLocations, selectedLocation, clearError, clearResults, generateComment, llmProvider, setGeneratedComment, setBatchResults]);
+  }, [isBatchMode, selectedLocations, selectedLocation, generateComment, llmProvider, clearError, clearResults, setBatchResults, setGeneratedComment, setGeneratedAt]);
 
   // Handle copy comment
   const handleCopyComment = useCallback((text: string) => {
@@ -124,7 +132,7 @@ function App() {
     } finally {
       setIsRegeneratingSingle(false);
     }
-  }, [selectedLocation, setIsRegeneratingSingle, clearError, generateComment, llmProvider, setGeneratedComment]);
+  }, [selectedLocation, generateComment, llmProvider, clearError, setGeneratedComment, setIsRegeneratingSingle]);
 
   // Handle regenerate batch
   const handleRegenerateBatch = useCallback(async (locationName: string) => {
@@ -173,7 +181,7 @@ function App() {
     } finally {
       setRegeneratingState(locationName, false);
     }
-  }, [setRegeneratingState, generateComment, llmProvider, setBatchResults]);
+  }, [generateComment, llmProvider, setBatchResults, setRegeneratingState]);
 
   const currentTime = new Date().toLocaleString('ja-JP', {
     year: 'numeric',
@@ -182,6 +190,11 @@ function App() {
     hour: '2-digit',
     minute: '2-digit'
   });
+
+  const batchResultsStats = useMemo(() => {
+    const successCount = batchResults.filter(r => r.success).length;
+    return `成功: ${successCount}件 / 全体: ${batchResults.length}件`;
+  }, [batchResults]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -286,18 +299,15 @@ function App() {
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">一括生成結果</h2>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    {useMemo(() => {
-                      const successCount = batchResults.filter(r => r.success).length;
-                      return `成功: ${successCount}件 / 全体: ${batchResults.length}件`;
-                    }, [batchResults])}
+                    {batchResultsStats}
                   </div>
 
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
                       <BatchResultItem
-                        key={`${result.location}-${index}`}
+                        key={(result as BatchResultWithId).id || `${result.location}-${index}`}
                         result={result}
-                        isExpanded={expandedLocations.has(result.location)}
+                        isExpanded={expandedLocations[result.location] || false}
                         onToggleExpanded={() => toggleLocationExpanded(result.location)}
                         onRegenerate={() => handleRegenerateBatch(result.location)}
                         isRegenerating={regeneratingStates[result.location] || false}
