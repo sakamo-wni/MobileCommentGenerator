@@ -8,7 +8,7 @@ import { WeatherDataDisplay } from './components/WeatherData';
 import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
-import { REGIONS } from './constants/regions';
+import { REGIONS, getLocationInfo } from './constants/regions';
 import { BATCH_CONFIG } from '../../src/config/constants';
 
 interface RegeneratingState {
@@ -17,19 +17,6 @@ interface RegeneratingState {
 
 // Constants for batch mode
 const WARN_BATCH_LOCATIONS = 20;
-
-// Helper function to find location info from regions data
-function getLocationInfo(locationName: string): { prefecture: string; region: string } {
-  for (const [regionName, prefectures] of Object.entries(REGIONS)) {
-    for (const [prefName, locations] of Object.entries(prefectures)) {
-      if (locations.includes(locationName)) {
-        return { prefecture: prefName, region: regionName };
-      }
-    }
-  }
-  // Fallback values if not found
-  return { prefecture: '不明', region: '不明' };
-}
 
 function App() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
