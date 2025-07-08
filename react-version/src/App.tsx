@@ -9,6 +9,7 @@ import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { useBatchGeneration } from './hooks/useBatchGeneration';
+import { useUIState } from './hooks/useUIState';
 import { REGIONS, getLocationInfo } from './constants/regions';
 import { BATCH_CONFIG } from '../../src/config/constants';
 
@@ -22,12 +23,12 @@ function App() {
   const [llmProvider, setLlmProvider] = useState<'openai' | 'gemini' | 'anthropic'>('gemini');
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [generatedComment, setGeneratedComment] = useState<GeneratedComment | null>(null);
-  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [isRegeneratingSingle, setIsRegeneratingSingle] = useState(false);
 
   const { generateComment, loading, error, clearError } = useApi();
   const { theme, toggleTheme } = useTheme();
   const { batchResults, regeneratingStates, handleBatchGenerate, handleRegenerateBatch, setBatchResults } = useBatchGeneration({ generateComment, llmProvider });
+  const { expandedLocations, toggleLocationExpanded, handleCopyComment, clearExpandedLocations } = useUIState();
 
   const handleGenerateComment = async () => {
     if (isBatchMode) {
@@ -39,7 +40,7 @@ function App() {
     clearError();
     setGeneratedComment(null);
     setBatchResults([]);
-    setExpandedLocations(new Set());
+    clearExpandedLocations();
 
     try {
       if (isBatchMode) {
@@ -56,22 +57,6 @@ function App() {
     }
   };
 
-  const handleCopyComment = (text: string) => {
-    navigator.clipboard?.writeText(text);
-    console.log('Copied:', text);
-  };
-
-  const toggleLocationExpanded = (location: string) => {
-    setExpandedLocations(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(location)) {
-        newSet.delete(location);
-      } else {
-        newSet.add(location);
-      }
-      return newSet;
-    });
-  };
 
   const handleRegenerateSingle = async () => {
     if (!selectedLocation) return;
