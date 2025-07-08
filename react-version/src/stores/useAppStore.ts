@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
 import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
 
 interface RegeneratingState {
@@ -40,7 +41,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   devtools(
-    (set) => ({
+    immer((set) => ({
       // Initial state
       selectedLocation: null,
       selectedLocations: [],
@@ -53,42 +54,40 @@ export const useAppStore = create<AppState>()(
       isRegeneratingSingle: false,
       
       // Actions
-      setSelectedLocation: (location) => set({ selectedLocation: location }),
-      setSelectedLocations: (locations) => set({ selectedLocations: locations }),
-      setLlmProvider: (provider) => set({ llmProvider: provider }),
-      setIsBatchMode: (mode) => set({ isBatchMode: mode }),
-      setGeneratedComment: (comment) => set({ generatedComment: comment }),
-      setBatchResults: (results) => set((state) => ({
-        batchResults: typeof results === 'function' ? results(state.batchResults) : results
-      })),
-      toggleLocationExpanded: (location) => set((state) => {
-        const newSet = new Set(state.expandedLocations);
-        if (newSet.has(location)) {
-          newSet.delete(location);
+      setSelectedLocation: (location) => set((state) => { state.selectedLocation = location; }),
+      setSelectedLocations: (locations) => set((state) => { state.selectedLocations = locations; }),
+      setLlmProvider: (provider) => set((state) => { state.llmProvider = provider; }),
+      setIsBatchMode: (mode) => set((state) => { state.isBatchMode = mode; }),
+      setGeneratedComment: (comment) => set((state) => { state.generatedComment = comment; }),
+      setBatchResults: (results) => set((state) => {
+        if (typeof results === 'function') {
+          state.batchResults = results(state.batchResults);
         } else {
-          newSet.add(location);
+          state.batchResults = results;
         }
-        return { expandedLocations: newSet };
+      }),
+      toggleLocationExpanded: (location) => set((state) => {
+        if (state.expandedLocations.has(location)) {
+          state.expandedLocations.delete(location);
+        } else {
+          state.expandedLocations.add(location);
+        }
       }),
       setRegeneratingState: (location, regenerating) => set((state) => {
         if (regenerating) {
-          return {
-            regeneratingStates: { ...state.regeneratingStates, [location]: true }
-          };
+          state.regeneratingStates[location] = true;
         } else {
-          const newStates = { ...state.regeneratingStates };
-          delete newStates[location];
-          return { regeneratingStates: newStates };
+          delete state.regeneratingStates[location];
         }
       }),
-      setIsRegeneratingSingle: (state) => set({ isRegeneratingSingle: state }),
-      clearExpandedLocations: () => set({ expandedLocations: new Set() }),
-      clearResults: () => set({ 
-        generatedComment: null, 
-        batchResults: [],
-        expandedLocations: new Set()
+      setIsRegeneratingSingle: (isRegenerating) => set((state) => { state.isRegeneratingSingle = isRegenerating; }),
+      clearExpandedLocations: () => set((state) => { state.expandedLocations = new Set(); }),
+      clearResults: () => set((state) => { 
+        state.generatedComment = null;
+        state.batchResults = [];
+        state.expandedLocations = new Set();
       })
-    }),
+    })),
     {
       name: 'app-store',
     }

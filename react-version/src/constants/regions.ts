@@ -77,11 +77,11 @@ export const REGIONS = {
 // フラットな地点リストを取得
 export function getAllLocations(): string[] {
   const locations: string[] = [];
-  Object.values(REGIONS).forEach(region => {
-    Object.values(region).forEach(locationsList => {
+  for (const region of Object.values(REGIONS)) {
+    for (const locationsList of Object.values(region)) {
       locations.push(...locationsList);
-    });
-  });
+    }
+  }
   return locations.sort();
 }
 
@@ -89,7 +89,7 @@ export function getAllLocations(): string[] {
 export function getRegionOptions() {
   const options: Array<{label: string, children: Array<{label: string, children: Array<{label: string, value: string}>}>}> = [];
   
-  Object.entries(REGIONS).forEach(([regionName, prefectures]) => {
+  for (const [regionName, prefectures] of Object.entries(REGIONS)) {
     const prefectureOptions = Object.entries(prefectures).map(([prefName, locations]) => ({
       label: prefName,
       children: locations.map((location: string) => ({
@@ -102,7 +102,7 @@ export function getRegionOptions() {
       label: regionName,
       children: prefectureOptions
     });
-  });
+  }
   
   return options;
 }
@@ -113,9 +113,9 @@ export function getLocationsByRegion(regionName: string): string[] {
   if (!region) return [];
   
   const locations: string[] = [];
-  Object.values(region).forEach(locationList => {
+  for (const locationList of Object.values(region)) {
     locations.push(...locationList);
-  });
+  }
   return locations;
 }
 
@@ -130,11 +130,11 @@ export function getLocationsByPrefecture(regionName: string, prefectureName: str
 // 全地点を表示順で取得
 export function getLocationOrder(): string[] {
   const order: string[] = [];
-  Object.values(REGIONS).forEach(region => {
-    Object.values(region).forEach(locations => {
+  for (const region of Object.values(REGIONS)) {
+    for (const locations of Object.values(region)) {
       order.push(...locations);
-    });
-  });
+    }
+  }
   return order;
 }
 

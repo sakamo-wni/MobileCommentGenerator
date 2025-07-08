@@ -3,8 +3,15 @@ import type { Location, BatchResult } from '@mobile-comment-generator/shared';
 import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
 import { getLocationInfo } from '../constants/regions';
 
+import type { GeneratedComment } from '@mobile-comment-generator/shared';
+
+interface GenerateOptions {
+  llmProvider: 'openai' | 'gemini' | 'anthropic';
+  excludePrevious?: boolean;
+}
+
 interface UseBatchGenerationProps {
-  generateComment: (location: Location, options: any) => Promise<any>;
+  generateComment: (location: Location, options: GenerateOptions) => Promise<GeneratedComment>;
   llmProvider: 'openai' | 'gemini' | 'anthropic';
 }
 

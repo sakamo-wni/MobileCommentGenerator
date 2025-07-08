@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useAppStore } from '../stores/useAppStore';
 
 interface Props {
   children: ReactNode;
@@ -31,6 +32,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
+    // Clear app state
+    const clearResults = useAppStore.getState().clearResults;
+    clearResults();
+    
+    // Reset error boundary state
     this.setState({
       hasError: false,
       error: null,

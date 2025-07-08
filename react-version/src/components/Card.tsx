@@ -1,10 +1,10 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 interface CardProps {
   icon: LucideIcon;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }
 

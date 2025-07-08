@@ -175,13 +175,13 @@ function App() {
     }
   }, [setRegeneratingState, generateComment, llmProvider, setBatchResults]);
 
-  const currentTime = useMemo(() => new Date().toLocaleString('ja-JP', {
+  const currentTime = new Date().toLocaleString('ja-JP', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  }), []);
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -293,9 +293,9 @@ function App() {
                   </div>
 
                   <div className="space-y-4">
-                    {batchResults.map((result) => (
+                    {batchResults.map((result, index) => (
                       <BatchResultItem
-                        key={result.location}
+                        key={`${result.location}-${index}`}
                         result={result}
                         isExpanded={expandedLocations.has(result.location)}
                         onToggleExpanded={() => toggleLocationExpanded(result.location)}
