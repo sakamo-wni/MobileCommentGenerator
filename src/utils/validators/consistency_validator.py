@@ -78,6 +78,13 @@ class ConsistencyValidator(BaseValidator):
         if not umbrella_check[0]:
             return umbrella_check
         
+        # 6. 時間帯と温度の矛盾チェック
+        time_temp_check = self._check_time_temperature_contradiction(
+            weather_comment, advice_comment, weather_data
+        )
+        if not time_temp_check[0]:
+            return time_temp_check
+        
         return True, "コメントペアの一貫性OK"
     
     def _check_weather_reality_contradiction(
@@ -271,6 +278,81 @@ class ConsistencyValidator(BaseValidator):
             return True, "傘表現は補完的"
         
         return True, "傘表現OK"
+    
+    def _check_time_temperature_contradiction(
+        self,
+        weather_comment: str,
+        advice_comment: str,
+        weather_data: WeatherForecast
+    ) -> Tuple[bool, str]:
+        """時間帯に関する温度の矛盾をチェック"""
+        combined_text = weather_comment + " " + advice_comment
+        
+        # 同一時間帯で矛盾する温度表現のパターン
+        time_temp_contradictions = [
+            # 昼間の矛盾
+            {
+                "time_words": ["昼間", "日中", "昼", "正午", "真昼"],
+                "cold_words": ["涼しい", "肌寒い", "ひんやり", "冷える", "寒い"],
+                "hot_words": ["蒸し暑い", "暑い", "猛暑", "厳しい暑さ", "灼熱"]
+            },
+            # 朝の矛盾
+            {
+                "time_words": ["朝", "早朝", "朝方", "明け方"],
+                "cold_words": ["冷え込む", "寒い", "冷たい", "ひんやり"],
+                "hot_words": ["蒸す", "暑い", "熱帯夜明け"]
+            },
+            # 夜の矛盾
+            {
+                "time_words": ["夜", "夜間", "深夜", "晩"],
+                "cold_words": ["冷える", "寒い", "冷え込む"],
+                "hot_words": ["熱帯夜", "寝苦しい", "蒸し暑い"]
+            }
+        ]
+        
+        # 各時間帯について矛盾をチェック
+        for pattern in time_temp_contradictions:
+            time_words = pattern["time_words"]
+            cold_words = pattern["cold_words"]
+            hot_words = pattern["hot_words"]
+            
+            # 同じ時間帯を指しているか確認
+            has_time = any(word in combined_text for word in time_words)
+            if not has_time:
+                continue
+                
+            # 寒暖両方の表現があるか確認
+            has_cold = any(word in combined_text for word in cold_words)
+            has_hot = any(word in combined_text for word in hot_words)
+            
+            if has_cold and has_hot:
+                time_word = next(word for word in time_words if word in combined_text)
+                cold_word = next(word for word in cold_words if word in combined_text)
+                hot_word = next(word for word in hot_words if word in combined_text)
+                return False, f"同一時間帯（{time_word}）で温度の矛盾：「{cold_word}」と「{hot_word}」"
+        
+        # 一般的な温度矛盾（時間帯を明示しない場合）
+        general_contradictions = [
+            {
+                "pattern1": ["涼しい", "涼やか", "爽やか", "さわやか"],
+                "pattern2": ["蒸し暑い", "ムシムシ", "じめじめ", "ジメジメ"]
+            },
+            {
+                "pattern1": ["寒い", "冷える", "肌寒い"],
+                "pattern2": ["暑い", "猛暑", "酷暑", "熱い"]
+            }
+        ]
+        
+        for contradiction in general_contradictions:
+            has_pattern1 = any(word in combined_text for word in contradiction["pattern1"])
+            has_pattern2 = any(word in combined_text for word in contradiction["pattern2"])
+            
+            if has_pattern1 and has_pattern2:
+                word1 = next(word for word in contradiction["pattern1"] if word in combined_text)
+                word2 = next(word for word in contradiction["pattern2"] if word in combined_text)
+                return False, f"温度感覚の矛盾：「{word1}」と「{word2}」が同時に存在"
+        
+        return True, "時間帯温度チェックOK"
     
     def _is_duplicate_content(self, weather_text: str, advice_text: str) -> bool:
         """天気コメントとアドバイスの重複をチェック"""
