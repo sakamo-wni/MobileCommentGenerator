@@ -137,3 +137,17 @@ export function getLocationOrder(): string[] {
   });
   return order;
 }
+
+// 地点名から都道府県と地域の情報を取得
+export function getLocationInfo(locationName: string): { prefecture: string; region: string } {
+  for (const [regionName, prefectures] of Object.entries(REGIONS)) {
+    for (const [prefName, locations] of Object.entries(prefectures)) {
+      if (locations.includes(locationName)) {
+        return { prefecture: prefName, region: regionName };
+      }
+    }
+  }
+  // Fallback values if not found
+  console.warn(`Location not found in regions data: ${locationName}`);
+  return { prefecture: '不明', region: '不明' };
+}
