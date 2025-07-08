@@ -8,12 +8,10 @@ import { WeatherDataDisplay } from './components/WeatherData';
 import { BatchResultItem } from './components/BatchResultItem';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
+import { useBatchGeneration } from './hooks/useBatchGeneration';
 import { REGIONS, getLocationInfo } from './constants/regions';
 import { BATCH_CONFIG } from '../../src/config/constants';
 
-interface RegeneratingState {
-  [location: string]: boolean;
-}
 
 // Constants for batch mode
 const WARN_BATCH_LOCATIONS = 20;
@@ -24,13 +22,12 @@ function App() {
   const [llmProvider, setLlmProvider] = useState<'openai' | 'gemini' | 'anthropic'>('gemini');
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [generatedComment, setGeneratedComment] = useState<GeneratedComment | null>(null);
-  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
-  const [regeneratingStates, setRegeneratingStates] = useState<RegeneratingState>({});
   const [isRegeneratingSingle, setIsRegeneratingSingle] = useState(false);
 
   const { generateComment, loading, error, clearError } = useApi();
   const { theme, toggleTheme } = useTheme();
+  const { batchResults, regeneratingStates, handleBatchGenerate, handleRegenerateBatch, setBatchResults } = useBatchGeneration({ generateComment, llmProvider });
 
   const handleGenerateComment = async () => {
     if (isBatchMode) {
@@ -46,84 +43,7 @@ function App() {
 
     try {
       if (isBatchMode) {
-        // Batch generation with improved parallel processing
-        // Clear previous results before starting new batch
-        setBatchResults([]);
-        
-        // Initialize results array with placeholders to maintain order
-        const placeholderResults: BatchResult[] = selectedLocations.map((location: string) => ({
-          location,
-          success: false,
-          loading: true,
-          comment: null,
-          metadata: null,
-          error: null
-        }));
-        setBatchResults(placeholderResults);
-
-        // Process all locations with controlled concurrency
-        // This limits the number of simultaneous requests to prevent overwhelming the server
-        // and provides incremental updates to the UI every CONCURRENT_LIMIT locations
-        for (let i = 0; i < selectedLocations.length; i += BATCH_CONFIG.CONCURRENT_LIMIT) {
-          const chunk = selectedLocations.slice(i, i + BATCH_CONFIG.CONCURRENT_LIMIT);
-          const chunkIndices = chunk.map((_, idx) => i + idx);
-          
-          const chunkPromises = chunk.map(async (locationName: string, chunkIdx: number) => {
-            const globalIdx = i + chunkIdx;
-            try {
-              const locationInfo = getLocationInfo(locationName);
-              const locationObj: Location = {
-                id: locationName,
-                name: locationName,
-                prefecture: locationInfo.prefecture,
-                region: locationInfo.region
-              };
-
-              const result = await generateComment(locationObj, {
-                llmProvider,
-              });
-
-              // Update state immediately for progressive display
-              const successResult = {
-                success: true,
-                location: locationName,
-                comment: result.comment,
-                metadata: result.metadata,
-                weather: result.weather,
-                adviceComment: result.adviceComment,
-                loading: false
-              };
-              
-              setBatchResults(prev => {
-                const newResults = [...prev];
-                newResults[globalIdx] = successResult;
-                return newResults;
-              });
-
-              return successResult;
-            } catch (error) {
-              const errorResult = {
-                success: false,
-                location: locationName,
-                error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
-                loading: false
-              };
-              
-              // Update state immediately with error
-              setBatchResults(prev => {
-                const newResults = [...prev];
-                newResults[globalIdx] = errorResult;
-                return newResults;
-              });
-              
-              return errorResult;
-            }
-          });
-
-          // Wait for all requests in the chunk to complete before processing next chunk
-          // Results are updated immediately within each promise for progressive display
-          await Promise.allSettled(chunkPromises);
-        }
+        await handleBatchGenerate(selectedLocations);
       } else {
         // Single location generation
         const result = await generateComment(selectedLocation!, {
@@ -172,57 +92,6 @@ function App() {
     }
   };
 
-  const handleRegenerateBatch = async (locationName: string) => {
-    setRegeneratingStates(prev => ({ ...prev, [locationName]: true }));
-
-    try {
-      const locationInfo = getLocationInfo(locationName);
-      const locationObj: Location = {
-        id: locationName,
-        name: locationName,
-        prefecture: locationInfo.prefecture,
-        region: locationInfo.region
-      };
-
-      const result = await generateComment(locationObj, {
-        llmProvider,
-        excludePrevious: true,
-      });
-
-      const newResult: BatchResult = {
-        success: true,
-        location: locationName,
-        comment: result.comment,
-        metadata: result.metadata,
-        weather: result.weather,
-        adviceComment: result.adviceComment
-      };
-
-      setBatchResults(prev =>
-        prev.map(item =>
-          item.location === locationName ? newResult : item
-        )
-      );
-    } catch (error) {
-      const errorResult: BatchResult = {
-        success: false,
-        location: locationName,
-        error: error instanceof Error ? error.message : 'コメント再生成に失敗しました'
-      };
-
-      setBatchResults(prev =>
-        prev.map(item =>
-          item.location === locationName ? errorResult : item
-        )
-      );
-    } finally {
-      setRegeneratingStates(prev => {
-        const newState = { ...prev };
-        delete newState[locationName];
-        return newState;
-      });
-    }
-  };
 
   const currentTime = new Date().toLocaleString('ja-JP', {
     year: 'numeric',
