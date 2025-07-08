@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 
 interface GenerateButtonProps {
@@ -16,9 +16,9 @@ export function GenerateButton({
   selectedCount = 0,
   onClick 
 }: GenerateButtonProps) {
-  const getButtonText = () => {
+  const buttonText = useMemo(() => {
     if (loading) {
-      return isBatchMode ? 'コメントを生成中...' : 'コメントを生成中...';
+      return 'コメントを生成中...';
     }
     if (isBatchMode) {
       return selectedCount > 0 
@@ -26,11 +26,12 @@ export function GenerateButton({
         : 'コメントを一括生成';
     }
     return 'コメントを生成';
-  };
+  }, [loading, isBatchMode, selectedCount]);
 
   return (
     <div className="flex justify-center mb-8">
       <button
+        type="button"
         onClick={onClick}
         disabled={disabled || loading}
         className={`
@@ -45,7 +46,7 @@ export function GenerateButton({
         `}
       >
         <Sparkles className={`w-5 h-5 ${loading ? 'animate-pulse' : ''}`} />
-        <span>{getButtonText()}</span>
+        <span>{buttonText}</span>
       </button>
     </div>
   );

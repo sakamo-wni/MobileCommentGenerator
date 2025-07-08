@@ -148,5 +148,6 @@ export function getLocationInfo(locationName: string): { prefecture: string; reg
     }
   }
   // Fallback values if not found
+  console.warn(`Location not found in regions data: ${locationName}`);
   return { prefecture: '不明', region: '不明' };
 }

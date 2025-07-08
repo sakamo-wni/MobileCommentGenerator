@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Location, BatchResult } from '@mobile-comment-generator/shared';
-import { BATCH_CONFIG } from '../../../src/config/constants';
+import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
 import { getLocationInfo } from '../constants/regions';
 
 interface UseBatchGenerationProps {

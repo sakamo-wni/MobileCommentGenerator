@@ -16,11 +16,9 @@ import { useTheme } from './hooks/useTheme';
 import { useBatchGeneration } from './hooks/useBatchGeneration';
 import { useUIState } from './hooks/useUIState';
 import { REGIONS, getLocationInfo } from './constants/regions';
-import { BATCH_CONFIG } from '../../src/config/constants';
+import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
 
 
-// Constants for batch mode
-const WARN_BATCH_LOCATIONS = 20;
 
 function App() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -131,7 +129,7 @@ function App() {
               </Card>
 
               {/* Batch mode warning */}
-              {isBatchMode && selectedLocations.length >= WARN_BATCH_LOCATIONS && (
+              {isBatchMode && selectedLocations.length >= BATCH_CONFIG.WARN_BATCH_LOCATIONS && (
                 <AlertBox
                   type="warning"
                   title="大量の地点が選択されています"
