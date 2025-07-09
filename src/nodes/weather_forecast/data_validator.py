@@ -136,8 +136,11 @@ class WeatherDataValidator:
             return selected
         
         # 5. 雨天を優先（降水量の多い順）
-        rainy_forecasts = [f for f in forecasts if f.precipitation > 0.1]
+        rainy_forecasts = [f for f in forecasts if f.precipitation > 0]
         if rainy_forecasts:
+            logger.info(f"雨天予報を検出: {len(rainy_forecasts)}件")
+            for rf in rainy_forecasts:
+                logger.info(f"  - {rf.datetime.strftime('%H:%M')}: {rf.weather_description}, 降水量{rf.precipitation}mm")
             selected = max(rainy_forecasts, key=lambda f: f.precipitation)
             logger.info(f"雨天を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')})")
             return selected

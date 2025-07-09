@@ -226,8 +226,14 @@ def fetch_weather_forecast_node(
             raise ValueError(error_msg)
         
         # 優先度に基づいて予報を選択（雨・猛暑日を優先）
+        logger.info("優先度ベースの予報選択を開始")
         selected_forecast = forecast_processing_service.select_priority_forecast(
             period_forecasts
+        )
+        logger.info(
+            f"優先度選択結果: {selected_forecast.datetime.strftime('%H:%M')} - "
+            f"{selected_forecast.weather_description}, {selected_forecast.temperature}°C, "
+            f"降水量{selected_forecast.precipitation}mm"
         )
         
         if not selected_forecast:
@@ -260,7 +266,7 @@ def fetch_weather_forecast_node(
         
         # デバッグ: 保存した予報データの詳細をログ出力
         for forecast in period_forecasts:
-            logger.debug(
+            logger.info(
                 f"  - {forecast.datetime.strftime('%H:%M')}: {forecast.weather_description}, "
                 f"{forecast.temperature}°C, 降水量{forecast.precipitation}mm"
             )
