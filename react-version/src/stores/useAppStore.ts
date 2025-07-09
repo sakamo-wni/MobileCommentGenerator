@@ -78,11 +78,7 @@ export const useAppStore = create<AppState>()(
         }
       }),
       setRegeneratingState: (location, regenerating) => set((state) => {
-        if (regenerating) {
-          state.regeneratingStates[location] = true;
-        } else {
-          delete state.regeneratingStates[location];
-        }
+        state.regeneratingStates[location] = regenerating;
       }),
       setIsRegeneratingSingle: (isRegenerating) => set((state) => { state.isRegeneratingSingle = isRegenerating; }),
       clearExpandedLocations: () => set((state) => { state.expandedLocations = {}; }),

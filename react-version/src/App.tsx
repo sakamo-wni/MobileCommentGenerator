@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { Cloud, Clock, Sparkles, MapPin } from 'lucide-react';
 import type { Location, BatchResult } from '@mobile-comment-generator/shared';
 import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
+import { useShallow } from 'zustand/react/shallow';
 
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
@@ -18,32 +19,60 @@ import { useTheme } from './hooks/useTheme';
 import { useAppStore } from './stores/useAppStore';
 import { getLocationInfo } from './constants/regions';
 
-type BatchResultWithId = BatchResult & { id: string };
-
 function App() {
   // Get state from Zustand store
-  const selectedLocation = useAppStore((state) => state.selectedLocation);
-  const selectedLocations = useAppStore((state) => state.selectedLocations);
-  const llmProvider = useAppStore((state) => state.llmProvider);
-  const isBatchMode = useAppStore((state) => state.isBatchMode);
-  const generatedComment = useAppStore((state) => state.generatedComment);
-  const batchResults = useAppStore((state) => state.batchResults);
-  const expandedLocations = useAppStore((state) => state.expandedLocations);
-  const regeneratingStates = useAppStore((state) => state.regeneratingStates);
-  const isRegeneratingSingle = useAppStore((state) => state.isRegeneratingSingle);
+  const {
+    selectedLocation,
+    selectedLocations,
+    llmProvider,
+    isBatchMode,
+    generatedComment,
+    batchResults,
+    expandedLocations,
+    regeneratingStates,
+    isRegeneratingSingle
+  } = useAppStore(
+    useShallow(state => ({
+      selectedLocation: state.selectedLocation,
+      selectedLocations: state.selectedLocations,
+      llmProvider: state.llmProvider,
+      isBatchMode: state.isBatchMode,
+      generatedComment: state.generatedComment,
+      batchResults: state.batchResults,
+      expandedLocations: state.expandedLocations,
+      regeneratingStates: state.regeneratingStates,
+      isRegeneratingSingle: state.isRegeneratingSingle
+    }))
+  );
 
   // Get actions from Zustand store
-  const setSelectedLocation = useAppStore((state) => state.setSelectedLocation);
-  const setSelectedLocations = useAppStore((state) => state.setSelectedLocations);
-  const setLlmProvider = useAppStore((state) => state.setLlmProvider);
-  const setIsBatchMode = useAppStore((state) => state.setIsBatchMode);
-  const setGeneratedComment = useAppStore((state) => state.setGeneratedComment);
-  const setBatchResults = useAppStore((state) => state.setBatchResults);
-  const toggleLocationExpanded = useAppStore((state) => state.toggleLocationExpanded);
-  const setRegeneratingState = useAppStore((state) => state.setRegeneratingState);
-  const setIsRegeneratingSingle = useAppStore((state) => state.setIsRegeneratingSingle);
-  const clearResults = useAppStore((state) => state.clearResults);
-  const setGeneratedAt = useAppStore((state) => state.setGeneratedAt);
+  const {
+    setSelectedLocation,
+    setSelectedLocations,
+    setLlmProvider,
+    setIsBatchMode,
+    setGeneratedComment,
+    setBatchResults,
+    toggleLocationExpanded,
+    setRegeneratingState,
+    setIsRegeneratingSingle,
+    clearResults,
+    setGeneratedAt
+  } = useAppStore(
+    useShallow(state => ({
+      setSelectedLocation: state.setSelectedLocation,
+      setSelectedLocations: state.setSelectedLocations,
+      setLlmProvider: state.setLlmProvider,
+      setIsBatchMode: state.setIsBatchMode,
+      setGeneratedComment: state.setGeneratedComment,
+      setBatchResults: state.setBatchResults,
+      toggleLocationExpanded: state.toggleLocationExpanded,
+      setRegeneratingState: state.setRegeneratingState,
+      setIsRegeneratingSingle: state.setIsRegeneratingSingle,
+      clearResults: state.clearResults,
+      setGeneratedAt: state.setGeneratedAt
+    }))
+  );
 
   // Hooks
   const { generateComment, loading, error, clearError } = useApi();
@@ -64,11 +93,11 @@ function App() {
       if (isBatchMode) {
         // Batch generation
         // Initialize all locations with pending state
-        const initialResults = selectedLocations.map((locationName, index) => ({
+        const initialResults = selectedLocations.map((locationName) => ({
           success: false,
           location: locationName,
           loading: true,
-          id: `${locationName}-${Date.now()}-${index}`
+          id: crypto.randomUUID()
         }));
         setBatchResults(initialResults);
 
@@ -98,7 +127,7 @@ function App() {
                 adviceComment: result.adviceComment,
                 loading: false,
                 id: newResults[i].id // Keep the same ID
-              } as BatchResult & { id: string };
+              };
               return newResults;
             });
           } catch (error) {
@@ -111,7 +140,7 @@ function App() {
                 error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
                 loading: false,
                 id: newResults[i].id // Keep the same ID
-              } as BatchResult & { id: string };
+              };
               return newResults;
             });
           }
@@ -327,7 +356,7 @@ function App() {
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
                       <BatchResultItem
-                        key={(result as BatchResultWithId).id || `${result.location}-${index}`}
+                        key={'id' in result ? (result as BatchResult & { id: string }).id : `${result.location}-${index}`}
                         result={result}
                         isExpanded={expandedLocations[result.location] || false}
                         onToggleExpanded={() => toggleLocationExpanded(result.location)}
