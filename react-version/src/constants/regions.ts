@@ -1,153 +1,26 @@
-// 地域区分による地点データ
-export const REGIONS = {
-  '北海道': {
-    '道北': ['稚内', '旭川', '留萌'],
-    '道央': ['札幌', '岩見沢', '倶知安'],
-    '道東': ['網走', '北見', '紋別', '根室', '釧路', '帯広'],
-    '道南': ['室蘭', '浦河', '函館', '江差']
-  },
-  '東北': {
-    '青森': ['青森', 'むつ', '八戸'],
-    '岩手': ['盛岡', '宮古', '大船渡'],
-    '秋田': ['秋田', '横手'],
-    '宮城': ['仙台', '白石'],
-    '山形': ['山形', '米沢', '酒田', '新庄'],
-    '福島': ['福島', '小名浜', '若松']
-  },
-  '北陸': {
-    '新潟': ['新潟', '長岡', '高田', '相川'],
-    '石川': ['金沢', '輪島'],
-    '富山': ['富山', '伏木'],
-    '福井': ['福井', '敦賀']
-  },
-  '関東': {
-    '東京': ['東京', '大島', '八丈島', '父島'],
-    '神奈川': ['横浜', '小田原'],
-    '埼玉': ['さいたま', '熊谷', '秩父'],
-    '千葉': ['千葉', '銚子', '館山'],
-    '茨城': ['水戸', '土浦'],
-    '群馬': ['前橋', 'みなかみ'],
-    '栃木': ['宇都宮', '大田原']
-  },
-  '甲信': {
-    '長野': ['長野', '松本', '飯田'],
-    '山梨': ['甲府', '河口湖']
-  },
-  '東海': {
-    '愛知': ['名古屋', '豊橋'],
-    '静岡': ['静岡', '網代', '三島', '浜松'],
-    '岐阜': ['岐阜', '高山'],
-    '三重': ['津', '尾鷲']
-  },
-  '近畿': {
-    '大阪': ['大阪'],
-    '兵庫': ['神戸', '豊岡'],
-    '京都': ['京都', '舞鶴'],
-    '奈良': ['奈良', '風屋'],
-    '滋賀': ['大津', '彦根'],
-    '和歌山': ['和歌山', '潮岬']
-  },
-  '中国': {
-    '広島': ['広島', '庄原'],
-    '岡山': ['岡山', '津山'],
-    '山口': ['下関', '山口', '柳井', '萩'],
-    '島根': ['松江', '浜田', '西郷'],
-    '鳥取': ['鳥取', '米子']
-  },
-  '四国': {
-    '愛媛': ['松山', '新居浜', '宇和島'],
-    '香川': ['高松'],
-    '徳島': ['徳島', '日和佐'],
-    '高知': ['高知', '室戸岬', '清水']
-  },
-  '九州': {
-    '福岡': ['福岡', '八幡', '飯塚', '久留米'],
-    '佐賀': ['佐賀', '伊万里'],
-    '長崎': ['長崎', '佐世保', '厳原', '福江'],
-    '大分': ['大分', '中津', '日田', '佐伯'],
-    '熊本': ['熊本', '阿蘇乙姫', '牛深', '人吉'],
-    '宮崎': ['宮崎', '都城', '延岡', '高千穂'],
-    '鹿児島': ['鹿児島', '鹿屋', '種子島', '名瀬']
-  },
-  '沖縄': {
-    '沖縄': ['那覇', '名護', '久米島', '大東島', '宮古島', '石垣島', '与那国島']
-  }
-} as const;
+// sharedパッケージから地域データをインポート
+import { REGIONS as SHARED_REGIONS, getAllLocationNames, getLocationData } from '@mobile-comment-generator/shared'
 
-// フラットな地点リストを取得
-export function getAllLocations(): string[] {
-  const locations: string[] = [];
-  for (const region of Object.values(REGIONS)) {
-    for (const locationsList of Object.values(region)) {
-      locations.push(...locationsList);
-    }
-  }
-  return locations.sort();
+// React版はシンプルなキー名を使用
+export const REGIONS = SHARED_REGIONS
+
+export type RegionName = keyof typeof REGIONS
+export type SubRegionName<R extends RegionName> = keyof typeof REGIONS[R]
+export type LocationName = string
+
+// 全地点をフラットな配列として取得
+export const getAllLocations = (): string[] => {
+  return getAllLocationNames()
 }
 
-// 地域別地点選択用のオプション
-export function getRegionOptions() {
-  const options: Array<{label: string, children: Array<{label: string, children: Array<{label: string, value: string}>}>}> = [];
-  
-  for (const [regionName, prefectures] of Object.entries(REGIONS)) {
-    const prefectureOptions = Object.entries(prefectures).map(([prefName, locations]) => ({
-      label: prefName,
-      children: locations.map((location: string) => ({
-        label: location,
-        value: location
-      }))
-    }));
-    
-    options.push({
-      label: regionName,
-      children: prefectureOptions
-    });
+// 地点から地域情報を取得
+export const getRegionInfo = (location: string): { region: string; subRegion: string } | null => {
+  const locationData = getLocationData(location)
+  if (!locationData || !locationData.area || !locationData.prefecture) {
+    return null
   }
-  
-  return options;
-}
-
-// 地域ごとの地点を一括選択
-export function getLocationsByRegion(regionName: string): string[] {
-  const region = REGIONS[regionName as keyof typeof REGIONS];
-  if (!region) return [];
-  
-  const locations: string[] = [];
-  for (const locationList of Object.values(region)) {
-    locations.push(...locationList);
+  return {
+    region: locationData.area,
+    subRegion: locationData.prefecture
   }
-  return locations;
-}
-
-// 県ごとの地点を一括選択
-export function getLocationsByPrefecture(regionName: string, prefectureName: string): string[] {
-  const region = REGIONS[regionName as keyof typeof REGIONS];
-  if (!region) return [];
-
-  return region[prefectureName as keyof typeof region] || [];
-}
-
-// 全地点を表示順で取得
-export function getLocationOrder(): string[] {
-  const order: string[] = [];
-  for (const region of Object.values(REGIONS)) {
-    for (const locations of Object.values(region)) {
-      order.push(...locations);
-    }
-  }
-  return order;
-}
-
-// 地点名から都道府県と地域の情報を取得
-export function getLocationInfo(locationName: string): { prefecture: string; region: string } {
-  for (const [regionName, prefectures] of Object.entries(REGIONS)) {
-    for (const [prefName, locations] of Object.entries(prefectures)) {
-      if (locations.includes(locationName)) {
-        return { prefecture: prefName, region: regionName };
-      }
-    }
-  }
-  // Fallback values if not found
-  console.warn(`Location not found in regions data: ${locationName}`);
-  return { prefecture: '不明', region: '不明' };
 }
