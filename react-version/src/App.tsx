@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Cloud, Clock, Sparkles, MapPin } from 'lucide-react';
-import type { Location, GeneratedComment, BatchResult } from '@mobile-comment-generator/shared';
+import type { Location, BatchResult } from '@mobile-comment-generator/shared';
+import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
+import { useShallow } from 'zustand/react/shallow';
+
 import { LocationSelection } from './components/LocationSelection';
 import { GenerateSettings } from './components/GenerateSettings';
 import { GeneratedCommentDisplay } from './components/GeneratedComment';
@@ -13,27 +16,70 @@ import { Card } from './components/Card';
 import { AlertBox } from './components/AlertBox';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
-import { useBatchGeneration } from './hooks/useBatchGeneration';
-import { useUIState } from './hooks/useUIState';
-import { REGIONS, getLocationInfo } from './constants/regions';
-import { BATCH_CONFIG } from '@mobile-comment-generator/shared';
-
-
+import { useAppStore } from './stores/useAppStore';
+import { getLocationInfo } from './constants/regions';
 
 function App() {
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [llmProvider, setLlmProvider] = useState<'openai' | 'gemini' | 'anthropic'>('gemini');
-  const [isBatchMode, setIsBatchMode] = useState(false);
-  const [generatedComment, setGeneratedComment] = useState<GeneratedComment | null>(null);
-  const [isRegeneratingSingle, setIsRegeneratingSingle] = useState(false);
+  // Get state from Zustand store
+  const {
+    selectedLocation,
+    selectedLocations,
+    llmProvider,
+    isBatchMode,
+    generatedComment,
+    batchResults,
+    expandedLocations,
+    regeneratingStates,
+    isRegeneratingSingle
+  } = useAppStore(
+    useShallow(state => ({
+      selectedLocation: state.selectedLocation,
+      selectedLocations: state.selectedLocations,
+      llmProvider: state.llmProvider,
+      isBatchMode: state.isBatchMode,
+      generatedComment: state.generatedComment,
+      batchResults: state.batchResults,
+      expandedLocations: state.expandedLocations,
+      regeneratingStates: state.regeneratingStates,
+      isRegeneratingSingle: state.isRegeneratingSingle
+    }))
+  );
 
+  // Get actions from Zustand store
+  const {
+    setSelectedLocation,
+    setSelectedLocations,
+    setLlmProvider,
+    setIsBatchMode,
+    setGeneratedComment,
+    setBatchResults,
+    toggleLocationExpanded,
+    setRegeneratingState,
+    setIsRegeneratingSingle,
+    clearResults,
+    setGeneratedAt
+  } = useAppStore(
+    useShallow(state => ({
+      setSelectedLocation: state.setSelectedLocation,
+      setSelectedLocations: state.setSelectedLocations,
+      setLlmProvider: state.setLlmProvider,
+      setIsBatchMode: state.setIsBatchMode,
+      setGeneratedComment: state.setGeneratedComment,
+      setBatchResults: state.setBatchResults,
+      toggleLocationExpanded: state.toggleLocationExpanded,
+      setRegeneratingState: state.setRegeneratingState,
+      setIsRegeneratingSingle: state.setIsRegeneratingSingle,
+      clearResults: state.clearResults,
+      setGeneratedAt: state.setGeneratedAt
+    }))
+  );
+
+  // Hooks
   const { generateComment, loading, error, clearError } = useApi();
   const { theme, toggleTheme } = useTheme();
-  const { batchResults, regeneratingStates, handleBatchGenerate, handleRegenerateBatch, setBatchResults } = useBatchGeneration({ generateComment, llmProvider });
-  const { expandedLocations, toggleLocationExpanded, handleCopyComment, clearExpandedLocations } = useUIState();
 
-  const handleGenerateComment = async () => {
+  // Handle single generation
+  const handleGenerateComment = useCallback(async () => {
     if (isBatchMode) {
       if (selectedLocations.length === 0) return;
     } else {
@@ -41,27 +87,86 @@ function App() {
     }
 
     clearError();
-    setGeneratedComment(null);
-    setBatchResults([]);
-    clearExpandedLocations();
+    clearResults();
 
     try {
       if (isBatchMode) {
-        await handleBatchGenerate(selectedLocations);
+        // Batch generation
+        // Initialize all locations with pending state
+        const initialResults = selectedLocations.map((locationName) => ({
+          success: false,
+          location: locationName,
+          loading: true,
+          id: crypto.randomUUID()
+        }));
+        setBatchResults(initialResults);
+
+        // Process each location
+        for (let i = 0; i < selectedLocations.length; i++) {
+          const locationName = selectedLocations[i];
+          try {
+            const locationInfo = getLocationInfo(locationName);
+            const locationObj: Location = {
+              id: locationName,
+              name: locationName,
+              prefecture: locationInfo.prefecture,
+              region: locationInfo.region
+            };
+
+            const result = await generateComment(locationObj, { llmProvider });
+            
+            // Update the specific result
+            setBatchResults((prevResults) => {
+              const newResults = [...prevResults];
+              newResults[i] = {
+                success: true,
+                location: locationName,
+                comment: result.comment,
+                metadata: result.metadata,
+                weather: result.weather,
+                adviceComment: result.adviceComment,
+                loading: false,
+                id: newResults[i].id // Keep the same ID
+              };
+              return newResults;
+            });
+          } catch (error) {
+            // Update with error
+            setBatchResults((prevResults) => {
+              const newResults = [...prevResults];
+              newResults[i] = {
+                success: false,
+                location: locationName,
+                error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
+                loading: false,
+                id: newResults[i].id // Keep the same ID
+              };
+              return newResults;
+            });
+          }
+        }
+        setGeneratedAt(new Date().toISOString());
       } else {
         // Single location generation
         const result = await generateComment(selectedLocation as Location, {
           llmProvider,
         });
         setGeneratedComment(result);
+        setGeneratedAt(new Date().toISOString());
       }
     } catch (err) {
       console.error('Failed to generate comment:', err);
     }
-  };
+  }, [isBatchMode, selectedLocations, selectedLocation, generateComment, llmProvider, clearError, clearResults, setBatchResults, setGeneratedComment, setGeneratedAt]);
 
+  // Handle copy comment
+  const handleCopyComment = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text);
+    console.log('Copied:', text);
+  }, []);
 
-  const handleRegenerateSingle = async () => {
+  // Handle regenerate single
+  const handleRegenerateSingle = useCallback(async () => {
     if (!selectedLocation) return;
 
     setIsRegeneratingSingle(true);
@@ -78,8 +183,56 @@ function App() {
     } finally {
       setIsRegeneratingSingle(false);
     }
-  };
+  }, [selectedLocation, generateComment, llmProvider, clearError, setGeneratedComment, setIsRegeneratingSingle]);
 
+  // Handle regenerate batch
+  const handleRegenerateBatch = useCallback(async (locationName: string) => {
+    setRegeneratingState(locationName, true);
+
+    try {
+      const locationInfo = getLocationInfo(locationName);
+      const locationObj: Location = {
+        id: locationName,
+        name: locationName,
+        prefecture: locationInfo.prefecture,
+        region: locationInfo.region
+      };
+
+      const result = await generateComment(locationObj, {
+        llmProvider,
+        excludePrevious: true,
+      });
+
+      const newResult: BatchResult = {
+        success: true,
+        location: locationName,
+        comment: result.comment,
+        metadata: result.metadata,
+        weather: result.weather,
+        adviceComment: result.adviceComment
+      };
+
+      setBatchResults(prev =>
+        prev.map(item =>
+          item.location === locationName ? newResult : item
+        )
+      );
+    } catch (error) {
+      const errorResult: BatchResult = {
+        success: false,
+        location: locationName,
+        error: error instanceof Error ? error.message : 'コメント再生成に失敗しました'
+      };
+
+      setBatchResults(prev =>
+        prev.map(item =>
+          item.location === locationName ? errorResult : item
+        )
+      );
+    } finally {
+      setRegeneratingState(locationName, false);
+    }
+  }, [generateComment, llmProvider, setBatchResults, setRegeneratingState]);
 
   const currentTime = new Date().toLocaleString('ja-JP', {
     year: 'numeric',
@@ -88,6 +241,11 @@ function App() {
     hour: '2-digit',
     minute: '2-digit'
   });
+
+  const batchResultsStats = useMemo(() => {
+    const successCount = batchResults.filter(r => r.success).length;
+    return `成功: ${successCount}件 / 全体: ${batchResults.length}件`;
+  }, [batchResults]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -133,6 +291,7 @@ function App() {
                 <AlertBox
                   type="warning"
                   title="大量の地点が選択されています"
+                  className="mt-6"
                 >
                   <div>
                     <div className="text-sm font-medium">
@@ -148,6 +307,7 @@ function App() {
               {/* 生成時刻表示 */}
               <AlertBox
                 type="info"
+                className="mt-6"
               >
                 <div className="flex items-center">
                   <Clock className="w-4 h-4 mr-2" />
@@ -166,12 +326,14 @@ function App() {
                 loading={loading}
                 isBatchMode={isBatchMode}
                 selectedCount={isBatchMode ? selectedLocations.length : 0}
+                className="mt-6"
               />
 
               {/* Error display */}
               {error && (
                 <AlertBox
                   type="error"
+                  className="mt-6"
                 >
                   <p className="text-sm">{error}</p>
                 </AlertBox>
@@ -188,16 +350,15 @@ function App() {
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">一括生成結果</h2>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    成功: {batchResults.filter(r => r.success).length}件 /
-                    全体: {batchResults.length}件
+                    {batchResultsStats}
                   </div>
 
                   <div className="space-y-4">
                     {batchResults.map((result, index) => (
                       <BatchResultItem
-                        key={result.location}
+                        key={'id' in result ? (result as BatchResult & { id: string }).id : `${result.location}-${index}`}
                         result={result}
-                        isExpanded={expandedLocations.has(result.location)}
+                        isExpanded={expandedLocations[result.location] || false}
                         onToggleExpanded={() => toggleLocationExpanded(result.location)}
                         onRegenerate={() => handleRegenerateBatch(result.location)}
                         isRegenerating={regeneratingStates[result.location] || false}
