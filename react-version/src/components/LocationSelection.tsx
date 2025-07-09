@@ -4,7 +4,7 @@ import type { Location } from '@mobile-comment-generator/shared';
 import { createWeatherCommentComposable } from '@mobile-comment-generator/shared/composables';
 import { 
   createLocationSelectionLogic, 
-  REGIONS,
+  REGION_NAMES,
   getAreaName,
   getLocationsByRegion 
 } from '@mobile-comment-generator/shared/composables';
@@ -201,7 +201,7 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
               
               <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">地域選択:</div>
               <div className="flex flex-wrap gap-1">
-                {REGIONS.map((region) => (
+                {REGION_NAMES.map((region) => (
                   <button
                     key={region}
                     onClick={() => selectRegionLocations(region)}
