@@ -7,4 +7,4 @@
 # 新しいコントローラーをインポートして再エクスポート
 from src.controllers.comment_generation_controller import CommentGenerationController
 
-__all__ = ['CommentGenerationController']
+__all__ = ["CommentGenerationController"]
