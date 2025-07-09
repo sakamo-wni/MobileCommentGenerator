@@ -50,13 +50,18 @@ class LLMDuplicationValidator(BaseValidator):
         """単一コメントの検証（LLMDuplicationValidatorでは実装しない）"""
         return True, "単一コメントのチェックは他のバリデータで実施"
     
-    def validate_comment_pair_with_llm(
+    def validate_comment_pair_with_llm_sync(
         self,
         weather_comment: str,
         advice_comment: str,
         weather_data: WeatherForecast
     ) -> Tuple[bool, str]:
-        """LLMを使用してコメントペアの一貫性を検証"""
+        """LLMを使用してコメントペアの一貫性を検証
+        
+        注意: エラー時はTrueを返してコメントを通過させる。
+        これはシステムの可用性を優先し、LLMエラーによる
+        サービス停止を避けるため。
+        """
         try:
             user_message = f"""以下の2つのコメントを検証してください：
 
@@ -97,21 +102,13 @@ class LLMDuplicationValidator(BaseValidator):
                 
             except Exception as e:
                 logger.error(f"LLMレスポンスのパースエラー: {e}, レスポンス: {response.content}")
-                # パースエラーの場合は通過させる（安全側に倒す）
+                # パースエラーの場合は通過させる
+                # （システム可用性優先：重複コンテンツよりサービス継続を重視）
                 return True, "LLM判定エラー"
             
         except Exception as e:
             logger.error(f"LLM検証エラー: {e}")
-            # エラーの場合は通過させる（安全側に倒す）
+            # エラーの場合は通過させる
+            # （システム可用性優先：重複コンテンツよりサービス継続を重視）
             return True, "LLM検証エラー"
     
-    def validate_comment_pair_with_llm_sync(
-        self,
-        weather_comment: str,
-        advice_comment: str,
-        weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
-        """同期版のLLM検証（互換性のためのエイリアス）"""
-        return self.validate_comment_pair_with_llm(
-            weather_comment, advice_comment, weather_data
-        )

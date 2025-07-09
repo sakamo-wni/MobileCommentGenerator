@@ -30,7 +30,7 @@ class CommentValidator:
         # 環境変数を再読み込み
         load_dotenv(override=True)
         api_key = os.getenv("GEMINI_API_KEY")
-        logger.info(f"APIキー検索: GEMINI_API_KEY={'*' * 10 if api_key else 'None'}")
+        logger.info(f"GEMINI_API_KEY: {'設定済み' if api_key else '未設定'}")
         if api_key:
             try:
                 self.llm_validator = LLMDuplicationValidator(api_key)
