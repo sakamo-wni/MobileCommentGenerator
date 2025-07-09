@@ -164,14 +164,14 @@ class WxTechAPIClient:
     def get_forecast_for_next_day_hours_optimized(self, lat: float, lon: float) -> WeatherForecastCollection:
         """翌日の9, 12, 15, 18時のデータを効率的に取得する最適化版
         
-        翌日8時から19時までの12時間分のみを取得し、必要な4時刻のデータのみを返す
+        翌日6時から20時までの15時間分を取得し、必要な時刻のデータを含む
         
         Args:
             lat: 緯度
             lon: 経度
             
         Returns:
-            翌日の9, 12, 15, 18時の天気予報コレクション（4件のみ）
+            翌日の天気予報コレクション（基準時刻および9,12,15,18時を含む）
             
         Raises:
             WxTechAPIError: API エラーが発生した場合
@@ -180,40 +180,51 @@ class WxTechAPIClient:
         now_jst = datetime.now(jst)
         target_date = now_jst.date() + timedelta(days=1)
         
-        # 最小限のデータ取得: 翌日8時から19時までの12時間分のみ
-        tomorrow_8am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=8)))
-        tomorrow_7pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=19)))
+        # 最適化: 翌日6時から20時までの15時間分を取得
+        # これにより、基準時刻（8-9時頃）も含まれる
+        tomorrow_6am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=6)))
+        tomorrow_8pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=20)))
         
-        hours_to_8am = (tomorrow_8am - now_jst).total_seconds() / 3600
+        hours_to_6am = (tomorrow_6am - now_jst).total_seconds() / 3600
         
         # 最適な取得時間を決定
-        if hours_to_8am > 0:
-            # まだ翌日8時前なので、8時から19時までの12時間分
-            forecast_hours = int(hours_to_8am) + 12
-            logger.info(f"最適化: 翌日8時まで{hours_to_8am:.1f}h → {forecast_hours}時間分を取得")
+        if hours_to_6am > 0:
+            # まだ翌日6時前なので、6時から20時までの15時間分
+            forecast_hours = int(hours_to_6am) + 15
+            logger.info(f"最適化: 翌日6時まで{hours_to_6am:.1f}h → {forecast_hours}時間分を取得")
         else:
-            # すでに翌日8時を過ぎているので、現在から19時まで
-            hours_to_7pm = (tomorrow_7pm - now_jst).total_seconds() / 3600
-            forecast_hours = max(int(hours_to_7pm) + 1, 1)
-            logger.info(f"最適化: 翌日19時まで{hours_to_7pm:.1f}h → {forecast_hours}時間分を取得")
+            # すでに翌日6時を過ぎているので、現在から20時まで
+            hours_to_8pm = (tomorrow_8pm - now_jst).total_seconds() / 3600
+            forecast_hours = max(int(hours_to_8pm) + 1, 1)
+            logger.info(f"最適化: 翌日20時まで{hours_to_8pm:.1f}h → {forecast_hours}時間分を取得")
         
         # データを取得
         forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
         
-        # 9,12,15,18時のデータのみをフィルタリング
-        target_hours = [9, 12, 15, 18]
+        # 翌日のデータのみをフィルタリング（全時間を保持）
         filtered_forecasts = []
         
         for forecast in forecast_collection.forecasts:
-            if (forecast.datetime.date() == target_date and 
-                forecast.datetime.hour in target_hours):
+            if forecast.datetime.date() == target_date:
                 filtered_forecasts.append(forecast)
+        
+        # 特定時刻のデータが含まれているか確認
+        target_hours = [9, 12, 15, 18]
+        found_hours = set()
+        for forecast in filtered_forecasts:
+            if forecast.datetime.hour in target_hours:
+                found_hours.add(forecast.datetime.hour)
         
         # フィルタリング結果のログ
         logger.info(
             f"最適化結果: {len(forecast_collection.forecasts)}件から{len(filtered_forecasts)}件に絞り込み "
-            f"(削減率: {(1 - len(filtered_forecasts)/len(forecast_collection.forecasts))*100:.1f}%)"
+            f"(削減率: {(1 - len(filtered_forecasts)/len(forecast_collection.forecasts))*100:.1f}%) "
+            f"- 含まれる時間: {sorted(set(f.datetime.hour for f in filtered_forecasts))}"
         )
+        
+        if len(found_hours) != len(target_hours):
+            missing_hours = set(target_hours) - found_hours
+            logger.warning(f"警告: 以下の時刻のデータが不足: {sorted(missing_hours)}")
         
         # フィルタリングしたデータを新しいコレクションとして返す
         filtered_collection = WeatherForecastCollection(
