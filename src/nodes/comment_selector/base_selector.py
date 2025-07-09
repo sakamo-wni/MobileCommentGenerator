@@ -126,7 +126,7 @@ class CommentSelector:
             
         # LLMで選択
         return self.llm_selector.llm_select_comment(
-            candidates, weather_data, location_name, target_datetime, CommentType.WEATHER_COMMENT
+            candidates, weather_data, location_name, target_datetime, CommentType.WEATHER_COMMENT, state
         )
     
     def _select_best_advice_comment(
@@ -152,7 +152,7 @@ class CommentSelector:
             
         # LLMで選択
         return self.llm_selector.llm_select_comment(
-            candidates, weather_data, location_name, target_datetime, CommentType.ADVICE
+            candidates, weather_data, location_name, target_datetime, CommentType.ADVICE, state
         )
     
     def _fallback_comment_selection(

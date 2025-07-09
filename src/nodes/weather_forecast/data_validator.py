@@ -83,12 +83,12 @@ class WeatherDataValidator:
         
         # 各予報の詳細をログ出力
         for f in forecasts:
-            logger.info(f"  {f.datetime.strftime('%H:%M')}: {f.weather_description}, 気温{f.temperature}°C, 降水量{f.precipitation}mm/h")
+            logger.info(f"  {f.datetime.strftime('%H:%M')}: {f.weather_description}, 気温{f.temperature}°C, 降水量{f.precipitation}mm/h, 天気条件: {f.weather_condition.value}")
         
-        # 1. 真の特殊気象条件（雷、霧、嵐）を最優先（雨は除く）
+        # 1. 真の特殊気象条件（雷、霧、嵐）を最優先（雨・猛暑は除く）
         extreme_conditions = [f for f in forecasts if f.weather_condition in [
             WeatherCondition.THUNDER, WeatherCondition.FOG, WeatherCondition.STORM, 
-            WeatherCondition.SEVERE_STORM, WeatherCondition.EXTREME_HEAT
+            WeatherCondition.SEVERE_STORM
         ]]
         if extreme_conditions:
             selected = max(extreme_conditions, key=lambda f: f.weather_condition.priority)
@@ -97,52 +97,36 @@ class WeatherDataValidator:
         
         # 2. 本降りの雨（>10mm/h）は猛暑日でも優先
         heavy_rain = [f for f in forecasts if f.precipitation > 10.0]
+        logger.debug(f"本降りの雨チェック: {len(heavy_rain)}件 (>10mm/h)")
         if heavy_rain:
             selected = max(heavy_rain, key=lambda f: f.precipitation)
             logger.info(f"本降りの雨を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')})")
             return selected
         
-        # 3. 猛暑日（35℃以上）の場合の処理
-        extreme_hot = [f for f in forecasts if f.temperature >= 35.0]
-        if extreme_hot:
-            # 雨の時間帯の割合を計算
-            rainy_forecasts = [f for f in forecasts if f.precipitation > 0.1]
-            rain_ratio = len(rainy_forecasts) / len(forecasts)
-            
-            # 猛暑日に雨がある場合の判定
-            light_rain_in_hot = [f for f in extreme_hot if 0.1 < f.precipitation <= 10.0]
-            
-            if light_rain_in_hot and rain_ratio <= 0.5:
-                # 雨の時間帯が半分以下（ほとんど晴れ）なら熱中症対策を優先
-                selected = max(extreme_hot, key=lambda f: f.temperature)
-                logger.info(f"猛暑日で熱中症対策を優先選択（雨は少数）: {selected.temperature}°C ({selected.datetime.strftime('%H:%M')}, 雨の割合: {rain_ratio:.1%})")
-                return selected
-            elif light_rain_in_hot and rain_ratio > 0.5:
-                # 雨の時間帯が半分以上（ずっと雨）なら雨を優先
-                selected = max(rainy_forecasts, key=lambda f: f.precipitation)
-                logger.info(f"猛暑日だが雨が多いため雨を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')}, 雨の割合: {rain_ratio:.1%})")
-                return selected
-            else:
-                # 雨がない猛暑日は最高気温の時間帯を選択
-                selected = max(extreme_hot, key=lambda f: f.temperature)
-                logger.info(f"猛暑日を優先選択: {selected.temperature}°C ({selected.datetime.strftime('%H:%M')})")
-                return selected
+        # 3. 雨天チェック（猛暑日より雨を優先）
+        rainy_forecasts = [f for f in forecasts if f.precipitation > 0]
+        logger.debug(f"一般的な雨天チェック: {len(rainy_forecasts)}件 (>0mm/h)")
+        if rainy_forecasts:
+            logger.info(f"雨天予報を検出: {len(rainy_forecasts)}件")
+            for rf in rainy_forecasts:
+                logger.info(f"  - {rf.datetime.strftime('%H:%M')}: {rf.weather_description}, 降水量{rf.precipitation}mm, 天気条件: {rf.weather_condition.value}")
+            selected = max(rainy_forecasts, key=lambda f: f.precipitation)
+            logger.info(f"雨天を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')})")
+            return selected
         
-        # 4. 悪天候を優先（降水量の多い順）
+        # 4. 猛暑日（35℃以上）の場合の処理（雨がない場合のみ）
+        extreme_hot = [f for f in forecasts if f.temperature >= 35.0]
+        logger.debug(f"猛暑日チェック: {len(extreme_hot)}件 (>=35°C)")
+        if extreme_hot:
+            selected = max(extreme_hot, key=lambda f: f.temperature)
+            logger.info(f"猛暑日を優先選択（雨なし）: {selected.temperature}°C ({selected.datetime.strftime('%H:%M')})")
+            return selected
+        
+        # 5. 悪天候を優先（降水量の多い順）
         severe_weather = [f for f in forecasts if f.is_severe_weather()]
         if severe_weather:
             selected = max(severe_weather, key=lambda f: f.precipitation)
             logger.info(f"悪天候を優先選択: {selected.weather_description} ({selected.datetime.strftime('%H:%M')})")
-            return selected
-        
-        # 5. 雨天を優先（降水量の多い順）
-        rainy_forecasts = [f for f in forecasts if f.precipitation > 0]
-        if rainy_forecasts:
-            logger.info(f"雨天予報を検出: {len(rainy_forecasts)}件")
-            for rf in rainy_forecasts:
-                logger.info(f"  - {rf.datetime.strftime('%H:%M')}: {rf.weather_description}, 降水量{rf.precipitation}mm")
-            selected = max(rainy_forecasts, key=lambda f: f.precipitation)
-            logger.info(f"雨天を優先選択: {selected.precipitation}mm/h ({selected.datetime.strftime('%H:%M')})")
             return selected
         
         # 6. 曇りを優先（晴れ以外の条件）

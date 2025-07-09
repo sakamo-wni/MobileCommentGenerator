@@ -259,18 +259,35 @@ class ForecastCache:
             entries = self._load_cache_entries(location_name, date_filter=target_datetime, days_range=7)
             
             # 指定時刻に最も近いエントリを検索
+            # 同じ時刻の複数エントリがある場合は最新のキャッシュを優先
             best_entry = None
             min_time_diff = timedelta(hours=tolerance_hours + 1)  # 許容範囲外の初期値
+            latest_cached_at = None
             
             for entry in entries:
                 time_diff = abs(entry.forecast_datetime - target_datetime)
                 if time_diff < min_time_diff:
                     min_time_diff = time_diff
                     best_entry = entry
+                    latest_cached_at = entry.cached_at
+                elif time_diff == min_time_diff and latest_cached_at and entry.cached_at > latest_cached_at:
+                    # 同じ時刻の場合は、より新しいキャッシュを優先
+                    best_entry = entry
+                    latest_cached_at = entry.cached_at
             
             # 許容範囲内かチェック
             if best_entry and min_time_diff <= timedelta(hours=tolerance_hours):
-                logger.info(f"キャッシュから予報データを取得: {location_name} at {best_entry.forecast_datetime}")
+                # 同じ時刻のエントリ数をカウント
+                same_time_entries = [e for e in entries if e.forecast_datetime == best_entry.forecast_datetime]
+                logger.info(
+                    f"キャッシュから予報データを取得: {location_name} - "
+                    f"要求時刻: {target_datetime.strftime('%Y-%m-%d %H:%M')}, "
+                    f"実際の時刻: {best_entry.forecast_datetime.strftime('%Y-%m-%d %H:%M')}, "
+                    f"時間差: {min_time_diff}, "
+                    f"降水量: {best_entry.precipitation}mm, "
+                    f"キャッシュ保存時刻: {best_entry.cached_at.strftime('%Y-%m-%d %H:%M')}, "
+                    f"同時刻エントリ数: {len(same_time_entries)}"
+                )
                 return best_entry
             
             return None

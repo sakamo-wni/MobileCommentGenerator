@@ -274,9 +274,12 @@ class ForecastProcessingService:
             
             if closest_forecast:
                 period_forecasts.append(closest_forecast)
-                logger.debug(
-                    f"Found forecast for {target_time.strftime('%H:%M')}: "
-                    f"{closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')}"
+                # デバッグ: 実際に選択された時刻と降水量を詳細に記録
+                logger.info(
+                    f"目標時刻 {target_time.strftime('%H:%M')} → "
+                    f"実際の予報時刻: {closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')}, "
+                    f"天気: {closest_forecast.weather_description}, "
+                    f"降水量: {closest_forecast.precipitation}mm"
                 )
             else:
                 logger.warning(f"No forecast found for target time {target_time.strftime('%H:%M')}")
@@ -299,6 +302,18 @@ class ForecastProcessingService:
         """
         closest_forecast = None
         min_diff = float('inf')
+        
+        # デバッグ: 利用可能な予報時刻を記録
+        available_times = []
+        for forecast in forecasts:
+            forecast_dt = forecast.datetime
+            if forecast_dt.tzinfo is None:
+                forecast_dt = self.jst.localize(forecast_dt)
+            if forecast_dt.date() == target_time.date():
+                available_times.append(forecast_dt.strftime('%H:%M'))
+        
+        if available_times:
+            logger.debug(f"目標時刻 {target_time.strftime('%H:%M')} に対して利用可能な予報時刻: {sorted(available_times)}")
         
         for forecast in forecasts:
             # forecastのdatetimeがnaiveな場合はJSTとして扱う

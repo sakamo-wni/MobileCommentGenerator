@@ -50,6 +50,11 @@ class LLMCommentSelector:
         try:
             logger.info(f"LLM選択開始: {len(candidates)}件の候補から選択中...")
             
+            # デバッグ: 候補リストの内容を確認
+            logger.info("候補リスト詳細:")
+            for i, cand in enumerate(candidates[:5]):  # 最初の5件のみ表示
+                logger.info(f"  候補{i}: {cand['comment']} (天気条件: {cand['weather_condition']})")
+            
             # LLMによる選択を実行
             selected_candidate = self._perform_llm_selection(
                 candidates, weather_data, location_name, target_datetime, comment_type, state
@@ -85,12 +90,16 @@ class LLMCommentSelector:
         # 天気情報を整形
         weather_context = self._format_weather_context(weather_data, location_name, target_datetime, state)
         
+        # デバッグ: 天気コンテキストの内容を確認
+        logger.info("天気コンテキスト内容:")
+        logger.info(weather_context)
+        
         # コメントタイプ別のプロンプトを作成
         prompt = self._create_selection_prompt(candidates_text, weather_context, comment_type)
         
         try:
             logger.info(f"LLMに選択プロンプトを送信中...")
-            logger.debug(f"プロンプト内容: {prompt[:200]}...")
+            logger.debug(f"プロンプト内容: {prompt[:500]}...")
             
             # LLMに選択を依頼
             response = self.llm_manager.generate(prompt)
@@ -182,8 +191,11 @@ class LLMCommentSelector:
         # 4時点の予報データを追加
         if state and hasattr(state, 'generation_metadata'):
             period_forecasts = state.generation_metadata.get('period_forecasts', [])
-            logger.debug(f"LLM選択用period_forecastsを取得: {len(period_forecasts) if period_forecasts else 0}件")
+            logger.info(f"LLM選択用period_forecastsを取得: {len(period_forecasts) if period_forecasts else 0}件")
             if period_forecasts:
+                logger.info("period_forecastsの詳細:")
+                for pf in period_forecasts:
+                    logger.info(f"  - {pf.datetime.strftime('%H:%M')}: {pf.weather_description}, {pf.temperature}°C, 降水量{pf.precipitation}mm")
                 context += "\n【翌日の時間帯別予報】\n"
                 has_rain_in_timeline = False
                 max_temp_in_timeline = weather_data.temperature
