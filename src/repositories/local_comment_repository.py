@@ -11,7 +11,7 @@ from datetime import datetime
 from src.repositories.base_repository import CommentRepositoryInterface
 from src.repositories.csv_file_handler import CSVFileHandler, CommentParser
 from src.repositories.comment_cache import CommentCache, SeasonalCommentFilter
-from src.data.past_comment import PastComment
+from src.data.past_comment import PastComment, CommentType
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +45,8 @@ class LocalCommentRepository(CommentRepositoryInterface):
             from src.repositories.indexed_csv_handler import IndexedCSVHandler
             from src.config.config_loader import load_config
             
-            config = load_config()
-            local_csv_config = config.get('local_csv', {})
+            config = load_config('local_csv_config', validate=False)
+            local_csv_config = config
             cache_dir = Path(local_csv_config.get('cache_directory', './cache/csv_indices'))
             self.indexed_handler = IndexedCSVHandler(cache_dir=cache_dir)
             # インデックスの事前ロード
@@ -204,26 +204,64 @@ class LocalCommentRepository(CommentRepositoryInterface):
     
     def get_comments_by_season(self, seasons: List[str], limit: int = 100) -> List[PastComment]:
         """指定された季節のコメントを取得"""
-        cached_comments = self.cache.get()
-        if cached_comments is None:
-            logger.info("Cache miss or expired, reloading comments...")
-            self.refresh_cache()
-            cached_comments = self.cache.get() or []
-        
-        # 指定された季節のコメントをフィルタ
-        seasonal_comments = SeasonalCommentFilter.filter_by_season(cached_comments, seasons)
-        
-        # カウント順でソート
-        seasonal_comments.sort(key=lambda x: x.raw_data.get('count', 0), reverse=True)
-        
-        # より多くのコメントを返す（最低1000件）
-        return_limit = max(limit, 1000)
-        
-        logger.info(f"Retrieved {len(seasonal_comments[:return_limit])} comments from seasons: {seasons}")
-        return seasonal_comments[:return_limit]
+        if self.use_index:
+            # インデックスを使用した実装
+            all_comments = []
+            
+            for season in seasons:
+                if season not in self.SEASONS:
+                    continue
+                    
+                for comment_type_str in self.COMMENT_TYPES:
+                    file_path = self._get_csv_file_path(season, comment_type_str)
+                    if not file_path.exists():
+                        continue
+                        
+                    comment_type = (CommentType.WEATHER_COMMENT 
+                                  if comment_type_str == "weather_comment" 
+                                  else CommentType.ADVICE)
+                                  
+                    # インデックスからロード
+                    comments = self.indexed_handler.load_indexed_csv(
+                        file_path, comment_type, season
+                    )
+                    all_comments.extend(comments)
+            
+            # カウント順でソート
+            all_comments.sort(key=lambda x: x.raw_data.get('count', 0), reverse=True)
+            
+            # より多くのコメントを返す（最低1000件）
+            return_limit = max(limit, 1000)
+            
+            logger.info(f"Retrieved {len(all_comments[:return_limit])} comments from seasons: {seasons} using indexed handler")
+            return all_comments[:return_limit]
+        else:
+            # 通常のキャッシュベース実装
+            cached_comments = self.cache.get()
+            if cached_comments is None:
+                logger.info("Cache miss or expired, reloading comments...")
+                self.refresh_cache()
+                cached_comments = self.cache.get() or []
+            
+            # 指定された季節のコメントをフィルタ
+            seasonal_comments = SeasonalCommentFilter.filter_by_season(cached_comments, seasons)
+            
+            # カウント順でソート
+            seasonal_comments.sort(key=lambda x: x.raw_data.get('count', 0), reverse=True)
+            
+            # より多くのコメントを返す（最低1000件）
+            return_limit = max(limit, 1000)
+            
+            logger.info(f"Retrieved {len(seasonal_comments[:return_limit])} comments from seasons: {seasons}")
+            return seasonal_comments[:return_limit]
     
     def refresh_cache(self) -> None:
         """キャッシュをリフレッシュ"""
+        if self.use_index:
+            # インデックス実装の場合はキャッシュリフレッシュ不要
+            logger.debug("Using indexed handler, cache refresh not needed")
+            return
+            
         try:
             comments = self._load_all_comments()
             self.cache.set(comments)
