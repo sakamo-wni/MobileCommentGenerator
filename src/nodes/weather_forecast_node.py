@@ -230,11 +230,12 @@ def fetch_weather_forecast_node(
         selected_forecast = forecast_processing_service.select_priority_forecast(
             period_forecasts
         )
-        logger.info(
-            f"優先度選択結果: {selected_forecast.datetime.strftime('%H:%M')} - "
-            f"{selected_forecast.weather_description}, {selected_forecast.temperature}°C, "
-            f"降水量{selected_forecast.precipitation}mm"
-        )
+        if selected_forecast:
+            logger.info(
+                f"優先度選択結果: {selected_forecast.datetime.strftime('%H:%M')} - "
+                f"{selected_forecast.weather_description}, {selected_forecast.temperature}°C, "
+                f"降水量{selected_forecast.precipitation}mm"
+            )
         
         if not selected_forecast:
             error_msg = "指定時刻の天気予報データが取得できませんでした"

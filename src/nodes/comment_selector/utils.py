@@ -135,7 +135,7 @@ class CommentUtils:
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     severe_matched.append(candidate)  # 雨天時は最優先カテゴリに入れる
                     is_prioritized = True
-                    logger.debug(f"雨天時のコメントを最優先に: '{comment.comment_text}'")
+                    logger.info(f"雨天時のコメントを最優先に: '{comment.comment_text}' (現在降水量: {weather_data.precipitation}mm, 時系列に雨: {has_rain_in_timeline})")
             
             # 2. 高温時（設定温度以上）の最優先処理（4時点の最高気温を考慮）
             if not is_prioritized and (weather_data.temperature >= EXTREME_HEAT_THRESHOLD or max_temp_in_timeline >= EXTREME_HEAT_THRESHOLD):
