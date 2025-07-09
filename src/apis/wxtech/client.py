@@ -161,6 +161,68 @@ class WxTechAPIClient:
         
         return forecast_collection
     
+    def get_forecast_for_next_day_hours_optimized(self, lat: float, lon: float) -> WeatherForecastCollection:
+        """翌日の9, 12, 15, 18時のデータを効率的に取得する最適化版
+        
+        翌日8時から19時までの12時間分のみを取得し、必要な4時刻のデータのみを返す
+        
+        Args:
+            lat: 緯度
+            lon: 経度
+            
+        Returns:
+            翌日の9, 12, 15, 18時の天気予報コレクション（4件のみ）
+            
+        Raises:
+            WxTechAPIError: API エラーが発生した場合
+        """
+        jst = pytz.timezone("Asia/Tokyo")
+        now_jst = datetime.now(jst)
+        target_date = now_jst.date() + timedelta(days=1)
+        
+        # 最小限のデータ取得: 翌日8時から19時までの12時間分のみ
+        tomorrow_8am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=8)))
+        tomorrow_7pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=19)))
+        
+        hours_to_8am = (tomorrow_8am - now_jst).total_seconds() / 3600
+        
+        # 最適な取得時間を決定
+        if hours_to_8am > 0:
+            # まだ翌日8時前なので、8時から19時までの12時間分
+            forecast_hours = int(hours_to_8am) + 12
+            logger.info(f"最適化: 翌日8時まで{hours_to_8am:.1f}h → {forecast_hours}時間分を取得")
+        else:
+            # すでに翌日8時を過ぎているので、現在から19時まで
+            hours_to_7pm = (tomorrow_7pm - now_jst).total_seconds() / 3600
+            forecast_hours = max(int(hours_to_7pm) + 1, 1)
+            logger.info(f"最適化: 翌日19時まで{hours_to_7pm:.1f}h → {forecast_hours}時間分を取得")
+        
+        # データを取得
+        forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
+        
+        # 9,12,15,18時のデータのみをフィルタリング
+        target_hours = [9, 12, 15, 18]
+        filtered_forecasts = []
+        
+        for forecast in forecast_collection.forecasts:
+            if (forecast.datetime.date() == target_date and 
+                forecast.datetime.hour in target_hours):
+                filtered_forecasts.append(forecast)
+        
+        # フィルタリング結果のログ
+        logger.info(
+            f"最適化結果: {len(forecast_collection.forecasts)}件から{len(filtered_forecasts)}件に絞り込み "
+            f"(削減率: {(1 - len(filtered_forecasts)/len(forecast_collection.forecasts))*100:.1f}%)"
+        )
+        
+        # フィルタリングしたデータを新しいコレクションとして返す
+        filtered_collection = WeatherForecastCollection(
+            location=forecast_collection.location,
+            forecasts=filtered_forecasts
+        )
+        
+        return filtered_collection
+    
     def test_specific_time_parameters(self, lat: float, lon: float) -> Dict[str, Any]:
         """特定時刻指定パラメータのテスト
         

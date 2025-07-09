@@ -59,6 +59,9 @@ class WeatherConfig:
     cache_ttl: int = field(default=DEFAULT_CACHE_TTL)
     enable_caching: bool = field(default=True)
     
+    # API最適化設定
+    use_optimized_forecast: bool = field(default=True)  # 最適化された翌日予報取得を使用
+    
     # 予報キャッシュ設定
     forecast_cache_retention_days: int = field(default=DEFAULT_FORECAST_CACHE_RETENTION_DAYS)
     
@@ -86,6 +89,7 @@ class WeatherConfig:
         self.rate_limit_delay = float(os.getenv("WEATHER_API_RATE_LIMIT_DELAY", str(self.rate_limit_delay)))
         self.cache_ttl = int(os.getenv("WEATHER_CACHE_TTL", str(self.cache_ttl)))
         self.enable_caching = os.getenv("WEATHER_ENABLE_CACHING", "true" if self.enable_caching else "false").lower() == "true"
+        self.use_optimized_forecast = os.getenv("WEATHER_USE_OPTIMIZED_FORECAST", "true" if self.use_optimized_forecast else "false").lower() == "true"
         
         # 予報キャッシュ設定
         self.forecast_cache_retention_days = int(os.getenv("FORECAST_CACHE_RETENTION_DAYS", str(self.forecast_cache_retention_days)))
@@ -143,6 +147,7 @@ class WeatherConfig:
             "rate_limit_delay": self.rate_limit_delay,
             "cache_ttl": self.cache_ttl,
             "enable_caching": self.enable_caching,
+            "use_optimized_forecast": self.use_optimized_forecast,
             "forecast_cache_retention_days": self.forecast_cache_retention_days,
             "temp_diff_threshold_previous_day": self.temp_diff_threshold_previous_day,
             "temp_diff_threshold_12hours": self.temp_diff_threshold_12hours,
