@@ -161,7 +161,7 @@ def benchmark_timer():
     return Timer()
 
 # Playwright configuration for E2E tests
-pytest_plugins = ["pytest_playwright"]
+# pytest_plugins = ["pytest_playwright"]  # Commented out - not needed for config tests
 
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
