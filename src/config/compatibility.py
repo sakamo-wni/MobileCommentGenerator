@@ -74,9 +74,11 @@ class AppConfigCompatibility:
             gemini_key = config.api.gemini_api_key
             anthropic_key = config.api.anthropic_api_key
             wxtech_key = config.api.wxtech_api_key
-            aws_access_key_id = None  # 新しい設定では未実装
-            aws_secret_access_key = None
-            aws_region = "ap-northeast-1"
+            # AWS/S3機能は現在使用されていないため、互換性のためにNoneを返す
+            # TODO: UIのsettings_panel.pyからAWS設定を削除する
+            aws_access_key_id = None  # 廃止済み
+            aws_secret_access_key = None  # 廃止済み
+            aws_region = "ap-northeast-1"  # 廃止済み
         
         return APIKeys()
 

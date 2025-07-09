@@ -4,6 +4,11 @@
 すべての設定を一元管理し、環境変数の読み込みと検証を行う
 """
 
+
+class ConfigurationError(Exception):
+    """設定エラー用のカスタム例外"""
+    pass
+
 import os
 import logging
 from dataclasses import dataclass, field
@@ -163,10 +168,12 @@ class Config:
     def _validate(self):
         """設定の検証"""
         # 必須APIキーの確認（開発環境以外）
-        if self.app.env != "development":
+        if self.app.env == "production":
+            missing_keys = []
+            
             # 本番環境では必須のAPIキーをチェック
             if not self.api.wxtech_api_key:
-                raise ValueError("WXTECH_API_KEY is required in production environment")
+                missing_keys.append("WXTECH_API_KEY")
             
             # 少なくとも1つのLLM APIキーが必要
             llm_keys = [
@@ -175,7 +182,12 @@ class Config:
                 self.api.gemini_api_key
             ]
             if not any(llm_keys):
-                raise ValueError("At least one LLM API key is required in production environment (OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY)")
+                missing_keys.append("At least one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY")
+            
+            if missing_keys:
+                raise ConfigurationError(
+                    f"Missing required configuration for production environment: {', '.join(missing_keys)}"
+                )
         
         # ディレクトリの作成
         self.app.data_dir.mkdir(parents=True, exist_ok=True)

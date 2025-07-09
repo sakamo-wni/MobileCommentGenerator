@@ -66,52 +66,21 @@ export function getLocationsByRegion(region: string): string[] {
 }
 
 /**
- * CSVファイルから地点データを読み込む（フォールバック用）
+ * 地点データを読み込む
  */
-export async function loadLocationsFromCSV(csvUrl: string = '/地点名.csv'): Promise<Location[]> {
-  try {
-    const response = await fetch(csvUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
-    }
-    const text = await response.text();
-    const lines = text.split('\n');
-    
-    const locations: Location[] = [];
-    
-    // ヘッダー行をスキップして、各行を処理
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const [name, latitude, longitude] = line.split(',');
-      if (!name) continue;
-      
-      const location: Location = {
-        id: name,
-        name: name.trim(),
-        prefecture: '',
-        region: getAreaName(name.trim()),
-        latitude: parseFloat(latitude) || 0,
-        longitude: parseFloat(longitude) || 0,
-      };
-      
-      locations.push(location);
-    }
-    
-    return locations;
-  } catch (error) {
-    console.error('Failed to load CSV:', error);
-    // フォールバック: ハードコードされた地点データを使用
-    return getAllLocationNames().map(name => ({
+export async function loadLocationsData(): Promise<Location[]> {
+  // sharedパッケージ内の地点データを使用
+  return getAllLocationNames().map(name => {
+    const locationData = getLocationData(name);
+    return {
       id: name,
       name: name,
-      prefecture: '',
-      region: getAreaName(name),
-      latitude: 0,
-      longitude: 0,
-    }));
-  }
+      prefecture: locationData?.prefecture || '',
+      region: locationData?.area || getAreaName(name),
+      latitude: locationData?.latitude || 0,
+      longitude: locationData?.longitude || 0,
+    };
+  });
 }
 
 /**
@@ -145,26 +114,18 @@ export function createLocationSelectionLogic(
     state.error = null;
     
     try {
-      // 確実に142地点を取得
-      const csvLocations = await loadLocationsFromCSV();
-      state.locations = csvLocations;
-      state.selectedLocations = csvLocations.map(loc => loc.name);
+      // sharedパッケージの地点データを使用
+      const locations = await loadLocationsData();
+      state.locations = locations;
+      state.selectedLocations = locations.map(loc => loc.name);
       
     } catch (err) {
       console.error('Failed to load locations:', err);
       state.error = '地点データの読み込みに失敗しました';
-      
-      // フォールバック: 事前定義された地点を使用
-      const fallbackLocations = getAllLocationNames().map(name => ({
-        id: name,
-        name: name,
-        prefecture: '',
-        region: getAreaName(name),
-        latitude: 0,
-        longitude: 0,
-      }));
-      state.locations = fallbackLocations;
-      state.selectedLocations = fallbackLocations.map(loc => loc.name);
+      // エラー時も同じデータソースを使用
+      const locations = await loadLocationsData();
+      state.locations = locations;
+      state.selectedLocations = locations.map(loc => loc.name);
     } finally {
       state.isLoading = false;
     }
