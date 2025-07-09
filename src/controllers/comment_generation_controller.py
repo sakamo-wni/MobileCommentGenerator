@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
 from src.config.app_config import AppConfig, get_config
@@ -112,7 +112,7 @@ class CommentGenerationController(ICommentGenerationController):
         self, 
         locations: List[str], 
         llm_provider: str,
-        progress_callback: Optional[callable] = None, 
+        progress_callback: Optional[Callable[[int, int, str], None]] = None, 
         max_workers: int = 3
     ) -> BatchGenerationResult:
         """複数地点のコメント生成（並列処理版）"""
@@ -181,7 +181,7 @@ class CommentGenerationController(ICommentGenerationController):
         
         try:
             # 進捗コールバック関数
-            def progress_callback(idx, total, location):
+            def progress_callback(idx: int, total: int, location: str) -> None:
                 self._progress_handler.update_progress(
                     progress_bar, status_text, idx, total, location,
                     results_container, all_results, view
