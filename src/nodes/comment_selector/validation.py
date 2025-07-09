@@ -44,7 +44,8 @@ class CommentValidator:
         self, 
         weather_comment: PastComment, 
         advice_comment: PastComment, 
-        weather_data: WeatherForecast
+        weather_data: WeatherForecast,
+        state: Optional[CommentGenerationState] = None
     ) -> bool:
         """コメントペアの最終バリデーション（包括的一貫性チェック含む）"""
         weather_valid, weather_reason = self.validator.validate_comment(weather_comment, weather_data)
@@ -73,7 +74,8 @@ class CommentValidator:
                 llm_valid, llm_reason = self.llm_validator.validate_comment_pair_with_llm_sync(
                     weather_comment.comment_text,
                     advice_comment.comment_text,
-                    weather_data
+                    weather_data,
+                    state
                 )
                 if not llm_valid:
                     logger.warning(f"LLM重複検証失敗: {llm_reason}")

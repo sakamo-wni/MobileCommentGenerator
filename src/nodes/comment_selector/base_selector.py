@@ -83,7 +83,7 @@ class CommentSelector:
             return None
             
         # ペア作成前の最終バリデーション
-        if not self.comment_validator.validate_comment_pair(best_weather, best_advice, weather_data):
+        if not self.comment_validator.validate_comment_pair(best_weather, best_advice, weather_data, state):
             # 重複回避のための代替選択を試行
             alternative_pair = self._select_alternative_non_duplicate_pair(
                 filtered_weather, filtered_advice, weather_data, location_name, target_datetime, state
@@ -165,7 +165,7 @@ class CommentSelector:
         logger.warning("フォールバック選択を実行")
         
         # 雨の場合の特別処理
-        if any(hw.precipitation_mm > 0 for hw in weather_data.hourly_forecasts):
+        if weather_data.precipitation > 0:
             weather_comment = self._find_rain_appropriate_weather_comment(weather_comments)
             advice_comment = self._find_rain_appropriate_advice_comment(advice_comments)
             
@@ -244,7 +244,7 @@ class CommentSelector:
                 advice_candidate = advice_candidates[advice_idx]['comment_object']
                 
                 # 包括的バリデーションチェック（新しい一貫性チェック含む）
-                if self.comment_validator.validate_comment_pair(weather_candidate, advice_candidate, weather_data):
+                if self.comment_validator.validate_comment_pair(weather_candidate, advice_candidate, weather_data, state):
                     logger.info(f"代替ペア選択成功 (試行{attempt+1}): 天気='{weather_candidate.comment_text}', アドバイス='{advice_candidate.comment_text}'")
                     return CommentPair(
                         weather_comment=weather_candidate,
