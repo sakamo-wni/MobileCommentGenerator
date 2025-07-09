@@ -17,7 +17,7 @@ import { AlertBox } from './components/AlertBox';
 import { useApi } from './hooks/useApi';
 import { useTheme } from './hooks/useTheme';
 import { useAppStore } from './stores/useAppStore';
-import { getLocationInfo } from './constants/regions';
+import { getRegionInfo } from './constants/regions';
 
 function App() {
   // Get state from Zustand store
@@ -105,7 +105,7 @@ function App() {
         for (let i = 0; i < selectedLocations.length; i++) {
           const locationName = selectedLocations[i];
           try {
-            const locationInfo = getLocationInfo(locationName);
+            const locationInfo = getRegionInfo(locationName);
             const locationObj: Location = {
               id: locationName,
               name: locationName,
@@ -190,7 +190,7 @@ function App() {
     setRegeneratingState(locationName, true);
 
     try {
-      const locationInfo = getLocationInfo(locationName);
+      const locationInfo = getRegionInfo(locationName);
       const locationObj: Location = {
         id: locationName,
         name: locationName,
