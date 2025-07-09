@@ -259,6 +259,13 @@ def fetch_weather_forecast_node(
         state.update_metadata("period_forecasts", period_forecasts)
         logger.info(f"4時点の予報データを保存: {len(period_forecasts)}件")
         
+        # デバッグ: 保存した予報データの詳細をログ出力
+        for forecast in period_forecasts:
+            logger.debug(
+                f"  - {forecast.datetime.strftime('%H:%M')}: {forecast.weather_description}, "
+                f"{forecast.temperature}°C, 降水量{forecast.precipitation}mm"
+            )
+        
         # 気象変化傾向の分析
         weather_trend = forecast_processing_service.analyze_weather_trend(period_forecasts)
         if weather_trend:

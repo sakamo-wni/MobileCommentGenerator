@@ -182,6 +182,7 @@ class LLMCommentSelector:
         # 4時点の予報データを追加
         if state and hasattr(state, 'generation_metadata'):
             period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            logger.debug(f"LLM選択用period_forecastsを取得: {len(period_forecasts) if period_forecasts else 0}件")
             if period_forecasts:
                 context += "\n【翌日の時間帯別予報】\n"
                 has_rain_in_timeline = False
@@ -205,8 +206,11 @@ class LLMCommentSelector:
                 
                 # 4時点データを考慮した追加の注意事項
                 if has_rain_in_timeline:
-                    context += "\n【重要】翌日の予報に雨が含まれています。雨に関するコメントを優先してください。\n"
-                    context += "【禁止】晴天限定のコメント（「夏空広がる」など）は選ばないでください。\n"
+                    context += "\n【最重要】翌日の予報に雨が含まれています。必ず雨に関するコメントを選択してください。\n"
+                    context += "【絶対禁止】以下のコメントは絶対に選ばないでください：\n"
+                    context += "  - 「夏空広がる」「青空」「晴天」など晴れを前提とした表現\n"
+                    context += "  - 「爽やか」「カラッと」など雨と矛盾する表現\n"
+                    context += "【必須】雨・傘・濡れる・降水などのキーワードを含むコメントを選んでください。\n"
                 
                 if max_temp_in_timeline >= 35.0:
                     context += f"\n【重要】翌日の最高気温が{max_temp_in_timeline}°Cの猛暑日です。熱中症対策を考慮してください。\n"

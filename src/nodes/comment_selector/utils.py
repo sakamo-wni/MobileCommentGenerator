@@ -105,6 +105,7 @@ class CommentUtils:
             
             if state and hasattr(state, 'generation_metadata'):
                 period_forecasts = state.generation_metadata.get('period_forecasts', [])
+                logger.debug(f"period_forecastsを取得: {len(period_forecasts)}件")
                 if period_forecasts:
                     # タプルを使用して効率的にキャッシュ
                     period_forecasts_tuple = tuple(
