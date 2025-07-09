@@ -159,12 +159,29 @@ class WeatherValidator(BaseValidator):
     def _check_rainy_weather_contradictions(self, comment_text: str, 
                                           weather_data: WeatherForecast) -> Tuple[bool, str]:
         """雨天時の矛盾をチェック"""
-        # 降水量チェック
+        # 降水量チェック（大雨に対して軽微な表現）
         if weather_data.precipitation > 5:  # 5mm/h以上の雨
             mild_expressions = ["小雨", "ぱらぱら", "ポツポツ", "少し"]
             for expr in mild_expressions:
                 if expr in comment_text:
                     return False, f"降水量{weather_data.precipitation}mm/hに対して軽微な表現: {expr}"
+        
+        # 降水量チェック（少雨に対して強い表現）
+        from src.config.weather_constants import PrecipitationThresholds
+        
+        if weather_data.precipitation < PrecipitationThresholds.HEAVY_RAIN:  # 10mm/h未満
+            # 強雨表現のチェック
+            strong_rain_expressions = ["強雨", "激しい雨", "土砂降り", "豪雨", "大雨", "どしゃ降り", "ザーザー"]
+            for expr in strong_rain_expressions:
+                if expr in comment_text:
+                    return False, f"降水量{weather_data.precipitation}mm/hに対して過度な表現: {expr}"
+        
+        if weather_data.precipitation < PrecipitationThresholds.MODERATE_RAIN:  # 5mm/h未満
+            # 中雨以上の表現も不適切
+            moderate_rain_expressions = ["本降り", "しっかりとした雨", "まとまった雨", "本格的な雨"]
+            for expr in moderate_rain_expressions:
+                if expr in comment_text:
+                    return False, f"降水量{weather_data.precipitation}mm/hに対して過度な表現: {expr}"
         
         # 風速チェック（暴風雨）
         if weather_data.wind_speed > 15:  # 15m/s以上
