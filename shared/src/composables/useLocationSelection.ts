@@ -53,9 +53,12 @@ export function getAreaName(locationName: string): string {
  */
 export function getLocationsByRegion(region: string): string[] {
   const locations: string[] = [];
-  const regionData = REGION_DATA as any;
-  if (regionData[region]) {
-    Object.values(regionData[region]).forEach((locationList: any) => {
+  // 型安全な方法でアクセス
+  if (region in REGION_DATA) {
+    const regionKey = region as keyof typeof REGION_DATA;
+    const prefectures = REGION_DATA[regionKey];
+    Object.values(prefectures).forEach((locationList) => {
+      // locationListは readonly string[] 型なので、スプレッド演算子で展開
       locations.push(...locationList);
     });
   }

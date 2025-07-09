@@ -164,8 +164,9 @@ class Config:
         """設定の検証"""
         # 必須APIキーの確認（開発環境以外）
         if self.app.env != "development":
+            # 本番環境では必須のAPIキーをチェック
             if not self.api.wxtech_api_key:
-                logger.warning("WXTECH_API_KEY is not set")
+                raise ValueError("WXTECH_API_KEY is required in production environment")
             
             # 少なくとも1つのLLM APIキーが必要
             llm_keys = [
@@ -174,7 +175,7 @@ class Config:
                 self.api.gemini_api_key
             ]
             if not any(llm_keys):
-                logger.warning("No LLM API keys are set")
+                raise ValueError("At least one LLM API key is required in production environment (OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY)")
         
         # ディレクトリの作成
         self.app.data_dir.mkdir(parents=True, exist_ok=True)
