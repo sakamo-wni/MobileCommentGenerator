@@ -17,6 +17,7 @@ from src.data.forecast_cache import save_forecast_to_cache, get_temperature_diff
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
+from src.config.weather_settings import WeatherConfig
 from src.data.weather_trend import WeatherTrend
 from src.nodes.weather_forecast.data_validator import WeatherDataValidator
 from src.nodes.weather_forecast.constants import (
@@ -121,6 +122,7 @@ class WeatherAPIService:
         self.client = WxTechAPIClient(api_key)
         self.max_retries = API_MAX_RETRIES
         self.initial_retry_delay = API_INITIAL_RETRY_DELAY
+        self.weather_config = WeatherConfig()
     
     def fetch_forecast_with_retry(
         self, 
@@ -147,7 +149,12 @@ class WeatherAPIService:
         
         for attempt in range(self.max_retries):
             try:
-                forecast_collection = self.client.get_forecast_for_next_day_hours(lat, lon)
+                # 最適化版の使用を判定
+                if self.weather_config.use_optimized_forecast:
+                    logger.info("最適化された予報取得を使用")
+                    forecast_collection = self.client.get_forecast_for_next_day_hours_optimized(lat, lon)
+                else:
+                    forecast_collection = self.client.get_forecast_for_next_day_hours(lat, lon)
                 
                 # forecast_collectionが空でないことを確認
                 if forecast_collection and forecast_collection.forecasts:
