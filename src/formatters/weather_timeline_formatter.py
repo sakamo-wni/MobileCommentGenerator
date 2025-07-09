@@ -50,8 +50,17 @@ class WeatherTimelineFormatter:
                 target_time = self.jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
                 
                 try:
+                    # デバッグ: キャッシュ取得前の情報をログ
+                    logger.info(f"キャッシュから取得中: {location_name} @ {target_time.strftime('%Y-%m-%d %H:%M')}")
                     forecast = self.cache.get_forecast_at_time(location_name, target_time)
                     if forecast:
+                        # デバッグ: キャッシュから取得したデータの詳細
+                        logger.info(
+                            f"キャッシュデータ詳細 - 実際の時刻: {forecast.forecast_datetime.strftime('%Y-%m-%d %H:%M')}, "
+                            f"天気: {forecast.weather_description}, "
+                            f"降水量: {forecast.precipitation}mm, "
+                            f"キャッシュ保存時刻: {forecast.cached_at.strftime('%Y-%m-%d %H:%M')}"
+                        )
                         timeline_data["future_forecasts"].append({
                             "time": target_time.strftime("%m/%d %H:%M"),
                             "label": f"{hour:02d}:00",

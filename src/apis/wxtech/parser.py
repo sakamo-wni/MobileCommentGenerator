@@ -91,6 +91,19 @@ def parse_single_forecast(
         # 日別予報の場合は最高気温を使用
         temperature = float(data.get("maxtemp", data.get("temp", 0)))
     
+    # 降水量の取得とデバッグ
+    precipitation_value = data.get("prec", 0)
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # 常にログを出力（降水量0も含む）
+    if forecast_datetime.hour in [9, 12, 15, 18]:
+        logger.info(
+            f"APIレスポンス解析: {forecast_datetime.strftime('%Y-%m-%d %H:%M')} - "
+            f"降水量: {precipitation_value}mm, 天気: {weather_description}, "
+            f"天気コード: {weather_code}"
+        )
+    
     return WeatherForecast(
         location=location_name,
         datetime=forecast_datetime,
@@ -98,7 +111,7 @@ def parse_single_forecast(
         weather_code=weather_code,
         weather_condition=weather_condition,
         weather_description=weather_description,
-        precipitation=float(data.get("prec", 0)),
+        precipitation=float(precipitation_value),
         humidity=float(data.get("rhum", 0)),
         wind_speed=float(data.get("wndspd", 0)),
         wind_direction=wind_direction,

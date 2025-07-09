@@ -225,11 +225,17 @@ def fetch_weather_forecast_node(
             state.add_error(error_msg, "weather_forecast")
             raise ValueError(error_msg)
         
-        # ターゲット時刻に最も近い予報を選択
-        selected_forecast = forecast_processing_service.select_forecast_by_time(
-            period_forecasts, 
-            target_datetime
+        # 優先度に基づいて予報を選択（雨・猛暑日を優先）
+        logger.info("優先度ベースの予報選択を開始")
+        selected_forecast = forecast_processing_service.select_priority_forecast(
+            period_forecasts
         )
+        if selected_forecast:
+            logger.info(
+                f"優先度選択結果: {selected_forecast.datetime.strftime('%H:%M')} - "
+                f"{selected_forecast.weather_description}, {selected_forecast.temperature}°C, "
+                f"降水量{selected_forecast.precipitation}mm"
+            )
         
         if not selected_forecast:
             error_msg = "指定時刻の天気予報データが取得できませんでした"
@@ -258,6 +264,13 @@ def fetch_weather_forecast_node(
         # 4時点の予報データをstateに保存（コメント選択時に使用）
         state.update_metadata("period_forecasts", period_forecasts)
         logger.info(f"4時点の予報データを保存: {len(period_forecasts)}件")
+        
+        # デバッグ: 保存した予報データの詳細をログ出力
+        for forecast in period_forecasts:
+            logger.info(
+                f"  - {forecast.datetime.strftime('%H:%M')}: {forecast.weather_description}, "
+                f"{forecast.temperature}°C, 降水量{forecast.precipitation}mm"
+            )
         
         # 気象変化傾向の分析
         weather_trend = forecast_processing_service.analyze_weather_trend(period_forecasts)

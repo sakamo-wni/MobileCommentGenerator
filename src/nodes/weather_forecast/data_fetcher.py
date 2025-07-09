@@ -11,6 +11,7 @@ from typing import Optional, Tuple, Union
 import pytz
 
 from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
+from src.config.weather_settings import WeatherConfig
 from src.data.location_manager import Location, LocationManager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection
 
@@ -28,6 +29,7 @@ class WeatherDataFetcher:
         """
         self.api_key = api_key
         self.location_manager = LocationManager()
+        self.weather_config = WeatherConfig()
     
     async def fetch_weather_data(
         self,
@@ -55,16 +57,27 @@ class WeatherDataFetcher:
                             raise ValueError(f"地点「{location}」が見つかりません")
                     
                     # 翌日9, 12, 15, 18時JSTのみ取得
-                    return client.get_forecast_for_next_day_hours(
-                        location_obj.latitude,
-                        location_obj.longitude
-                    )
+                    if self.weather_config.use_optimized_forecast:
+                        logger.info("最適化された予報取得を使用")
+                        return client.get_forecast_for_next_day_hours_optimized(
+                            location_obj.latitude,
+                            location_obj.longitude
+                        )
+                    else:
+                        return client.get_forecast_for_next_day_hours(
+                            location_obj.latitude,
+                            location_obj.longitude
+                        )
                 
                 if isinstance(location, tuple) and len(location) == 2:
                     # 緯度経度から直接取得
                     lat, lon = location
                     # 翌日9, 12, 15, 18時JSTのみ取得
-                    return client.get_forecast_for_next_day_hours(lat, lon)
+                    if self.weather_config.use_optimized_forecast:
+                        logger.info("最適化された予報取得を使用")
+                        return client.get_forecast_for_next_day_hours_optimized(lat, lon)
+                    else:
+                        return client.get_forecast_for_next_day_hours(lat, lon)
                 
                 raise ValueError("無効な地点情報です")
                 
@@ -129,7 +142,11 @@ class WeatherDataFetcher:
         with WxTechAPIClient(self.api_key) as client:
             # 天気予報の取得（翌日9, 12, 15, 18時JSTのみ）
             try:
-                forecast_collection = client.get_forecast_for_next_day_hours(lat, lon)
+                if self.weather_config.use_optimized_forecast:
+                    logger.info("最適化された予報取得を使用")
+                    forecast_collection = client.get_forecast_for_next_day_hours_optimized(lat, lon)
+                else:
+                    forecast_collection = client.get_forecast_for_next_day_hours(lat, lon)
                 return forecast_collection, location
             except WxTechAPIError as e:
                 # エラータイプに基づいて適切なエラーメッセージを設定

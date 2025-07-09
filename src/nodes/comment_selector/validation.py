@@ -2,8 +2,10 @@
 
 import logging
 import re
+import os
 from pathlib import Path
 from typing import Optional, Tuple, List
+from dotenv import load_dotenv
 
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
@@ -12,6 +14,7 @@ from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
 from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
+from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +25,20 @@ class CommentValidator:
     def __init__(self, validator: WeatherCommentValidator, severe_config):
         self.validator = validator
         self.severe_config = severe_config
+        # LLMバリデータの初期化（APIキーが利用可能な場合のみ）
+        self.llm_validator = None
+        # 環境変数を再読み込み
+        load_dotenv(override=True)
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        logger.info(f"APIキー検索: GEMINI_API_KEY={'*' * 10 if os.getenv('GEMINI_API_KEY') else 'None'}, GOOGLE_API_KEY={'*' * 10 if os.getenv('GOOGLE_API_KEY') else 'None'}")
+        if api_key:
+            try:
+                self.llm_validator = LLMDuplicationValidator(api_key)
+                logger.info("LLM重複検証バリデータを初期化しました")
+            except Exception as e:
+                logger.warning(f"LLMバリデータの初期化に失敗: {e}")
+        else:
+            logger.warning("APIキーが設定されていないため、LLM重複検証は無効です")
     
     def validate_comment_pair(
         self, 
@@ -49,6 +66,23 @@ class CommentValidator:
             logger.warning(f"  天気コメント: '{weather_comment.comment_text}'")
             logger.warning(f"  アドバイス: '{advice_comment.comment_text}'")
             return False
+        
+        # LLMによる動的重複チェック（利用可能な場合）
+        if self.llm_validator:
+            try:
+                llm_valid, llm_reason = self.llm_validator.validate_comment_pair_with_llm_sync(
+                    weather_comment.comment_text,
+                    advice_comment.comment_text,
+                    weather_data
+                )
+                if not llm_valid:
+                    logger.warning(f"LLM重複検証失敗: {llm_reason}")
+                    logger.warning(f"  天気コメント: '{weather_comment.comment_text}'")
+                    logger.warning(f"  アドバイス: '{advice_comment.comment_text}'")
+                    return False
+            except Exception as e:
+                logger.error(f"LLM検証中のエラー: {e}")
+                # エラーの場合は続行（安全側に倒す）
         
         # 従来の重複チェック（後方互換）
         if self._is_duplicate_content(weather_comment.comment_text, advice_comment.comment_text):

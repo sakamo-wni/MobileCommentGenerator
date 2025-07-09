@@ -177,6 +177,12 @@ class ConsistencyValidator(BaseValidator):
             # 同じ状況説明の重複
             (["雨が降りそう", "雨の予感", "降雨の可能性"], ["雨が降りそう", "雨の予感", "降雨の可能性"]),
             (["暑くなりそう", "気温上昇", "暖かくなる"], ["暑くなりそう", "気温上昇", "暖かくなる"]),
+            # 気温差の重複表現
+            (["気温差大", "気温差に注意", "寒暖差大", "寒暖差に注意", "温度差大"], 
+             ["気温差に注意", "寒暖差に注意", "温度差に注意", "朝晩と昼間の気温差", "朝と夜の気温差"]),
+            # 時間帯と気温の重複
+            (["朝晩", "朝夜", "朝と夜", "朝晩の"], ["朝晩", "朝夜", "朝と夜", "朝晩の"]),
+            (["昼間の暑さ", "日中の暑さ", "昼の暑さ"], ["昼間の暑さ", "日中の暑さ", "昼の暑さ"]),
         ]
         
         for weather_patterns, advice_patterns in special_duplication_patterns:
@@ -334,7 +340,7 @@ class ConsistencyValidator(BaseValidator):
         # 一般的な温度矛盾（時間帯を明示しない場合）
         general_contradictions = [
             {
-                "pattern1": ["涼しい", "涼やか", "爽やか", "さわやか"],
+                "pattern1": ["涼しい", "涼やか", "爽やか", "さわやか", "過ごしやすい"],
                 "pattern2": ["蒸し暑い", "ムシムシ", "じめじめ", "ジメジメ"]
             },
             {
@@ -357,6 +363,45 @@ class ConsistencyValidator(BaseValidator):
     def _is_duplicate_content(self, weather_text: str, advice_text: str) -> bool:
         """天気コメントとアドバイスの重複をチェック"""
         # 基本的な重複パターンをチェック
+        
+        # 0. 事前チェック：同じことを繰り返すパターン
+        # "朝昼の気温差大　朝晩と昼間の気温差に注意"のようなパターンを検出
+        repetitive_patterns = [
+            {
+                "concept": "気温差",
+                "expressions": ["気温差大", "寒暖差大", "温度差大", "朝昼の気温差", 
+                              "朝晩と昼間の気温差", "朝と夜の気温差", "日中と朝晩の気温差",
+                              "気温差に注意", "寒暖差に注意", "温度差に注意"]
+            },
+            {
+                "concept": "雨注意",
+                "expressions": ["雨が降りやすく", "急な雨に注意", "雨に注意", "雨具を持参",
+                              "傘を持参", "傘が必要", "傘を忘れずに", "雨対策を"]
+            },
+            {
+                "concept": "暑さ注意",
+                "expressions": ["暑さに注意", "熱中症に注意", "暑さ対策", "暑さを避け",
+                              "暑さが心配", "暑さに警戒", "熱中症対策", "暑さに備え"]
+            },
+            {
+                "concept": "日差し注意",
+                "expressions": ["日差しに注意", "紫外線対策", "UV対策", "日焼け対策",
+                              "日差しが強い", "紫外線が強い", "日差しを避け"]
+            }
+        ]
+        
+        for pattern in repetitive_patterns:
+            concept = pattern["concept"]
+            expressions = pattern["expressions"]
+            
+            # 両方のテキストに同じ概念の異なる表現が含まれているかチェック
+            weather_expressions = [expr for expr in expressions if expr in weather_text]
+            advice_expressions = [expr for expr in expressions if expr in advice_text]
+            
+            if weather_expressions and advice_expressions:
+                # 同じ概念を異なる表現で繰り返している
+                logger.debug(f"同一概念の繰り返し検出 [{concept}]: 天気={weather_expressions}, アドバイス={advice_expressions}")
+                return True
         
         # 1. 完全一致・ほぼ完全一致
         if weather_text == advice_text:
@@ -383,7 +428,8 @@ class ConsistencyValidator(BaseValidator):
         duplicate_keywords = [
             "にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑",
             "注意", "警戒", "対策", "気をつけ", "備え", "準備",
-            "傘"  # 傘関連の重複を防ぐ
+            "傘",  # 傘関連の重複を防ぐ
+            "気温差", "寒暖差", "温度差"  # 気温差関連の重複を防ぐ
         ]
         
         weather_keywords = []
@@ -443,6 +489,9 @@ class ConsistencyValidator(BaseValidator):
             # 傘関連の類似表現を追加
             (["傘が必須", "傘を忘れずに", "傘をお忘れなく"], ["傘", "必要", "お守り", "安心"]),
             (["傘がお守り", "傘が安心"], ["傘", "必要", "必須", "忘れずに"]),
+            # 気温差関連の類似表現
+            (["気温差大", "寒暖差大", "朝昼の気温差", "朝晩と昼間の気温差"], 
+             ["気温差", "寒暖差", "温度差", "朝晩", "昼間", "注意"]),
         ]
         
         for weather_patterns, advice_patterns in similarity_patterns:

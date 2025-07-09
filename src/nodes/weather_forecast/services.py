@@ -17,6 +17,7 @@ from src.data.forecast_cache import save_forecast_to_cache, get_temperature_diff
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
+from src.config.weather_settings import WeatherConfig
 from src.data.weather_trend import WeatherTrend
 from src.nodes.weather_forecast.data_validator import WeatherDataValidator
 from src.nodes.weather_forecast.constants import (
@@ -121,6 +122,7 @@ class WeatherAPIService:
         self.client = WxTechAPIClient(api_key)
         self.max_retries = API_MAX_RETRIES
         self.initial_retry_delay = API_INITIAL_RETRY_DELAY
+        self.weather_config = WeatherConfig()
     
     def fetch_forecast_with_retry(
         self, 
@@ -147,7 +149,12 @@ class WeatherAPIService:
         
         for attempt in range(self.max_retries):
             try:
-                forecast_collection = self.client.get_forecast_for_next_day_hours(lat, lon)
+                # 最適化版の使用を判定
+                if self.weather_config.use_optimized_forecast:
+                    logger.info("最適化された予報取得を使用")
+                    forecast_collection = self.client.get_forecast_for_next_day_hours_optimized(lat, lon)
+                else:
+                    forecast_collection = self.client.get_forecast_for_next_day_hours(lat, lon)
                 
                 # forecast_collectionが空でないことを確認
                 if forecast_collection and forecast_collection.forecasts:
@@ -267,9 +274,12 @@ class ForecastProcessingService:
             
             if closest_forecast:
                 period_forecasts.append(closest_forecast)
-                logger.debug(
-                    f"Found forecast for {target_time.strftime('%H:%M')}: "
-                    f"{closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')}"
+                # デバッグ: 実際に選択された時刻と降水量を詳細に記録
+                logger.info(
+                    f"目標時刻 {target_time.strftime('%H:%M')} → "
+                    f"実際の予報時刻: {closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')}, "
+                    f"天気: {closest_forecast.weather_description}, "
+                    f"降水量: {closest_forecast.precipitation}mm"
                 )
             else:
                 logger.warning(f"No forecast found for target time {target_time.strftime('%H:%M')}")
@@ -292,6 +302,18 @@ class ForecastProcessingService:
         """
         closest_forecast = None
         min_diff = float('inf')
+        
+        # デバッグ: 利用可能な予報時刻を記録
+        available_times = []
+        for forecast in forecasts:
+            forecast_dt = forecast.datetime
+            if forecast_dt.tzinfo is None:
+                forecast_dt = self.jst.localize(forecast_dt)
+            if forecast_dt.date() == target_time.date():
+                available_times.append(forecast_dt.strftime('%H:%M'))
+        
+        if available_times:
+            logger.debug(f"目標時刻 {target_time.strftime('%H:%M')} に対して利用可能な予報時刻: {sorted(available_times)}")
         
         for forecast in forecasts:
             # forecastのdatetimeがnaiveな場合はJSTとして扱う
@@ -344,6 +366,20 @@ class ForecastProcessingService:
             選択された予報
         """
         return self.validator.select_forecast_by_time(forecasts, target_datetime)
+    
+    def select_priority_forecast(
+        self, 
+        forecasts: List[WeatherForecast]
+    ) -> Optional[WeatherForecast]:
+        """優先度に基づいて予報を選択（雨・猛暑日を優先）
+        
+        Args:
+            forecasts: 予報リスト（9, 12, 15, 18時）
+            
+        Returns:
+            優先度に基づいて選択された予報
+        """
+        return self.validator.select_priority_forecast(forecasts)
 
 
 class CacheService:
