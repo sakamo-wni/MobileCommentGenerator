@@ -1,4 +1,9 @@
-"""進捗管理モジュール"""
+"""進捗管理モジュール
+
+注: 現在はStreamlitに依存した実装となっていますが、
+将来的な拡張性のため、ui_interfaces.pyにUIフレームワーク非依存の
+インターフェースを定義しています。
+"""
 
 import asyncio
 from typing import List, Callable, Optional, TYPE_CHECKING

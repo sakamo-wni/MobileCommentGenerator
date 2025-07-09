@@ -18,6 +18,20 @@ class BatchProcessor:
     def __init__(self, progress_handler: ProgressHandler):
         self._progress_handler = progress_handler
     
+    def _create_error_response(self, error: Exception) -> BatchGenerationResult:
+        """エラーレスポンスを作成（共通エラーハンドリング）"""
+        error_response = ErrorHandler.handle_error(error)
+        return {
+            'success': False,
+            'error': error_response.error_message,
+            'final_comment': None,
+            'hint': error_response.hint,
+            'total_locations': 0,
+            'success_count': 0,
+            'results': [],
+            'errors': [error_response.error_message]
+        }
+    
     async def process_batch_async(
         self,
         locations: List[str],
@@ -63,13 +77,7 @@ class BatchProcessor:
             return self._progress_handler.aggregate_results(all_results, locations)
             
         except Exception as e:
-            error_response = ErrorHandler.handle_error(e)
-            return {
-                'success': False,
-                'error': error_response.error_message,
-                'final_comment': None,
-                'hint': error_response.hint
-            }
+            return self._create_error_response(e)
     
     async def _process_single_location_with_callback(
         self,
@@ -147,11 +155,4 @@ class BatchProcessor:
             return self._progress_handler.aggregate_results(all_results, locations)
             
         except Exception as e:
-            # 統一されたエラーハンドリング
-            error_response = ErrorHandler.handle_error(e)
-            return {
-                'success': False,
-                'error': error_response.error_message,
-                'final_comment': None,
-                'hint': error_response.hint
-            }
+            return self._create_error_response(e)
