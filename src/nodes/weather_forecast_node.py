@@ -1,5 +1,5 @@
 """
-天気予報統合ノード（リファクタリング版）
+天気予報統合ノード
 
 LangGraphノードとして天気予報データの取得・処理を行う
 巨大な関数を責務ごとのサービスに分割
@@ -113,7 +113,7 @@ def fetch_weather_forecast_node(
     state,
     service_factory: Optional[WeatherForecastServiceFactory] = None
 ):
-    """ワークフロー用の天気予報取得ノード関数（リファクタリング版）
+    """ワークフロー用の天気予報取得ノード関数
 
     巨大な関数を責務ごとのサービスに分割して実装
 

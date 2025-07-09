@@ -1,4 +1,4 @@
-"""コメント生成コントローラー（リファクタリング版）"""
+"""コメント生成コントローラー"""
 
 import asyncio
 import logging
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class CommentGenerationController(ICommentGenerationController):
-    """コメント生成のビジネスロジックを管理するコントローラー（リファクタリング版）"""
+    """コメント生成のビジネスロジックを管理するコントローラー"""
     
     def __init__(self, config: Optional[AppConfig] = None):
         self._config = config or get_config()
