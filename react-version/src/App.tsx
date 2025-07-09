@@ -64,12 +64,12 @@ function App() {
       if (isBatchMode) {
         // Batch generation
         // Initialize all locations with pending state
-        const initialResults: BatchResult[] = selectedLocations.map((locationName, index) => ({
+        const initialResults = selectedLocations.map((locationName, index) => ({
           success: false,
           location: locationName,
-          error: '生成中...',
+          loading: true,
           id: `${locationName}-${Date.now()}-${index}`
-        } as BatchResult & { id: string }));
+        }));
         setBatchResults(initialResults);
 
         // Process each location
@@ -96,6 +96,7 @@ function App() {
                 metadata: result.metadata,
                 weather: result.weather,
                 adviceComment: result.adviceComment,
+                loading: false,
                 id: newResults[i].id // Keep the same ID
               } as BatchResult & { id: string };
               return newResults;
@@ -108,6 +109,7 @@ function App() {
                 success: false,
                 location: locationName,
                 error: error instanceof Error ? error.message : 'コメント生成に失敗しました',
+                loading: false,
                 id: newResults[i].id // Keep the same ID
               } as BatchResult & { id: string };
               return newResults;
