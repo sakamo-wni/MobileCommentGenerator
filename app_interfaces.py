@@ -2,7 +2,11 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from streamlit.delta_generator import DeltaGenerator
+    from src.config.app_config import AppConfig
 
 from src.types import BatchGenerationResult, LocationResult
 
@@ -12,13 +16,13 @@ class ICommentGenerationController(ABC):
 
     @property
     @abstractmethod
-    def generation_history(self) -> list[dict[str, Any]]:
+    def generation_history(self) -> list[dict[str, str | int | float | bool]]:
         """生成履歴を取得"""
         pass
 
     @property
     @abstractmethod
-    def config(self) -> Any:
+    def config(self) -> "AppConfig":
         """設定を取得"""
         pass
 
@@ -33,7 +37,7 @@ class ICommentGenerationController(ABC):
         pass
 
     @abstractmethod
-    def validate_configuration(self) -> dict[str, Any]:
+    def validate_configuration(self) -> dict[str, bool | str]:
         """設定の検証"""
         pass
 
@@ -70,7 +74,7 @@ class ICommentGenerationController(ABC):
         pass
 
     @abstractmethod
-    def extract_weather_metadata(self, result: LocationResult) -> dict[str, Any]:
+    def extract_weather_metadata(self, result: LocationResult) -> dict[str, str | float | None]:
         """天気メタデータの抽出
 
         Args:
@@ -110,7 +114,7 @@ class ICommentGenerationView(ABC):
     """コメント生成ビューのインターフェース"""
 
     @abstractmethod
-    def create_progress_ui(self) -> tuple[Any, Any]:
+    def create_progress_ui(self) -> tuple["DeltaGenerator", "DeltaGenerator"]:
         """プログレスUIの作成
 
         Returns:
@@ -119,7 +123,7 @@ class ICommentGenerationView(ABC):
         pass
 
     @abstractmethod
-    def update_progress(self, progress_bar: Any, status_text: Any, idx: int, total: int, location: str) -> None:
+    def update_progress(self, progress_bar: "DeltaGenerator", status_text: "DeltaGenerator", idx: int, total: int, location: str) -> None:
         """プログレスの更新
 
         Args:
@@ -132,7 +136,7 @@ class ICommentGenerationView(ABC):
         pass
 
     @abstractmethod
-    def complete_progress(self, progress_bar: Any, status_text: Any, success_count: int, total: int) -> None:
+    def complete_progress(self, progress_bar: "DeltaGenerator", status_text: "DeltaGenerator", success_count: int, total: int) -> None:
         """プログレスの完了処理
 
         Args:
@@ -144,7 +148,7 @@ class ICommentGenerationView(ABC):
         pass
 
     @abstractmethod
-    def display_single_result(self, result: LocationResult, metadata: dict[str, Any]) -> None:
+    def display_single_result(self, result: LocationResult, metadata: dict[str, str | float | None]) -> None:
         """単一結果の表示
 
         Args:
