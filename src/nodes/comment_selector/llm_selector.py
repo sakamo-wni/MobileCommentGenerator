@@ -52,7 +52,7 @@ class LLMCommentSelector:
             
             # LLMによる選択を実行
             selected_candidate = self._perform_llm_selection(
-                candidates, weather_data, location_name, target_datetime, comment_type
+                candidates, weather_data, location_name, target_datetime, comment_type, state
             )
             
             if selected_candidate:
@@ -75,14 +75,15 @@ class LLMCommentSelector:
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
-        comment_type: CommentType
+        comment_type: CommentType,
+        state: Optional[CommentGenerationState] = None
     ) -> Optional[Dict[str, Any]]:
         """LLMによる実際の選択処理"""
         # 候補リストを文字列として整形
         candidates_text = self._format_candidates_for_llm(candidates)
         
         # 天気情報を整形
-        weather_context = self._format_weather_context(weather_data, location_name, target_datetime)
+        weather_context = self._format_weather_context(weather_data, location_name, target_datetime, state)
         
         # コメントタイプ別のプロンプトを作成
         prompt = self._create_selection_prompt(candidates_text, weather_context, comment_type)
@@ -121,7 +122,7 @@ class LLMCommentSelector:
             )
         return "\n".join(formatted_candidates)
     
-    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime) -> str:
+    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime, state: Optional[CommentGenerationState] = None) -> str:
         """天気情報をLLM用に整形（時系列分析を含む）"""
         
         # 基本天気情報
@@ -178,6 +179,38 @@ class LLMCommentSelector:
         if weather_data.temperature >= 35.0:
             context += "\n【最重要】猛暑日のため、熱中症対策に関するコメントを最優先で選択してください\n"
         
+        # 4時点の予報データを追加
+        if state and hasattr(state, 'generation_metadata'):
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            if period_forecasts:
+                context += "\n【翌日の時間帯別予報】\n"
+                has_rain_in_timeline = False
+                max_temp_in_timeline = weather_data.temperature
+                
+                for forecast in period_forecasts:
+                    if hasattr(forecast, 'datetime') and hasattr(forecast, 'weather_description'):
+                        time_str = forecast.datetime.strftime('%H:%M')
+                        temp = getattr(forecast, 'temperature', 0)
+                        precip = getattr(forecast, 'precipitation', 0)
+                        desc = getattr(forecast, 'weather_description', '')
+                        
+                        context += f"- {time_str}: {desc}, {temp}°C"
+                        if precip > 0:
+                            context += f", 降水量{precip}mm"
+                            has_rain_in_timeline = True
+                        context += "\n"
+                        
+                        if temp > max_temp_in_timeline:
+                            max_temp_in_timeline = temp
+                
+                # 4時点データを考慮した追加の注意事項
+                if has_rain_in_timeline:
+                    context += "\n【重要】翌日の予報に雨が含まれています。雨に関するコメントを優先してください。\n"
+                    context += "【禁止】晴天限定のコメント（「夏空広がる」など）は選ばないでください。\n"
+                
+                if max_temp_in_timeline >= 35.0:
+                    context += f"\n【重要】翌日の最高気温が{max_temp_in_timeline}°Cの猛暑日です。熱中症対策を考慮してください。\n"
+        
         return context
     
     def _create_selection_prompt(self, candidates_text: str, weather_context: str, comment_type: CommentType) -> str:
@@ -230,9 +263,9 @@ class LLMCommentSelector:
 {candidates_text}
 
 選択基準（重要度順）:
-1. 【最優先】降水がある場合は雨関連のコメント、35℃以上の場合は熱中症対策のコメント
-2. 現在の天気・気温に最も適している
-3. 天気の安定性や変化パターンに合致している
+1. 【最優先】翌日の予報のいずれかの時間帯で降水がある場合は雨関連のコメント、いずれかの時間帯で35℃以上の場合は熱中症対策のコメント
+2. 現在の天気だけでなく、翌日の9時・12時・15時・18時の予報全体を考慮
+3. 天気の安定性や変化パターンに合致している（雨が予報されている場合は「晴天」「夏空」などの表現は不適切）
 4. 時系列変化（12時間前後）を考慮した適切性
 5. 地域特性（北海道の寒さ、沖縄の暑さなど）
 6. 季節感が適切（月に応じた適切な表現）
