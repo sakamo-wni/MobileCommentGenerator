@@ -19,112 +19,46 @@
 
       <!-- Main content -->
       <template v-else>
-        <!-- Region Selection -->
-        <div class="region-selection">
-          <label for="region-select">地方選択:</label>
-          <div class="custom-dropdown">
-            <select 
-              id="region-select"
-              v-model="selectedRegion"
-              @change="handleRegionChange"
-              class="region-select"
-            >
-              <option value="">すべての地方</option>
-              <option v-for="region in regions" :key="region" :value="region">
-                {{ region }}
-              </option>
-            </select>
-            <div class="dropdown-arrow">▼</div>
-          </div>
-        </div>
-
-        <!-- Select All Controls -->
-        <div class="select-all-section">
-          <div class="select-all-controls">
-            <button 
-              @click="selectAllLocations" 
-              class="control-btn select-all-btn"
-              :disabled="filteredLocations.length === 0"
-            >
-              すべて選択
-            </button>
-            <button 
-              @click="clearAllSelections" 
-              class="control-btn clear-all-btn"
-              :disabled="selectedLocations.length === 0"
-            >
-              すべてクリア
-            </button>
-            <button 
-              @click="selectRegionLocations" 
-              class="control-btn region-btn"
-              :disabled="!selectedRegion || getRegionLocations().length === 0"
-            >
-              {{ selectedRegion || '地方' }}を選択
-            </button>
-          </div>
-          <div class="selection-info">
-            <span class="selection-count">{{ selectedLocations.length }}地点選択中</span>
-            <span class="total-count">/ {{ filteredLocations.length }}地点</span>
-          </div>
-        </div>
+        <LocationSelectionControls
+          :regions="regions"
+          :selected-region="selectedRegion"
+          :selected-count="selectedLocations.length"
+          :filtered-count="locationLogic.getFilteredLocations().length"
+          :region-location-count="getRegionLocations().length"
+          @region-change="selectedRegion = $event; handleRegionChange()"
+          @select-all="selectAllLocations"
+          @clear-all="clearAllSelections"
+          @select-region="selectRegionLocations"
+        />
 
         <!-- Location Grid -->
-        <div class="location-grid">
-          <div 
-            v-for="location in filteredLocations" 
-            :key="location.name"
-            class="location-item"
-            :class="{ selected: selectedLocations.includes(location.name) }"
-            @click="toggleLocation(location.name)"
-          >
-            <div class="location-checkbox">
-              <input 
-                type="checkbox" 
-                :checked="selectedLocations.includes(location.name)"
-                @click.stop
-                readonly
-              />
-            </div>
-            <div class="location-details">
-              <span class="location-name">{{ location.name }}</span>
-              <span class="location-region">{{ location.region || getAreaName(location.name) }}</span>
-            </div>
-          </div>
-        </div>
+        <LocationSelectionGrid
+          :locations="locationLogic.getFilteredLocations()"
+          :selected-locations="selectedLocations"
+          @toggle="toggleLocation"
+        />
 
         <!-- Selected Locations Summary -->
-        <div class="selected-summary" v-if="selectedLocations.length > 0">
-          <h4>選択済み地点 ({{ selectedLocations.length }})</h4>
-          <div class="selected-tags">
-            <span 
-              v-for="location in selectedLocations.slice(0, 10)" 
-              :key="location"
-              class="location-tag"
-              @click="toggleLocation(location)"
-            >
-              {{ location }}
-              <span class="remove-tag">×</span>
-            </span>
-            <span v-if="selectedLocations.length > 10" class="more-locations">
-              他{{ selectedLocations.length - 10 }}地点...
-            </span>
-          </div>
-        </div>
+        <LocationSelectionSummary
+          :selected-locations="selectedLocations"
+          @remove="toggleLocation"
+        />
       </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, reactive, toRefs, watch } from 'vue'
+import { reactive, toRefs, watch, onMounted, onUnmounted } from 'vue'
 import { useApi } from '~/composables/useApi'
-import type { Location } from '~/types'
 import { 
   createLocationSelectionLogic, 
   REGIONS,
   getAreaName 
 } from '@mobile-comment-generator/shared/composables'
+import LocationSelectionControls from './LocationSelectionControls.vue'
+import LocationSelectionGrid from './LocationSelectionGrid.vue'
+import LocationSelectionSummary from './LocationSelectionSummary.vue'
 
 // Props
 interface Props {
@@ -172,22 +106,18 @@ const {
   selectedRegion
 } = toRefs(locationLogic)
 
-// Local state
-const regions = ref(REGIONS)
-
 // Computed
-const locations = computed(() => {
-  return allLocations.value.map(loc => loc.name)
-})
-
-const filteredLocations = computed(() => {
-  return locationLogic.getFilteredLocations()
-})
+const regions = REGIONS
 
 // Methods wrapper
 const loadLocations = async () => {
-  await locationLogic.loadLocations()
-  emitLocationChanges()
+  try {
+    await locationLogic.loadLocations()
+    emitLocationChanges()
+  } catch (error) {
+    // エラーはlocationLogic内で処理されるが、追加の保護として
+    console.error('Failed to load locations:', error)
+  }
 }
 
 const toggleLocation = (location: string) => {
