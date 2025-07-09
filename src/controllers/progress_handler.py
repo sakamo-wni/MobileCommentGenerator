@@ -1,10 +1,14 @@
 """進捗管理モジュール"""
 
 import asyncio
-from typing import List, Callable, Optional, Any
+from typing import List, Callable, Optional, TYPE_CHECKING
 from concurrent.futures import Future
 
 import streamlit as st
+
+if TYPE_CHECKING:
+    from streamlit.delta_generator import DeltaGenerator
+    from app_interfaces import ICommentGenerationView
 from src.types import LocationResult, BatchGenerationResult
 from src.utils.error_handler import ErrorHandler
 from src.controllers.metadata_extractor import MetadataExtractor
@@ -37,14 +41,14 @@ class ProgressHandler:
     
     def update_progress(
         self,
-        progress_bar: Any,
-        status_text: Any,
+        progress_bar: "DeltaGenerator",
+        status_text: "DeltaGenerator",
         idx: int,
         total: int,
         location: str,
-        results_container: Any,
+        results_container: "DeltaGenerator",
         all_results: List[LocationResult],
-        view: Any
+        view: "ICommentGenerationView"
     ) -> None:
         """進捗を更新"""
         view.update_progress(progress_bar, status_text, idx, total, location)
@@ -66,8 +70,8 @@ class ProgressHandler:
         future: Future,
         location: str,
         all_results: List[LocationResult],
-        results_container: Any,
-        view: Any
+        results_container: "DeltaGenerator",
+        view: "ICommentGenerationView"
     ) -> LocationResult:
         """完了したFutureの処理"""
         try:

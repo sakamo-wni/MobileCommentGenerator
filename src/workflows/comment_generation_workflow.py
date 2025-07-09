@@ -4,7 +4,7 @@
 LangGraphを使用した天気コメント生成のメインワークフロー実装
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import time
 import json
@@ -163,7 +163,7 @@ def run_comment_generation(
     llm_provider: str = "openai",
     exclude_previous: bool = False,
     **kwargs,
-) -> Dict[str, Any]:
+) -> Dict[str, str | int | float | bool | List[str] | Dict[str, str | int | float] | None]:
     """
     コメント生成ワークフローを実行
 
