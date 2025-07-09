@@ -12,7 +12,6 @@ from src.algorithms.evaluators import (
     ClarityEvaluator,
     OriginalityEvaluator
 )
-from src.algorithms.evaluators.evaluator_config import EvaluatorConfig
 from src.data.comment_pair import CommentPair
 from src.data.past_comment import PastComment, CommentType
 from src.data.weather_data import WeatherForecast, WeatherCondition, WindDirection
@@ -78,10 +77,9 @@ evaluator1 = AppropriatenessEvaluator(
 result1 = evaluator1.evaluate(comment_pair, context, weather_data)
 print(f"   スコア: {result1.score:.2f}, 理由: {result1.reason}")
 
-# 2. AppropriatenessEvaluator - 新方式（config使用）
+# 2. AppropriatenessEvaluator - 新方式（inappropriate_patterns使用）
 print("\n2. AppropriatenessEvaluator - 新方式")
-config = EvaluatorConfig(inappropriate_patterns=["死", "殺"])
-evaluator2 = AppropriatenessEvaluator(weight=1.0, config=config)
+evaluator2 = AppropriatenessEvaluator(weight=1.0, inappropriate_patterns=["死", "殺"])
 result2 = evaluator2.evaluate(comment_pair, context, weather_data)
 print(f"   スコア: {result2.score:.2f}, 理由: {result2.reason}")
 
@@ -95,13 +93,15 @@ evaluator3 = EngagementEvaluator(
 result3 = evaluator3.evaluate(comment_pair, context, weather_data)
 print(f"   スコア: {result3.score:.2f}, 理由: {result3.reason}")
 
-# 4. EngagementEvaluator - 新方式
+# 4. EngagementEvaluator - 新方式（evaluation_modeとenabled_checksパラメータ付き）
 print("\n4. EngagementEvaluator - 新方式")
-config2 = EvaluatorConfig(
+evaluator4 = EngagementEvaluator(
+    weight=1.0,
+    evaluation_mode="strict",
+    enabled_checks=["engagement_elements", "positive_expressions"],
     engagement_elements=["ね", "よ", "でしょう"],
     positive_expressions=["素敵", "良い", "嬉しい"]
 )
-evaluator4 = EngagementEvaluator(weight=1.0, config=config2)
 result4 = evaluator4.evaluate(comment_pair, context, weather_data)
 print(f"   スコア: {result4.score:.2f}, 理由: {result4.reason}")
 
@@ -116,14 +116,16 @@ evaluator5 = ConsistencyEvaluator(
 result5 = evaluator5.evaluate(comment_pair, context, weather_data)
 print(f"   スコア: {result5.score:.2f}, 理由: {result5.reason}")
 
-# 6. ConsistencyEvaluator - 新方式
+# 6. ConsistencyEvaluator - 新方式（evaluation_modeとenabled_checksパラメータ付き）
 print("\n6. ConsistencyEvaluator - 新方式")
-config3 = EvaluatorConfig(
+evaluator6 = ConsistencyEvaluator(
+    weight=1.0,
+    evaluation_mode="strict",
+    enabled_checks=["contradiction_patterns"],
     contradiction_patterns=[
         {"positive": ["晴れ"], "negative": ["雨", "雪"]}
     ]
 )
-evaluator6 = ConsistencyEvaluator(weight=1.0, config=config3)
 result6 = evaluator6.evaluate(comment_pair, context, weather_data)
 print(f"   スコア: {result6.score:.2f}, 理由: {result6.reason}")
 
