@@ -36,8 +36,6 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
         更新された状態（generated_comment追加）
     """
     try:
-        print("🔥🔥🔥 GENERATE_COMMENT_NODE CALLED 🔥🔥🔥")
-        logger.critical("🔥🔥🔥 GENERATE_COMMENT_NODE CALLED 🔥🔥🔥")
         logger.info("Starting comment generation")
 
         # 必要なデータの確認
