@@ -225,10 +225,9 @@ def fetch_weather_forecast_node(
             state.add_error(error_msg, "weather_forecast")
             raise ValueError(error_msg)
         
-        # ターゲット時刻に最も近い予報を選択
-        selected_forecast = forecast_processing_service.select_forecast_by_time(
-            period_forecasts, 
-            target_datetime
+        # 優先度に基づいて予報を選択（雨・猛暑日を優先）
+        selected_forecast = forecast_processing_service.select_priority_forecast(
+            period_forecasts
         )
         
         if not selected_forecast:

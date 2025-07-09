@@ -351,6 +351,20 @@ class ForecastProcessingService:
             選択された予報
         """
         return self.validator.select_forecast_by_time(forecasts, target_datetime)
+    
+    def select_priority_forecast(
+        self, 
+        forecasts: List[WeatherForecast]
+    ) -> Optional[WeatherForecast]:
+        """優先度に基づいて予報を選択（雨・猛暑日を優先）
+        
+        Args:
+            forecasts: 予報リスト（9, 12, 15, 18時）
+            
+        Returns:
+            優先度に基づいて選択された予報
+        """
+        return self.validator.select_priority_forecast(forecasts)
 
 
 class CacheService:
