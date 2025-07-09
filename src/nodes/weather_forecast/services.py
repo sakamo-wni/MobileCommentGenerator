@@ -369,8 +369,21 @@ class CacheService:
             # 選択された予報データを保存
             save_forecast_to_cache(selected_forecast, location_name)
             
-            # 72時間分の全予報データもキャッシュに保存（タイムライン表示用）
+            # タイムライン表示用に必要な時間帯のデータのみを保存
+            # 翌日の9, 12, 15, 18時の前後1時間（8-10時、11-13時、14-16時、17-19時）
+            jst = pytz.timezone("Asia/Tokyo")
+            target_hours = [(8, 10), (11, 13), (14, 16), (17, 19)]
+            
+            filtered_forecasts = []
             for forecast in all_forecasts:
+                forecast_hour = forecast.datetime.astimezone(jst).hour
+                for start_hour, end_hour in target_hours:
+                    if start_hour <= forecast_hour <= end_hour:
+                        filtered_forecasts.append(forecast)
+                        break
+            
+            # フィルタリングされた予報データをキャッシュに保存
+            for forecast in filtered_forecasts:
                 try:
                     self.cache.save_forecast(forecast, location_name)
                 except Exception as forecast_save_error:
@@ -378,7 +391,8 @@ class CacheService:
                     continue
                     
             logger.info(
-                f"予報データをキャッシュに保存: {location_name} ({len(all_forecasts)}件)"
+                f"予報データをキャッシュに保存: {location_name} "
+                f"(全{len(all_forecasts)}件中{len(filtered_forecasts)}件を保存)"
             )
         except Exception as e:
             logger.warning(f"キャッシュ保存に失敗: {e}")
