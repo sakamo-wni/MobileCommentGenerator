@@ -6,11 +6,29 @@ export interface ErrorHandlerOptions {
   logErrors?: boolean
 }
 
+export interface ApiError {
+  message?: string
+  code?: string
+  response?: {
+    data?: any
+    status?: number
+  }
+}
+
 export interface ErrorDetails {
   message: string
   code?: string
   timestamp: Date
   details?: any
+}
+
+// 型ガード関数
+export const isApiError = (error: unknown): error is ApiError => {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    ('message' in error || 'code' in error || 'response' in error)
+  )
 }
 
 export const useErrorHandler = (options: ErrorHandlerOptions = {}) => {
@@ -36,17 +54,19 @@ export const useErrorHandler = (options: ErrorHandlerOptions = {}) => {
       }
     } else if (typeof err === 'string') {
       errorMessage = err
-    } else if (err && typeof err === 'object') {
+    } else if (isApiError(err)) {
       // APIエラーレスポンスの処理
-      const apiError = err as any
-      if (apiError.message) {
-        errorMessage = apiError.message
+      if (err.message) {
+        errorMessage = customMessage || err.message
       }
-      if (apiError.code) {
-        errorCode = apiError.code
+      if (err.code) {
+        errorCode = err.code
       }
-      if (apiError.response?.data) {
-        errorDetails = apiError.response.data
+      if (err.response?.data) {
+        errorDetails = err.response.data
+      }
+      if (err.response?.status) {
+        errorMessage = `${errorMessage} (Status: ${err.response.status})`
       }
     }
 
@@ -61,8 +81,8 @@ export const useErrorHandler = (options: ErrorHandlerOptions = {}) => {
     error.value = errorData
     isError.value = true
 
-    // コンソールにログ出力
-    if (logErrors) {
+    // コンソールにログ出力（本番環境では無効化）
+    if (logErrors && process.env.NODE_ENV !== 'production') {
       console.error('[Error Handler]', errorData)
     }
 

@@ -6,13 +6,20 @@
       class="location-item"
       :class="{ selected: isSelected(location.name) }"
       @click="$emit('toggle', location.name)"
+      role="button"
+      tabindex="0"
+      :aria-label="`${location.name}を${isSelected(location.name) ? '選択解除' : '選択'}`"
+      :aria-pressed="isSelected(location.name)"
+      @keydown.enter="$emit('toggle', location.name)"
+      @keydown.space.prevent="$emit('toggle', location.name)"
     >
       <div class="location-checkbox">
         <input 
           type="checkbox" 
           :checked="isSelected(location.name)"
-          @click.stop
-          readonly
+          @click.stop="$emit('toggle', location.name)"
+          :aria-label="`${location.name}を選択`"
+          tabindex="-1"
         />
       </div>
       <div class="location-details">
@@ -48,6 +55,10 @@ const isSelected = (locationName: string) => {
 </script>
 
 <style scoped>
+/* 
+ * 将来的な拡張: 大量の地点を扱う場合は仮想スクロールの実装を検討
+ * 例: @tanstack/vue-virtual や vue-virtual-scroller の使用
+ */
 .location-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

@@ -39,23 +39,10 @@
         />
 
         <!-- Selected Locations Summary -->
-        <div class="selected-summary" v-if="selectedLocations.length > 0">
-          <h4>選択済み地点 ({{ selectedLocations.length }})</h4>
-          <div class="selected-tags">
-            <span 
-              v-for="location in selectedLocations.slice(0, 10)" 
-              :key="location"
-              class="location-tag"
-              @click="toggleLocation(location)"
-            >
-              {{ location }}
-              <span class="remove-tag">×</span>
-            </span>
-            <span v-if="selectedLocations.length > 10" class="more-locations">
-              他{{ selectedLocations.length - 10 }}地点...
-            </span>
-          </div>
-        </div>
+        <LocationSelectionSummary
+          :selected-locations="selectedLocations"
+          @remove="toggleLocation"
+        />
       </template>
     </div>
   </div>
@@ -71,6 +58,7 @@ import {
 } from '@mobile-comment-generator/shared/composables'
 import LocationSelectionControls from './LocationSelectionControls.vue'
 import LocationSelectionGrid from './LocationSelectionGrid.vue'
+import LocationSelectionSummary from './LocationSelectionSummary.vue'
 
 // Props
 interface Props {
@@ -123,8 +111,13 @@ const regions = REGIONS
 
 // Methods wrapper
 const loadLocations = async () => {
-  await locationLogic.loadLocations()
-  emitLocationChanges()
+  try {
+    await locationLogic.loadLocations()
+    emitLocationChanges()
+  } catch (error) {
+    // エラーはlocationLogic内で処理されるが、追加の保護として
+    console.error('Failed to load locations:', error)
+  }
 }
 
 const toggleLocation = (location: string) => {
