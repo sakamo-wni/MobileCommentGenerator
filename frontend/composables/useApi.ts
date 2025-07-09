@@ -7,17 +7,20 @@ import type {
   WeatherData,
   ApiResponse
 } from '~/types'
+import { useErrorHandler, getErrorMessageByStatus } from '~/composables/useErrorHandler'
 
 export const useApi = () => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBaseUrl || 'http://localhost:8000'
+  const { handleError } = useErrorHandler()
 
   // Health check
   const checkHealth = async (): Promise<boolean> => {
     try {
       const response = await $fetch(`${baseURL}/health`)
       return response.status === 'ok'
-    } catch {
+    } catch (error) {
+      handleError(error, 'ヘルスチェックに失敗しました')
       return false
     }
   }
@@ -27,10 +30,11 @@ export const useApi = () => {
     try {
       const data = await $fetch<Location[]>(`${baseURL}/api/locations`)
       return { success: true, data }
-    } catch (error) {
+    } catch (error: any) {
+      const errorDetails = handleError(error, '地点データの取得に失敗しました')
       return { 
         success: false, 
-        error: '地点データの取得に失敗しました' 
+        error: errorDetails.message
       }
     }
   }
@@ -50,10 +54,11 @@ export const useApi = () => {
         }
       })
       return { success: true, data }
-    } catch (error) {
+    } catch (error: any) {
+      const errorDetails = handleError(error, '天気データの取得に失敗しました')
       return { 
         success: false, 
-        error: '天気データの取得に失敗しました' 
+        error: errorDetails.message
       }
     }
   }
@@ -75,10 +80,16 @@ export const useApi = () => {
         }
       })
       return { success: true, data }
-    } catch (error) {
+    } catch (error: any) {
+      const errorDetails = handleError(error, 'コメント生成に失敗しました')
+      // HTTPステータスコードに基づいた詳細なエラーメッセージ
+      if (error.response?.status) {
+        const statusMessage = getErrorMessageByStatus(error.response.status)
+        errorDetails.message = `${errorDetails.message}: ${statusMessage}`
+      }
       return { 
         success: false, 
-        error: 'コメント生成に失敗しました' 
+        error: errorDetails.message
       }
     }
   }
@@ -88,10 +99,11 @@ export const useApi = () => {
     try {
       const data = await $fetch(`${baseURL}/api/workflow/status`)
       return { success: true, data }
-    } catch (error) {
+    } catch (error: any) {
+      const errorDetails = handleError(error, 'ワークフローの状態確認に失敗しました')
       return { 
         success: false, 
-        error: 'ワークフローの状態確認に失敗しました' 
+        error: errorDetails.message
       }
     }
   }
