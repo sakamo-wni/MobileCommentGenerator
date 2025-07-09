@@ -129,33 +129,46 @@ class WxTechAPIClient:
             target_dt = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
             target_times.append(target_dt)
         
-        # 現在時刻から各時刻までの時間を計算
-        hours_to_targets = []
-        for target_time in target_times:
-            hours_diff = (target_time - now_jst).total_seconds() / 3600
-            hours_to_targets.append(hours_diff)
+        # 現在時刻から翌日8時までの時間を計算
+        tomorrow_8am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=8)))
+        hours_to_8am = (tomorrow_8am - now_jst).total_seconds() / 3600
         
-        # 最大の時間数を取得（4つの時刻すべてをカバーするため）
-        max_hours = max(hours_to_targets)
+        # 最小限のデータ取得: 翌日8時から19時までの12時間分のみ
+        # APIの仕様により最小1時間から指定可能
+        if hours_to_8am > 0:
+            # 翌日8時からのデータを取得（12時間分 = 8時〜19時）
+            forecast_hours = int(hours_to_8am) + 12
+        else:
+            # すでに翌日になっている場合は、現在時刻から19時までの時間を計算
+            tomorrow_7pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=19)))
+            hours_to_7pm = (tomorrow_7pm - now_jst).total_seconds() / 3600
+            forecast_hours = max(int(hours_to_7pm) + 1, 1)
         
-        # 余裕を持たせて+1時間
-        forecast_hours = max(int(max_hours) + 1, 1)
+        logger.info(f"翌日の予報取得を最適化: {forecast_hours}時間分のデータを取得（翌日8-19時を含む）")
         
-        # ログ出力で各時刻を表示
-        time_info = []
-        for i, (hour, hours_after) in enumerate(zip(target_hours, hours_to_targets)):
-            time_info.append(f"{hour}時({hours_after:.1f}h後)")
-        
-        logger.info(f"翌日の4時刻: {', '.join(time_info)}, API取得時間: {forecast_hours}時間")
-        
-        # 4つの時刻すべてをカバーする時間でデータを取得
+        # 必要な時間帯のデータを取得
         forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
         
-        # デバッグ: 取得したデータの詳細をログ出力
+        # 取得したデータから必要な時間帯（8-19時）のみをフィルタリング
         if forecast_collection and forecast_collection.forecasts:
-            logger.debug(f"取得した予報データ数: {len(forecast_collection.forecasts)}")
-            for i, f in enumerate(forecast_collection.forecasts[:5]):  # 最初の5件を表示
-                logger.debug(f"  予報{i+1}: {f.datetime.strftime('%Y-%m-%d %H:%M')} - {f.weather_description}")
+            filtered_forecasts = []
+            for forecast in forecast_collection.forecasts:
+                forecast_jst = forecast.datetime.astimezone(jst)
+                # 翌日の8時〜19時のデータのみを保持
+                if (forecast_jst.date() == target_date and 
+                    8 <= forecast_jst.hour <= 19):
+                    filtered_forecasts.append(forecast)
+            
+            # フィルタリングされた予報データで新しいコレクションを作成
+            forecast_collection.forecasts = filtered_forecasts
+            
+            logger.info(f"取得データをフィルタリング: 全{len(forecast_collection.forecasts)}件 → {len(filtered_forecasts)}件")
+            
+            # デバッグ: フィルタリング後のデータをログ出力
+            if filtered_forecasts:
+                logger.debug(f"フィルタリング後の予報データ数: {len(filtered_forecasts)}")
+                for i, f in enumerate(filtered_forecasts[:5]):
+                    logger.debug(f"  予報{i+1}: {f.datetime.strftime('%Y-%m-%d %H:%M')} - {f.weather_description}")
         else:
             logger.warning("予報データが取得できませんでした - forecast_collection is empty or has no forecasts")
         
