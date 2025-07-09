@@ -2,7 +2,6 @@
 
 import logging
 from typing import Tuple
-import asyncio
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -51,7 +50,7 @@ class LLMDuplicationValidator(BaseValidator):
         """単一コメントの検証（LLMDuplicationValidatorでは実装しない）"""
         return True, "単一コメントのチェックは他のバリデータで実施"
     
-    async def validate_comment_pair_with_llm(
+    def validate_comment_pair_with_llm(
         self,
         weather_comment: str,
         advice_comment: str,
@@ -74,7 +73,7 @@ class LLMDuplicationValidator(BaseValidator):
                 HumanMessage(content=user_message)
             ]
             
-            response = await self.llm.ainvoke(messages)
+            response = self.llm.invoke(messages)
             
             # レスポンスをパース
             try:
@@ -112,11 +111,7 @@ class LLMDuplicationValidator(BaseValidator):
         advice_comment: str,
         weather_data: WeatherForecast
     ) -> Tuple[bool, str]:
-        """同期版のLLM検証（既存コードとの互換性のため）"""
-        try:
-            return asyncio.run(self.validate_comment_pair_with_llm(
-                weather_comment, advice_comment, weather_data
-            ))
-        except Exception as e:
-            logger.error(f"LLM検証の同期実行エラー: {e}")
-            return True, "LLM検証エラー"
+        """同期版のLLM検証（互換性のためのエイリアス）"""
+        return self.validate_comment_pair_with_llm(
+            weather_comment, advice_comment, weather_data
+        )
