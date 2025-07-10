@@ -1,8 +1,14 @@
 """リファクタリングされた天気コメントバリデーター - ファサードパターンで各バリデーターを統合"""
 
+from __future__ import annotations
+
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, TYPE_CHECKING, NamedTuple
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from src.data.weather_data import WeatherForecast
+    from src.data.past_comment import PastComment, CommentType
 
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment, CommentType
@@ -12,6 +18,22 @@ from src.utils.validators.weather_specific.regional_specifics_validator import R
 from src.utils.validators.weather_specific.consistency_validator import ConsistencyValidator
 
 logger = logging.getLogger(__name__)
+
+
+class ValidationResult(NamedTuple):
+    """バリデーション結果を表す名前付きタプル"""
+    is_valid: bool
+    reason: str
+
+
+class AppropriatessScore(NamedTuple):
+    """適切性スコアの詳細"""
+    total_score: float
+    weather_match_score: float
+    temperature_match_score: float
+    season_match_score: float
+    usage_penalty: float
+    regional_bonus: float
 
 
 class WeatherCommentValidatorRefactored:
@@ -182,8 +204,8 @@ class WeatherCommentValidatorRefactored:
         # スコアリング
         scored_comments = []
         for comment in valid_comments:
-            score = self._calculate_appropriateness_score(comment, weather_data)
-            scored_comments.append((score, comment))
+            score_result = self._calculate_appropriateness_score(comment, weather_data)
+            scored_comments.append((score_result.total_score, comment))
         
         # スコアでソート（降順）
         scored_comments.sort(key=lambda x: x[0], reverse=True)
@@ -243,9 +265,14 @@ class WeatherCommentValidatorRefactored:
         self, 
         comment: PastComment, 
         weather_data: WeatherForecast
-    ) -> float:
+    ) -> AppropriatessScore:
         """コメントの適切性スコアを計算（0-100）"""
-        score = 50.0  # 基本スコア
+        base_score = 50.0  # 基本スコア
+        weather_match_score = 0.0
+        temperature_match_score = 0.0
+        season_match_score = 0.0
+        usage_penalty = 0.0
+        regional_bonus = 0.0
         
         # 1. 天気の一致度
         comment_weather = comment.weather_condition.lower()
@@ -253,37 +280,49 @@ class WeatherCommentValidatorRefactored:
         
         # 完全一致
         if comment_weather == actual_weather:
-            score += 20
+            weather_match_score = 20.0
         # 部分一致
         elif any(word in comment_weather for word in actual_weather.split()) or \
              any(word in actual_weather for word in comment_weather.split()):
-            score += 10
+            weather_match_score = 10.0
         
         # 2. 温度の近似度（±3°C以内）
         if hasattr(comment, 'temperature') and comment.temperature:
             temp_diff = abs(comment.temperature - weather_data.temperature)
             if temp_diff <= 1:
-                score += 15
+                temperature_match_score = 15.0
             elif temp_diff <= 3:
-                score += 10
+                temperature_match_score = 10.0
             elif temp_diff <= 5:
-                score += 5
+                temperature_match_score = 5.0
         
         # 3. 季節の一致
         current_season = self._get_season_from_month(datetime.now().month)
         if hasattr(comment, 'season') and comment.season == current_season:
-            score += 10
+            season_match_score = 10.0
         
         # 4. 使用回数によるペナルティ
         if hasattr(comment, 'usage_count') and comment.usage_count > 5:
-            score -= min(comment.usage_count * 2, 20)
+            usage_penalty = min(comment.usage_count * 2, 20)
         
         # 5. 地域特性ボーナス
         if hasattr(comment, 'location') and comment.location:
             if weather_data.location and comment.location in weather_data.location:
-                score += 5
+                regional_bonus = 5.0
         
-        return max(0, min(100, score))
+        # 総合スコアの計算
+        total_score = base_score + weather_match_score + temperature_match_score + \
+                     season_match_score - usage_penalty + regional_bonus
+        total_score = max(0.0, min(100.0, total_score))
+        
+        return AppropriatessScore(
+            total_score=total_score,
+            weather_match_score=weather_match_score,
+            temperature_match_score=temperature_match_score,
+            season_match_score=season_match_score,
+            usage_penalty=usage_penalty,
+            regional_bonus=regional_bonus
+        )
     
     def _get_season_from_month(self, month: int) -> str:
         """月から季節を判定"""

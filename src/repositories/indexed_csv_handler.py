@@ -220,17 +220,39 @@ class IndexedCSVHandler:
             return None
     
     def _save_index_to_disk(self, csv_path: Path, index: Dict[str, Any]) -> None:
-        """インデックスをディスクに保存"""
+        """インデックスをディスクに保存（アトミックな書き込みとリトライ機構付き）"""
         index_path = self._get_index_path(csv_path)
-        try:
-            # PastCommentオブジェクトを辞書に変換
-            serializable_index = self._convert_index_to_serializable(index)
-            
-            with open(index_path, 'w', encoding='utf-8') as f:
-                json.dump(serializable_index, f, ensure_ascii=False, indent=2)
-            logger.info(f"Index saved to: {index_path}")
-        except Exception as e:
-            logger.error(f"Failed to save index: {e}")
+        temp_path = index_path.with_suffix('.tmp')
+        max_retries = 3
+        retry_delay = 0.1  # 100ms
+        
+        for attempt in range(max_retries):
+            try:
+                # PastCommentオブジェクトを辞書に変換
+                serializable_index = self._convert_index_to_serializable(index)
+                
+                # 一時ファイルに書き込み
+                with open(temp_path, 'w', encoding='utf-8') as f:
+                    json.dump(serializable_index, f, ensure_ascii=False, indent=2)
+                
+                # アトミックな移動（rename）
+                temp_path.replace(index_path)
+                logger.info(f"Index saved to: {index_path}")
+                return
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Failed to save index (attempt {attempt + 1}/{max_retries}): {e}")
+                    import time
+                    time.sleep(retry_delay * (attempt + 1))  # エクスポネンシャルバックオフ
+                else:
+                    logger.error(f"Failed to save index after {max_retries} attempts: {e}")
+                    # 一時ファイルのクリーンアップ
+                    if temp_path.exists():
+                        try:
+                            temp_path.unlink()
+                        except:
+                            pass
     
     def _load_index_from_disk(self, csv_path: Path) -> Optional[Dict[str, Any]]:
         """ディスクからインデックスをロード"""
