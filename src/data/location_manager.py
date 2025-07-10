@@ -3,6 +3,9 @@
 
 Chiten.csvを活用した地点データの管理・検索機能を提供する
 Issue #2の実装: 地点データ管理システム
+
+注意: このファイルは後方互換性のために残されています。
+新しいコードでは src.data.location.manager.LocationManagerRefactored を使用してください。
 """
 
 import csv
@@ -14,9 +17,18 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
 import logging
 from pathlib import Path
+import warnings
 
 # ログ設定
 logger = logging.getLogger(__name__)
+
+# 非推奨警告
+warnings.warn(
+    "location_manager.LocationManager は非推奨です。"
+    "location.manager.LocationManagerRefactored を使用してください。",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 @dataclass

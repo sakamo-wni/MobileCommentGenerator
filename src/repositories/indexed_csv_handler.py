@@ -8,7 +8,6 @@
 import hashlib
 import json
 import logging
-import pickle
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Set
 from datetime import datetime
@@ -66,7 +65,7 @@ class IndexedCSVHandler:
     def _get_index_path(self, csv_path: Path) -> Path:
         """インデックスファイルのパスを取得"""
         file_hash = self.get_file_hash(csv_path)
-        index_name = f"{csv_path.stem}_{file_hash}.idx"
+        index_name = f"{csv_path.stem}_{file_hash}.json"
         return self.cache_dir / index_name
     
     def load_indexed_csv(self, csv_path: Path, 
@@ -224,8 +223,11 @@ class IndexedCSVHandler:
         """インデックスをディスクに保存"""
         index_path = self._get_index_path(csv_path)
         try:
-            with open(index_path, 'wb') as f:
-                pickle.dump(index, f)
+            # PastCommentオブジェクトを辞書に変換
+            serializable_index = self._convert_index_to_serializable(index)
+            
+            with open(index_path, 'w', encoding='utf-8') as f:
+                json.dump(serializable_index, f, ensure_ascii=False, indent=2)
             logger.info(f"Index saved to: {index_path}")
         except Exception as e:
             logger.error(f"Failed to save index: {e}")
@@ -237,8 +239,12 @@ class IndexedCSVHandler:
             return None
             
         try:
-            with open(index_path, 'rb') as f:
-                index = pickle.load(f)
+            with open(index_path, 'r', encoding='utf-8') as f:
+                serializable_index = json.load(f)
+            
+            # 辞書をPastCommentオブジェクトに変換
+            index = self._convert_index_from_serializable(serializable_index)
+            
             logger.info(f"Index loaded from: {index_path}")
             return index
         except Exception as e:
@@ -250,9 +256,74 @@ class IndexedCSVHandler:
         self.index_cache.clear()
         self.file_hashes.clear()
         
-        # ディスクキャッシュも削除
-        for index_file in self.cache_dir.glob("*.idx"):
-            try:
-                index_file.unlink()
-            except Exception as e:
-                logger.error(f"Failed to delete index file {index_file}: {e}")
+        # ディスクキャッシュも削除（.idxと.jsonの両方を削除）
+        for pattern in ["*.idx", "*.json"]:
+            for index_file in self.cache_dir.glob(pattern):
+                try:
+                    index_file.unlink()
+                except Exception as e:
+                    logger.error(f"Failed to delete index file {index_file}: {e}")
+    
+    def _convert_index_to_serializable(self, index: Dict[str, Any]) -> Dict[str, Any]:
+        """インデックスをJSON用にシリアライズ可能な形式に変換"""
+        serializable_index = {}
+        
+        for key, value in index.items():
+            if key == "all_comments":
+                serializable_index[key] = [self._comment_to_dict(c) for c in value]
+            elif key in ["by_weather", "by_count", "by_season"]:
+                serializable_index[key] = {}
+                for sub_key, comments in value.items():
+                    serializable_index[key][sub_key] = [self._comment_to_dict(c) for c in comments]
+            else:
+                serializable_index[key] = value
+                
+        return serializable_index
+    
+    def _convert_index_from_serializable(self, serializable_index: Dict[str, Any]) -> Dict[str, Any]:
+        """JSON形式のインデックスをPastCommentオブジェクトに変換"""
+        index = {}
+        
+        for key, value in serializable_index.items():
+            if key == "all_comments":
+                index[key] = [self._dict_to_comment(d) for d in value]
+            elif key in ["by_weather", "by_count", "by_season"]:
+                index[key] = {}
+                for sub_key, dicts in value.items():
+                    index[key][sub_key] = [self._dict_to_comment(d) for d in dicts]
+            else:
+                index[key] = value
+                
+        return index
+    
+    def _comment_to_dict(self, comment: PastComment) -> Dict[str, Any]:
+        """PastCommentオブジェクトを辞書に変換"""
+        return {
+            "comment_id": comment.comment_id,
+            "comment_text": comment.comment_text,
+            "comment_type": comment.comment_type.value,
+            "created_at": comment.created_at.isoformat(),
+            "location": comment.location,
+            "weather_condition": comment.weather_condition,
+            "temperature": comment.temperature,
+            "season": comment.season,
+            "usage_count": comment.usage_count,
+            "comment1": comment.comment1,
+            "comment2": comment.comment2
+        }
+    
+    def _dict_to_comment(self, data: Dict[str, Any]) -> PastComment:
+        """辞書をPastCommentオブジェクトに変換"""
+        return PastComment(
+            comment_id=data["comment_id"],
+            comment_text=data["comment_text"],
+            comment_type=CommentType(data["comment_type"]),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            location=data["location"],
+            weather_condition=data["weather_condition"],
+            temperature=data["temperature"],
+            season=data["season"],
+            usage_count=data["usage_count"],
+            comment1=data.get("comment1", ""),
+            comment2=data.get("comment2", "")
+        )
