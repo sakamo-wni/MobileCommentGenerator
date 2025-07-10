@@ -41,6 +41,11 @@ class APIConfig:
     api_timeout: int = field(default=30)  # seconds
     retry_count: int = field(default=3)
     
+    # AWS設定
+    aws_access_key_id: str = field(default="")
+    aws_secret_access_key: str = field(default="")
+    aws_region: str = field(default="ap-northeast-1")
+    
     def __post_init__(self):
         """環境変数から値を読み込む"""
         self.wxtech_api_key = os.getenv("WXTECH_API_KEY", self.wxtech_api_key)
@@ -49,6 +54,30 @@ class APIConfig:
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", self.gemini_api_key)
         self.gemini_model = os.getenv("GEMINI_MODEL", self.gemini_model)
         self.api_timeout = int(os.getenv("API_TIMEOUT", str(self.api_timeout)))
+        
+        # AWS設定
+        self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", self.aws_access_key_id)
+        self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", self.aws_secret_access_key)
+        self.aws_region = os.getenv("AWS_DEFAULT_REGION", self.aws_region)
+    
+    def get_llm_key(self, provider: str) -> str:
+        """LLMプロバイダーに対応するAPIキーを取得"""
+        provider_map = {
+            "openai": self.openai_api_key,
+            "gemini": self.gemini_api_key,
+            "anthropic": self.anthropic_api_key
+        }
+        return provider_map.get(provider.lower(), "")
+    
+    def validate_keys(self) -> Dict[str, bool]:
+        """APIキーの存在を検証"""
+        return {
+            "openai": bool(self.openai_api_key),
+            "gemini": bool(self.gemini_api_key),
+            "anthropic": bool(self.anthropic_api_key),
+            "wxtech": bool(self.wxtech_api_key),
+            "aws": bool(self.aws_access_key_id and self.aws_secret_access_key)
+        }
 
 
 @dataclass
@@ -534,6 +563,98 @@ class SevereWeatherConfig:
 
 
 @dataclass
+class UISettings:
+    """UI関連の設定"""
+    # 基本設定
+    page_title: str = field(default="天気コメント生成システム")
+    page_icon: str = field(default="☀️")
+    layout: str = field(default="wide")
+    sidebar_state: str = field(default="expanded")
+    theme: str = field(default="light")
+    
+    # コンポーネント設定
+    max_locations_per_generation: int = field(default=30)
+    default_llm_provider: str = field(default="gemini")
+    show_debug_info: bool = field(default=False)
+    
+    # 表示設定
+    date_format: str = field(default="%Y年%m月%d日 %H時%M分")
+    timezone: str = field(default="Asia/Tokyo")
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        if os.getenv("MAX_LOCATIONS_PER_GENERATION"):
+            self.max_locations_per_generation = int(os.getenv("MAX_LOCATIONS_PER_GENERATION"))
+        if os.getenv("DEFAULT_LLM_PROVIDER"):
+            self.default_llm_provider = os.getenv("DEFAULT_LLM_PROVIDER")
+
+
+@dataclass
+class GenerationSettings:
+    """コメント生成関連の設定"""
+    # タイムアウト設定
+    generation_timeout: int = field(default=300)  # 秒
+    api_timeout: int = field(default=30)  # 秒
+    
+    # リトライ設定
+    max_retries: int = field(default=3)
+    retry_delay: float = field(default=1.0)
+    
+    # キャッシュ設定
+    cache_enabled: bool = field(default=True)
+    cache_ttl: int = field(default=3600)  # 秒
+    
+    # バッチ処理設定
+    batch_size: int = field(default=5)
+    concurrent_requests: int = field(default=3)
+    
+    # 品質設定
+    temperature: float = field(default=0.7)
+    max_tokens: int = field(default=200)
+    
+    # NGワード設定
+    ng_words_file: str = field(default="config/ng_words.yaml")
+    expression_rules_file: str = field(default="config/expression_rules.yaml")
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.generation_timeout = int(os.getenv("GENERATION_TIMEOUT", str(self.generation_timeout)))
+        self.max_retries = int(os.getenv("GENERATION_MAX_RETRIES", str(self.max_retries)))
+        self.retry_delay = float(os.getenv("GENERATION_RETRY_DELAY", str(self.retry_delay)))
+        self.batch_size = int(os.getenv("GENERATION_BATCH_SIZE", str(self.batch_size)))
+        self.concurrent_requests = int(os.getenv("GENERATION_CONCURRENT_REQUESTS", str(self.concurrent_requests)))
+
+
+@dataclass
+class DataSettings:
+    """データ関連の設定"""
+    # パス設定
+    data_dir: Path = field(default_factory=lambda: Path("data"))
+    forecast_cache_dir: Path = field(default_factory=lambda: Path("data/forecast_cache"))
+    generation_history_file: Path = field(default_factory=lambda: Path("data/generation_history.json"))
+    locations_file: Path = field(default_factory=lambda: Path("src/data/Chiten.csv"))
+    
+    # CSVファイル設定
+    csv_output_dir: Path = field(default_factory=lambda: Path("output"))
+    use_local_csv: bool = field(default=True)
+    
+    # データ保持設定
+    max_history_records: int = field(default=1000)
+    history_retention_days: int = field(default=30)
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.data_dir = Path(os.getenv("DATA_DIR", str(self.data_dir)))
+        self.forecast_cache_dir = Path(os.getenv("FORECAST_CACHE_DIR", str(self.forecast_cache_dir)))
+        self.generation_history_file = Path(os.getenv("GENERATION_HISTORY_FILE", str(self.generation_history_file)))
+        self.locations_file = Path(os.getenv("LOCATIONS_FILE", str(self.locations_file)))
+        self.csv_output_dir = Path(os.getenv("CSV_OUTPUT_DIR", str(self.csv_output_dir)))
+        self.use_local_csv = os.getenv("USE_LOCAL_CSV", "true" if self.use_local_csv else "false").lower() == "true"
+        self.max_history_records = int(os.getenv("MAX_HISTORY_RECORDS", str(self.max_history_records)))
+        self.history_retention_days = int(os.getenv("HISTORY_RETENTION_DAYS", str(self.history_retention_days)))
+
+
+@dataclass
 class Config:
     """統一された設定クラス"""
     api: APIConfig = field(default_factory=APIConfig)
@@ -546,6 +667,9 @@ class Config:
     langgraph: LangGraphConfig = field(default_factory=LangGraphConfig)
     comment: CommentConfig = field(default_factory=CommentConfig)
     severe_weather: SevereWeatherConfig = field(default_factory=SevereWeatherConfig)
+    ui: UISettings = field(default_factory=UISettings)
+    generation: GenerationSettings = field(default_factory=GenerationSettings)
+    data: DataSettings = field(default_factory=DataSettings)
     
     def __post_init__(self):
         """設定の検証"""
@@ -592,6 +716,9 @@ class Config:
         self.app.data_dir.mkdir(parents=True, exist_ok=True)
         self.app.csv_dir.mkdir(parents=True, exist_ok=True)
         self.weather.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.data.data_dir.mkdir(parents=True, exist_ok=True)
+        self.data.forecast_cache_dir.mkdir(parents=True, exist_ok=True)
+        self.data.csv_output_dir.mkdir(parents=True, exist_ok=True)
     
     def _validate_weather_constants(self):
         """天気関連定数の妥当性を検証"""
@@ -756,6 +883,27 @@ class Config:
             "severe_weather": {
                 "severe_weather_conditions": [c.name for c in self.severe_weather.severe_weather_conditions],
                 "exclude_keywords_severe": self.severe_weather.exclude_keywords_severe,
+            },
+            "ui": {
+                "page_title": self.ui.page_title,
+                "page_icon": self.ui.page_icon,
+                "layout": self.ui.layout,
+                "max_locations_per_generation": self.ui.max_locations_per_generation,
+                "default_llm_provider": self.ui.default_llm_provider,
+                "show_debug_info": self.ui.show_debug_info,
+            },
+            "generation": {
+                "generation_timeout": self.generation.generation_timeout,
+                "max_retries": self.generation.max_retries,
+                "batch_size": self.generation.batch_size,
+                "concurrent_requests": self.generation.concurrent_requests,
+                "cache_enabled": self.generation.cache_enabled,
+            },
+            "data": {
+                "data_dir": str(self.data.data_dir),
+                "csv_output_dir": str(self.data.csv_output_dir),
+                "use_local_csv": self.data.use_local_csv,
+                "max_history_records": self.data.max_history_records,
             }
         }
 
@@ -816,3 +964,18 @@ def get_comment_config() -> CommentConfig:
 def get_severe_weather_config() -> SevereWeatherConfig:
     """悪天候設定を取得"""
     return get_config().severe_weather
+
+
+def get_ui_settings() -> UISettings:
+    """UI設定を取得"""
+    return get_config().ui
+
+
+def get_generation_settings() -> GenerationSettings:
+    """生成設定を取得"""
+    return get_config().generation
+
+
+def get_data_settings() -> DataSettings:
+    """データ設定を取得"""
+    return get_config().data

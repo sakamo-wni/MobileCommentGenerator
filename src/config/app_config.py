@@ -1,11 +1,18 @@
-"""アプリケーション設定の統一管理"""
+"""アプリケーション設定の統一管理（非推奨: config.pyを使用してください）"""
 
 import os
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 import logging
 
-from .unified_config import get_unified_config, get_api_config, get_app_config as get_unified_app_config
+from .config import (
+    get_config as get_unified_config,
+    get_api_config,
+    get_ui_settings,
+    get_generation_settings,
+    get_data_settings,
+    get_app_settings
+)
 
 try:
     from src.utils.secure_config import get_secure_config
@@ -18,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class APIKeys:
-    """APIキーの管理"""
+    """APIキーの管理（非推奨: config.APIConfigを使用してください）"""
     openai_key: Optional[str] = field(default=None)
     gemini_key: Optional[str] = field(default=None)
     anthropic_key: Optional[str] = field(default=None)
@@ -31,8 +38,7 @@ class APIKeys:
     def from_env(cls) -> "APIKeys":
         """環境変数またはセキュア設定からAPIキーを読み込む"""
         # 統一設定から取得
-        unified_config = get_unified_config()
-        api_config = unified_config.api
+        api_config = get_api_config()
         
         # セキュア設定が利用可能な場合は優先的に使用
         if get_secure_config:
@@ -42,9 +48,9 @@ class APIKeys:
                 gemini_key=secure_config.get_api_key("gemini") or api_config.gemini_api_key,
                 anthropic_key=secure_config.get_api_key("anthropic") or api_config.anthropic_api_key,
                 wxtech_key=secure_config.get_api_key("wxtech") or api_config.wxtech_api_key,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-                aws_region=os.getenv("AWS_DEFAULT_REGION", "ap-northeast-1")
+                aws_access_key_id=api_config.aws_access_key_id,
+                aws_secret_access_key=api_config.aws_secret_access_key,
+                aws_region=api_config.aws_region
             )
         else:
             # フォールバック: 統一設定から
@@ -53,94 +59,32 @@ class APIKeys:
                 gemini_key=api_config.gemini_api_key,
                 anthropic_key=api_config.anthropic_api_key,
                 wxtech_key=api_config.wxtech_api_key,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-                aws_region=os.getenv("AWS_DEFAULT_REGION", "ap-northeast-1")
+                aws_access_key_id=api_config.aws_access_key_id,
+                aws_secret_access_key=api_config.aws_secret_access_key,
+                aws_region=api_config.aws_region
             )
     
     def validate(self) -> Dict[str, bool]:
         """APIキーの存在を検証"""
-        return {
-            "openai": bool(self.openai_key),
-            "gemini": bool(self.gemini_key),
-            "anthropic": bool(self.anthropic_key),
-            "wxtech": bool(self.wxtech_key),
-            "aws": bool(self.aws_access_key_id and self.aws_secret_access_key)
-        }
+        api_config = get_api_config()
+        return api_config.validate_keys()
     
     def get_llm_key(self, provider: str) -> Optional[str]:
         """LLMプロバイダーに対応するAPIキーを取得"""
-        provider_map = {
-            "openai": self.openai_key,
-            "gemini": self.gemini_key,
-            "anthropic": self.anthropic_key
-        }
-        return provider_map.get(provider.lower())
+        api_config = get_api_config()
+        return api_config.get_llm_key(provider)
 
 
-@dataclass
-class UISettings:
-    """UI関連の設定"""
-    page_title: str = field(default="天気コメント生成システム")
-    page_icon: str = field(default="☀️")
-    layout: str = field(default="wide")
-    sidebar_state: str = field(default="expanded")
-    theme: str = field(default="light")
-    
-    # コンポーネント設定
-    max_locations_per_generation: int = field(default=30)
-    default_llm_provider: str = field(default="gemini")
-    show_debug_info: bool = field(default=False)
-    
-    # 表示設定
-    date_format: str = field(default="%Y年%m月%d日 %H時%M分")
-    timezone: str = field(default="Asia/Tokyo")
+# UISettingsクラスは互換性のために新しいUISettingsのエイリアスとして使用
+UISettings = get_ui_settings().__class__
 
 
-@dataclass
-class GenerationSettings:
-    """コメント生成関連の設定"""
-    # タイムアウト設定
-    generation_timeout: int = field(default=300)  # 秒
-    api_timeout: int = field(default=30)  # 秒
-    
-    # リトライ設定
-    max_retries: int = field(default=3)
-    retry_delay: float = field(default=1.0)
-    
-    # キャッシュ設定
-    cache_enabled: bool = field(default=True)
-    cache_ttl: int = field(default=3600)  # 秒
-    
-    # バッチ処理設定
-    batch_size: int = field(default=5)
-    concurrent_requests: int = field(default=3)
-    
-    # 品質設定
-    temperature: float = field(default=0.7)
-    max_tokens: int = field(default=200)
-    
-    # NGワード設定
-    ng_words_file: str = field(default="config/ng_words.yaml")
-    expression_rules_file: str = field(default="config/expression_rules.yaml")
+# GenerationSettingsクラスは互換性のために新しいGenerationSettingsのエイリアスとして使用
+GenerationSettings = get_generation_settings().__class__
 
 
-@dataclass
-class DataSettings:
-    """データ関連の設定"""
-    # パス設定
-    data_dir: str = field(default="data")
-    forecast_cache_dir: str = field(default="data/forecast_cache")
-    generation_history_file: str = field(default="data/generation_history.json")
-    locations_file: str = field(default="src/data/Chiten.csv")
-    
-    # CSVファイル設定
-    csv_output_dir: str = field(default="output")
-    use_local_csv: bool = field(default=True)
-    
-    # データ保持設定
-    max_history_records: int = field(default=1000)
-    history_retention_days: int = field(default=30)
+# DataSettingsクラスは互換性のために新しいDataSettingsのエイリアスとして使用
+DataSettings = get_data_settings().__class__
 
 
 @dataclass
@@ -161,24 +105,17 @@ class AppConfig:
         """環境変数から設定を読み込む"""
         # 統一設定から取得
         unified_config = get_unified_config()
-        unified_app = unified_config.app
+        app_settings = unified_config.app
         
         config = cls(
             api_keys=APIKeys.from_env(),
-            ui_settings=UISettings(),
-            generation_settings=GenerationSettings(),
-            data_settings=DataSettings(),
-            env=unified_app.env,
-            debug=unified_app.env == "development",
-            log_level=unified_app.log_level
+            ui_settings=unified_config.ui,
+            generation_settings=unified_config.generation,
+            data_settings=unified_config.data,
+            env=app_settings.env,
+            debug=app_settings.debug,
+            log_level=app_settings.log_level
         )
-        
-        # 環境変数でオーバーライド可能な設定
-        if os.getenv("MAX_LOCATIONS_PER_GENERATION"):
-            config.ui_settings.max_locations_per_generation = int(os.getenv("MAX_LOCATIONS_PER_GENERATION"))
-        
-        if os.getenv("DEFAULT_LLM_PROVIDER"):
-            config.ui_settings.default_llm_provider = os.getenv("DEFAULT_LLM_PROVIDER")
         
         return config
     
@@ -188,8 +125,8 @@ class AppConfig:
             "api_keys": self.api_keys.validate(),
             "environment": self.env,
             "debug_mode": self.debug,
-            "data_dir_exists": os.path.exists(self.data_settings.data_dir),
-            "locations_file_exists": os.path.exists(self.data_settings.locations_file)
+            "data_dir_exists": self.data_settings.data_dir.exists(),
+            "locations_file_exists": self.data_settings.locations_file.exists()
         }
         
         # 警告の出力
