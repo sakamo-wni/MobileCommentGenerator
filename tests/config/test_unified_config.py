@@ -18,6 +18,7 @@ from src.config.unified_config import (
     get_server_config,
     config
 )
+from src.config.config import reset_config
 
 
 class TestAPIConfig:
@@ -181,12 +182,14 @@ class TestUnifiedConfig:
         """本番環境判定のテスト"""
         # 開発環境
         with mock.patch.dict(os.environ, {"APP_ENV": "development"}):
+            reset_config()
             UnifiedConfig._instance = None
             unified_config = UnifiedConfig()
             assert unified_config.is_production() is False
         
         # 本番環境
         with mock.patch.dict(os.environ, {"APP_ENV": "production"}):
+            reset_config()
             UnifiedConfig._instance = None
             unified_config = UnifiedConfig()
             assert unified_config.is_production() is True
@@ -195,6 +198,7 @@ class TestUnifiedConfig:
         """CORS origins取得のテスト"""
         # 開発環境
         with mock.patch.dict(os.environ, {"APP_ENV": "development"}):
+            reset_config()
             UnifiedConfig._instance = None
             unified_config = UnifiedConfig()
             origins = unified_config.get_cors_origins()
@@ -205,6 +209,7 @@ class TestUnifiedConfig:
             "APP_ENV": "production",
             "CORS_ORIGINS_PROD": "https://prod1.com,https://prod2.com"
         }):
+            reset_config()
             UnifiedConfig._instance = None
             unified_config = UnifiedConfig()
             origins = unified_config.get_cors_origins()
