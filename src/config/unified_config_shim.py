@@ -34,6 +34,12 @@ class APIConfigShim:
     @property
     def gemini_model(self) -> str:
         """後方互換性のためLLMConfigからgemini_modelを取得"""
+        import warnings
+        warnings.warn(
+            "gemini_model in APIConfig is deprecated. Use LLMConfig.gemini_model instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return self._config.llm.gemini_model
     
     def validate_keys(self) -> Dict[str, bool]:

@@ -123,24 +123,49 @@ config = UnifiedConfig()
 # 互換性のためのヘルパー関数
 def get_unified_config() -> UnifiedConfig:
     """統一設定インスタンスを取得（非推奨）"""
+    warnings.warn(
+        "get_unified_config() is deprecated. Use get_config() from src.config.config instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return config
 
 
 def get_api_config() -> APIConfig:
     """API設定を取得（非推奨）"""
+    warnings.warn(
+        "get_api_config() is deprecated. Use get_config().api from src.config.config instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return config.api
 
 
 def get_weather_config() -> WeatherConfig:
     """天気設定を取得（非推奨）"""
+    warnings.warn(
+        "get_weather_config() is deprecated. Use get_config().weather from src.config.config instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return config.weather
 
 
 def get_app_config() -> AppConfig:
     """アプリケーション設定を取得（非推奨）"""
+    warnings.warn(
+        "get_app_config() is deprecated. Use get_config().app from src.config.config instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return config.app
 
 
 def get_server_config() -> ServerConfig:
     """サーバー設定を取得（非推奨）"""
+    warnings.warn(
+        "get_server_config() is deprecated. Use get_config().server from src.config.config instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return config.server
