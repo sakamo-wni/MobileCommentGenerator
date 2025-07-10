@@ -76,6 +76,34 @@ class APIConfig:
             "wxtech": bool(self.wxtech_api_key),
             "aws": bool(self.aws_access_key_id and self.aws_secret_access_key)
         }
+    
+    def mask_sensitive_data(self) -> Dict[str, Any]:
+        """機密データをマスクした設定を返す"""
+        return {
+            "wxtech_api_key": "***" if self.wxtech_api_key else "",
+            "openai_api_key": "***" if self.openai_api_key else "",
+            "anthropic_api_key": "***" if self.anthropic_api_key else "",
+            "gemini_api_key": "***" if self.gemini_api_key else "",
+            "aws_access_key_id": "***" if self.aws_access_key_id else "",
+            "aws_secret_access_key": "***" if self.aws_secret_access_key else "",
+            "aws_region": self.aws_region,
+            "api_timeout": self.api_timeout,
+            "retry_count": self.retry_count
+        }
+    
+    def is_secure(self) -> bool:
+        """すべての必須セキュリティ設定が適切に設定されているかチェック"""
+        # 最低限1つのLLM APIキーが設定されている必要がある
+        has_llm_key = any([
+            self.openai_api_key,
+            self.gemini_api_key,
+            self.anthropic_api_key
+        ])
+        
+        # wxtech APIキーは必須
+        has_weather_key = bool(self.wxtech_api_key)
+        
+        return has_llm_key and has_weather_key
 
 
 @dataclass
@@ -710,6 +738,9 @@ class Config:
         self._validate_weather_config()
         self._validate_langgraph_config()
         
+        # セキュリティ設定の検証
+        self._validate_security_settings()
+        
         # ディレクトリの作成
         self.app.data_dir.mkdir(parents=True, exist_ok=True)
         self.app.csv_dir.mkdir(parents=True, exist_ok=True)
@@ -812,18 +843,28 @@ class Config:
         if not (1 <= self.langgraph.weather_context_window <= 168):
             raise ConfigurationError("weather_context_windowは1-168時間の範囲で設定してください")
     
+    def _validate_security_settings(self):
+        """セキュリティ設定の検証"""
+        # APIキーのセキュリティチェック
+        if not self.api.is_secure():
+            logger.warning(
+                "セキュリティ警告: 必須のAPIキーが設定されていません。"
+                "最低限1つのLLM APIキーとWXTECH_API_KEYが必要です。"
+            )
+        
+        # APIキーが環境変数から正しく読み込まれているか確認
+        if self.api.wxtech_api_key and self.api.wxtech_api_key.startswith("sk-"):
+            logger.warning("警告: APIキーが公開される可能性があります。環境変数を確認してください。")
+        
+        # デバッグモードでのセキュリティ警告
+        if hasattr(self.app, 'debug_mode') and self.app.debug_mode:
+            logger.info("デバッグモードが有効です。本番環境では無効にしてください。")
+    
     def to_dict(self) -> Dict[str, Any]:
-        """設定を辞書形式で返す"""
+        """設定を辞書形式で返す（機密データはマスク済み）"""
+        masked_api = self.api.mask_sensitive_data()
         return {
-            "api": {
-                "wxtech_api_key": "***" if self.api.wxtech_api_key else "",
-                "openai_api_key": "***" if self.api.openai_api_key else "",
-                "anthropic_api_key": "***" if self.api.anthropic_api_key else "",
-                "gemini_api_key": "***" if self.api.gemini_api_key else "",
-                "gemini_model": self.llm.gemini_model,
-                "api_timeout": self.api.api_timeout,
-                "retry_count": self.api.retry_count,
-            },
+            "api": masked_api,
             "weather": {
                 "default_location": self.weather.default_location,
                 "forecast_hours": self.weather.forecast_hours,
