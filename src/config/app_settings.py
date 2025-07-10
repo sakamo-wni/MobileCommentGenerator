@@ -9,9 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List
 from dotenv import load_dotenv
 
-from .weather_settings import WeatherConfig
-from .langgraph_settings import LangGraphConfig
-from .config import get_system_constants
+from .config import get_system_constants, get_weather_config, get_langgraph_config, get_config as get_unified_config
 
 # 定数を取得
 _sys_const = get_system_constants()
@@ -24,7 +22,7 @@ VALID_LOG_LEVELS = _sys_const.VALID_LOG_LEVELS
 
 @dataclass
 class AppConfig:
-    """アプリケーション全体の設定クラス
+    """アプリケーション全体の設定クラス（非推奨: 新しいconfigを使用してください）
 
     Attributes:
         weather: 天気予報設定
@@ -33,15 +31,13 @@ class AppConfig:
         log_level: ログレベル
     """
 
-    weather: WeatherConfig = field(default_factory=WeatherConfig)
-    langgraph: LangGraphConfig = field(default_factory=LangGraphConfig)
-    debug_mode: bool = field(default=False)
-    log_level: str = field(default="INFO")
-    
-    def __post_init__(self):
-        """環境変数から設定を読み込む"""
-        self.debug_mode = os.getenv("DEBUG", "true" if self.debug_mode else "false").lower() == "true"
-        self.log_level = os.getenv("LOG_LEVEL", self.log_level).upper()
+    def __init__(self):
+        """統一設定から初期化"""
+        unified_config = get_unified_config()
+        self.weather = unified_config.weather
+        self.langgraph = unified_config.langgraph
+        self.debug_mode = unified_config.app.debug
+        self.log_level = unified_config.app.log_level
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換
@@ -50,8 +46,33 @@ class AppConfig:
             設定情報の辞書
         """
         return {
-            "weather": self.weather.to_dict(),
-            "langgraph": self.langgraph.to_dict(),
+            "weather": {
+                "wxtech_api_key": "***" if self.weather.default_location else "",
+                "default_location": self.weather.default_location,
+                "forecast_hours": self.weather.forecast_hours,
+                "forecast_hours_ahead": self.weather.forecast_hours_ahead,
+                "api_timeout": 30,  # 旧フィールドとの互換性
+                "max_retries": 3,   # 旧フィールドとの互換性
+                "rate_limit_delay": 0.1,  # 旧フィールドとの互換性
+                "cache_ttl": self.weather.cache_ttl_seconds,
+                "enable_caching": self.weather.enable_caching,
+                "use_optimized_forecast": self.weather.use_optimized_forecast,
+                "forecast_cache_retention_days": self.weather.forecast_cache_retention_days,
+                "temp_diff_threshold_previous_day": 5.0,  # 旧フィールドとの互換性
+                "temp_diff_threshold_12hours": 3.0,  # 旧フィールドとの互換性
+                "daily_temp_range_threshold_large": 15.0,  # 旧フィールドとの互換性
+                "daily_temp_range_threshold_medium": 10.0,  # 旧フィールドとの互換性
+                "temp_threshold_hot": 30.0,  # 旧フィールドとの互換性
+                "temp_threshold_warm": 25.0,  # 旧フィールドとの互換性
+                "temp_threshold_cool": 10.0,  # 旧フィールドとの互換性
+                "temp_threshold_cold": 5.0,  # 旧フィールドとの互換性
+            },
+            "langgraph": {
+                "enable_weather_integration": self.langgraph.enable_weather_integration,
+                "auto_location_detection": self.langgraph.auto_location_detection,
+                "weather_context_window": self.langgraph.weather_context_window,
+                "min_confidence_threshold": self.langgraph.min_confidence_threshold,
+            },
             "debug_mode": self.debug_mode,
             "log_level": self.log_level,
         }
@@ -63,7 +84,7 @@ _env_loaded = False
 
 
 def get_config() -> AppConfig:
-    """グローバル設定インスタンスを取得
+    """グローバル設定インスタンスを取得（非推奨: get_unified_configを使用してください）
 
     Returns:
         アプリケーション設定
