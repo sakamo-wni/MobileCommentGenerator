@@ -55,7 +55,13 @@ class ServerConfig:
         self.frontend_port = int(os.getenv("FRONTEND_PORT", str(self.frontend_port)))
         
         # CORS origins
-        cors_env = os.getenv("CORS_ORIGINS", "")
+        # 本番環境用の特殊処理（後方互換性）
+        app_env = os.getenv("APP_ENV", "development")
+        if app_env == "production":
+            cors_env = os.getenv("CORS_ORIGINS_PROD", "")
+        else:
+            cors_env = os.getenv("CORS_ORIGINS", "")
+            
         if cors_env:
             self.cors_origins = [origin.strip() for origin in cors_env.split(",")]
         else:

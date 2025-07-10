@@ -30,11 +30,6 @@ class APIConfigShim:
     @property
     def gemini_api_key(self) -> str:
         return self._config.api.gemini_api_key
-    
-    @property
-    def gemini_model(self) -> str:
-        """旧unified_config.pyとの互換性のため、LLMConfigからgemini_modelを取得"""
-        return self._config.llm.gemini_model
 
 
 @dataclass  

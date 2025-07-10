@@ -104,17 +104,14 @@ class UnifiedConfig:
     
     def get_cors_origins(self) -> list:
         """CORS許可オリジンのリストを取得（非推奨）"""
-        import os
-        # 本番環境の場合、CORS_ORIGINS_PRODを使用（後方互換性）
-        if self._config.app.env == "production":
-            prod_origins = os.getenv("CORS_ORIGINS_PROD", "")
-            if prod_origins:
-                return [origin.strip() for origin in prod_origins.split(",")]
+        # 新しい設定システムで処理されるため、単に返すだけ
         return self._config.server.cors_origins
 
 
 # 互換性のためのシングルトンインスタンス
 config = UnifiedConfig()
+_api_config_instance = None
+_app_config_instance = None
 
 
 # 互換性のためのヘルパー関数
@@ -125,7 +122,10 @@ def get_unified_config() -> UnifiedConfig:
 
 def get_api_config() -> APIConfig:
     """API設定を取得（非推奨）"""
-    return APIConfig()
+    global _api_config_instance
+    if _api_config_instance is None:
+        _api_config_instance = APIConfig()
+    return _api_config_instance
 
 
 def get_weather_config() -> WeatherConfig:
@@ -135,7 +135,10 @@ def get_weather_config() -> WeatherConfig:
 
 def get_app_config() -> AppConfig:
     """アプリケーション設定を取得（非推奨）"""
-    return AppConfig()
+    global _app_config_instance
+    if _app_config_instance is None:
+        _app_config_instance = AppConfig()
+    return _app_config_instance
 
 
 def get_server_config() -> ServerConfig:
