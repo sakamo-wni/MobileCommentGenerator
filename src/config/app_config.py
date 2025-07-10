@@ -14,13 +14,14 @@ from .config import (
     get_app_settings
 )
 
+logger = logging.getLogger(__name__)
+
 try:
     from src.utils.secure_config import get_secure_config
-except ImportError:
+except ImportError as e:
     # セキュア設定が利用できない場合のフォールバック
+    logger.warning(f"セキュア設定モジュールをインポートできませんでした: {e}")
     get_secure_config = None
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -75,16 +76,8 @@ class APIKeys:
         return api_config.get_llm_key(provider)
 
 
-# UISettingsクラスは互換性のために新しいUISettingsのエイリアスとして使用
-UISettings = get_ui_settings().__class__
-
-
-# GenerationSettingsクラスは互換性のために新しいGenerationSettingsのエイリアスとして使用
-GenerationSettings = get_generation_settings().__class__
-
-
-# DataSettingsクラスは互換性のために新しいDataSettingsのエイリアスとして使用
-DataSettings = get_data_settings().__class__
+# 互換性のために新しい設定クラスを直接インポート
+from src.config.config import UISettings, GenerationSettings, DataSettings
 
 
 @dataclass

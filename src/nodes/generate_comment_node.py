@@ -50,8 +50,8 @@ def generate_comment_node(state: CommentGenerationState) -> CommentGenerationSta
             raise ValueError("Selected comment pair is required for generation")
 
         # LLMマネージャーの初期化
-        from src.config.config import Config
-        config = Config()
+        from src.config.config import get_config
+        config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
 
         # 制約条件の設定
