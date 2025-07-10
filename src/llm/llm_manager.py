@@ -20,14 +20,16 @@ logger = logging.getLogger(__name__)
 class LLMManager:
     """LLMプロバイダーを管理するマネージャークラス"""
 
-    def __init__(self, provider: str = "openai"):
+    def __init__(self, provider: str = "openai", config: Optional[Any] = None):
         """
         LLMマネージャーの初期化。
 
         Args:
             provider: 使用するプロバイダー名 ("openai", "gemini", "anthropic")
+            config: LLM設定オブジェクト (省略時はデフォルト設定を使用)
         """
         self.provider_name = provider
+        self.config = config
         self.provider = self._initialize_provider(provider)
 
     def _initialize_provider(self, provider_name: str) -> LLMProvider:
@@ -67,7 +69,13 @@ class LLMManager:
                 "設定方法: export GEMINI_API_KEY='your-api-key' または .envファイルに記載"
             )
 
-        model = os.getenv("GEMINI_MODEL", "gemini-pro")
+        # 設定から、もしくは環境変数からモデルを取得
+        if self.config and hasattr(self.config, 'llm') and hasattr(self.config.llm, 'gemini_model'):
+            model = self.config.llm.gemini_model
+        else:
+            # 後方互換性のため、設定がない場合はconfig.pyのデフォルト値を使用
+            from src.config.config import get_llm_config
+            model = get_llm_config().gemini_model
         return GeminiProvider(api_key=api_key, model=model)
 
     def _init_anthropic(self) -> AnthropicProvider:

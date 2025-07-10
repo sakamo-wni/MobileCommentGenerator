@@ -46,7 +46,9 @@ def select_comment_pair_node(state: CommentGenerationState) -> CommentGeneration
         logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
 
         # コメント選択器の初期化
-        llm_manager = LLMManager(provider=llm_provider)
+        from src.config.config import Config
+        config = Config()
+        llm_manager = LLMManager(provider=llm_provider, config=config)
         validator = WeatherCommentValidator()
         selector = CommentSelector(llm_manager, validator)
         

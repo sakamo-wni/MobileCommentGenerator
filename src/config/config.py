@@ -37,7 +37,6 @@ class APIConfig:
     gemini_api_key: str = field(default="")
     
     # API Settings
-    gemini_model: str = field(default="gemini-1.5-flash")
     api_timeout: int = field(default=30)  # seconds
     retry_count: int = field(default=3)
     
@@ -52,7 +51,6 @@ class APIConfig:
         self.openai_api_key = os.getenv("OPENAI_API_KEY", self.openai_api_key)
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", self.anthropic_api_key)
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", self.gemini_api_key)
-        self.gemini_model = os.getenv("GEMINI_MODEL", self.gemini_model)
         self.api_timeout = int(os.getenv("API_TIMEOUT", str(self.api_timeout)))
         
         # AWS設定
@@ -822,7 +820,7 @@ class Config:
                 "openai_api_key": "***" if self.api.openai_api_key else "",
                 "anthropic_api_key": "***" if self.api.anthropic_api_key else "",
                 "gemini_api_key": "***" if self.api.gemini_api_key else "",
-                "gemini_model": self.api.gemini_model,
+                "gemini_model": self.llm.gemini_model,
                 "api_timeout": self.api.api_timeout,
                 "retry_count": self.api.retry_count,
             },

@@ -47,7 +47,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
         
         # LLMマネージャーの初期化
-        llm_manager = LLMManager(provider=llm_provider)
+        from src.config.config import Config
+        config = Config()
+        llm_manager = LLMManager(provider=llm_provider, config=config)
         
         # 天気情報のフォーマット
         weather_info = _format_weather_info(weather_data, location_name, target_datetime)
