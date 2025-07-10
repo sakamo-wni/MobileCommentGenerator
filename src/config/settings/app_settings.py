@@ -38,6 +38,10 @@ class AppSettings:
         self.log_level = os.getenv("LOG_LEVEL", self.log_level).upper()
         self.data_dir = Path(os.getenv("DATA_DIR", str(self.data_dir)))
         self.csv_dir = Path(os.getenv("CSV_DIR", str(self.csv_dir)))
+        
+        # ディレクトリを作成
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.csv_dir.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
