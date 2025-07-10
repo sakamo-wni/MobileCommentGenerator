@@ -19,12 +19,17 @@ anthropic>=0.18.1
 
 # HTTP/API Communication
 requests>=2.31.0
+aiohttp>=3.9.1
 
 # Data Processing
 pandas>=2.1.4
+numpy>=1.26.2
+scikit-learn>=1.3.2
 
 # UI Framework
 streamlit>=1.28.0  # AppTest framework対応
 
 # Utilities
+pyperclip>=1.8.2    # クリップボード機能
 pytz>=2023.3        # タイムゾーン処理
+loguru>=0.7.2       # ログ管理

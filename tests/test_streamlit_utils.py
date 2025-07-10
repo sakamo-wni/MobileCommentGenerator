@@ -85,24 +85,21 @@ class TestLocationUtils:
 class TestClipboardUtils:
     """クリップボード関連ユーティリティのテスト"""
 
-    @patch("pyperclip.copy")
-    def test_copy_to_clipboard_success(self, mock_copy):
+    def test_copy_to_clipboard_success(self):
         """クリップボードへのコピー成功テスト"""
         text = "テストコメント"
 
         result = copy_to_clipboard(text)
 
-        mock_copy.assert_called_once_with(text)
+        # copy_to_clipboard uses JavaScript, so it always returns True
         assert result is True
 
-    @patch("pyperclip.copy")
-    def test_copy_to_clipboard_failure(self, mock_copy):
-        """クリップボードへのコピー失敗テスト"""
-        mock_copy.side_effect = Exception("Clipboard error")
-
+    def test_copy_to_clipboard_always_returns_true(self):
+        """クリップボード関数は常にTrueを返すことをテスト"""
+        # JavaScript実装のため、エラーハンドリングはブラウザ側で行われる
         result = copy_to_clipboard("テスト")
-
-        assert result is False
+        
+        assert result is True
 
 
 class TestHistoryManagement:
