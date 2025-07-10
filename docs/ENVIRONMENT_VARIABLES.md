@@ -125,6 +125,23 @@
 | `VALIDATION_MIN_PRECIPITATION` | 最低降水量 | 0.0 |
 | `VALIDATION_MAX_PRECIPITATION` | 最高降水量（極端な場合） | 500.0 |
 
+## LangGraph統合設定
+
+| 環境変数 | 説明 | デフォルト値 | 値の範囲 |
+|---------|------|------------|---------|
+| `LANGGRAPH_ENABLE_WEATHER` | 天気統合の有効化 | true | true, false |
+| `LANGGRAPH_AUTO_LOCATION` | 自動地点検出の有効化 | false | true, false |
+| `LANGGRAPH_WEATHER_CONTEXT_WINDOW` | 天気情報のコンテキスト窓（時間） | 24 | 1-168 |
+| `LANGGRAPH_MIN_CONFIDENCE` | 最小信頼度閾値 | 0.7 | 0.0-1.0 |
+
+## コメント生成設定
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|------------|
+| `COMMENT_HEAT_WARNING_THRESHOLD` | 熱中症警告温度（°C） | 30.0 |
+| `COMMENT_COLD_WARNING_THRESHOLD` | 防寒警告温度（°C） | 15.0 |
+| `COMMENT_TREND_HOURS_AHEAD` | 気象変化を分析する時間（時間） | 12 |
+
 ## 環境変数の設定方法
 
 ### 1. `.env`ファイルを使用する場合

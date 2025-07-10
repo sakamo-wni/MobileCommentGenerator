@@ -147,7 +147,7 @@ class CommentUtils:
             
             # 3. 通常の悪天候時の処理
             if not is_prioritized:
-                from src.config.severe_weather_config import get_severe_weather_config
+                from src.config.config import get_severe_weather_config
                 severe_config = get_severe_weather_config()
                 
                 if severe_config.is_severe_weather(weather_data.weather_condition):
