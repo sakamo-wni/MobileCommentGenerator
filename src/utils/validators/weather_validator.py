@@ -132,6 +132,14 @@ class WeatherValidator(BaseValidator):
             if not result[0]:
                 return result
         
+        # 曇り天気の安定性チェック
+        if weather_type == "cloudy":
+            result = self._check_cloudy_weather_stability(
+                comment_text, weather_data
+            )
+            if not result[0]:
+                return result
+        
         return True, ""
     
     def _get_weather_type(self, weather_data: WeatherForecast) -> str:
@@ -251,3 +259,30 @@ class WeatherValidator(BaseValidator):
         
         # 上記の条件をクリアした場合は安定した曇天と判定
         return True
+    
+    def _check_cloudy_weather_stability(self, comment_text: str,
+                                      weather_data: WeatherForecast) -> Tuple[bool, str]:
+        """曇り天気の安定性に基づいてコメントの適切性をチェック"""
+        is_stable = self._is_stable_cloudy_weather(weather_data)
+        
+        if is_stable:
+            # 安定した曇り天気では「変わりやすい」系の表現は不適切
+            unstable_expressions = [
+                "変わりやすい", "不安定", "急変", "めまぐるしく", "変化",
+                "にわか雨", "突然の雨", "急な雨", "一時的な晴れ間",
+                "晴れたり曇ったり", "気まぐれな", "予測しにくい"
+            ]
+            for expr in unstable_expressions:
+                if expr in comment_text:
+                    return False, f"安定した曇り天気に対して不適切な不安定表現: {expr}"
+        else:
+            # 不安定な曇り天気では「変わらない」系の表現は不適切
+            stable_expressions = [
+                "一日中", "終日", "変わらない", "安定した", "ずっと同じ",
+                "変化なし", "穏やかな", "静かな空模様"
+            ]
+            for expr in stable_expressions:
+                if expr in comment_text:
+                    return False, f"不安定な曇り天気に対して不適切な安定表現: {expr}"
+        
+        return True, ""
