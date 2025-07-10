@@ -741,13 +741,7 @@ class Config:
         # セキュリティ設定の検証
         self._validate_security_settings()
         
-        # ディレクトリの作成
-        self.app.data_dir.mkdir(parents=True, exist_ok=True)
-        self.app.csv_dir.mkdir(parents=True, exist_ok=True)
-        self.weather.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.data.data_dir.mkdir(parents=True, exist_ok=True)
-        self.data.forecast_cache_dir.mkdir(parents=True, exist_ok=True)
-        self.data.csv_output_dir.mkdir(parents=True, exist_ok=True)
+        # ディレクトリの作成は必要に応じて遅延実行（ensure_directories()メソッドを使用）
     
     def _validate_weather_constants(self):
         """天気関連定数の妥当性を検証"""
@@ -945,6 +939,46 @@ class Config:
                 "max_history_records": self.data.max_history_records,
             }
         }
+    
+    def ensure_directories(self) -> None:
+        """必要なディレクトリを作成（遅延実行用）"""
+        directories = [
+            self.app.data_dir,
+            self.app.csv_dir,
+            self.weather.cache_dir,
+            self.data.data_dir,
+            self.data.forecast_cache_dir,
+            self.data.csv_output_dir
+        ]
+        
+        for directory in directories:
+            if not directory.exists():
+                try:
+                    directory.mkdir(parents=True, exist_ok=True)
+                    logger.debug(f"ディレクトリを作成しました: {directory}")
+                except Exception as e:
+                    logger.error(f"ディレクトリの作成に失敗しました {directory}: {e}")
+                    raise ConfigurationError(f"ディレクトリの作成に失敗しました: {directory}")
+    
+    def ensure_directory(self, directory_name: str) -> Path:
+        """特定のディレクトリを確実に作成して返す"""
+        directory_map = {
+            "data": self.app.data_dir,
+            "csv": self.app.csv_dir,
+            "cache": self.weather.cache_dir,
+            "forecast_cache": self.data.forecast_cache_dir,
+            "csv_output": self.data.csv_output_dir
+        }
+        
+        directory = directory_map.get(directory_name)
+        if not directory:
+            raise ValueError(f"Unknown directory name: {directory_name}")
+        
+        if not directory.exists():
+            directory.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"ディレクトリを作成しました: {directory}")
+        
+        return directory
 
 
 # シングルトンパターンで設定インスタンスを管理
@@ -1003,6 +1037,11 @@ def get_comment_config() -> CommentConfig:
 def get_severe_weather_config() -> SevereWeatherConfig:
     """悪天候設定を取得"""
     return get_config().severe_weather
+
+
+def ensure_config_directories() -> None:
+    """設定で定義されたすべてのディレクトリを作成"""
+    get_config().ensure_directories()
 
 
 def get_ui_settings() -> UISettings:
