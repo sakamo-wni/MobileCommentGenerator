@@ -69,6 +69,18 @@ class WeatherConfig:
     # API設定
     use_optimized_forecast: bool = field(default=True)  # 最適化された翌日予報取得を使用
     
+    # 温度差閾値設定（temperature_analysis.pyで使用）
+    temp_diff_threshold_previous_day: float = field(default=5.0)  # 前日との有意な気温差
+    temp_diff_threshold_12hours: float = field(default=3.0)  # 12時間での有意な気温差
+    daily_temp_range_threshold_large: float = field(default=15.0)  # 大きな日較差
+    daily_temp_range_threshold_medium: float = field(default=10.0)  # 中程度の日較差
+    
+    # 温度分類の閾値（後方互換性のため）
+    temp_threshold_hot: float = field(default=30.0)
+    temp_threshold_warm: float = field(default=25.0)
+    temp_threshold_cool: float = field(default=10.0)
+    temp_threshold_cold: float = field(default=5.0)
+    
     # 閾値設定（廃止予定 - weather_constantsを使用）
     high_temp_threshold: float = field(default=30.0)
     low_temp_threshold: float = field(default=10.0)
@@ -86,6 +98,18 @@ class WeatherConfig:
         self.enable_caching = os.getenv("WEATHER_ENABLE_CACHING", "true" if self.enable_caching else "false").lower() == "true"
         self.use_optimized_forecast = os.getenv("WEATHER_USE_OPTIMIZED_FORECAST", "true" if self.use_optimized_forecast else "false").lower() == "true"
         self.forecast_cache_retention_days = int(os.getenv("FORECAST_CACHE_RETENTION_DAYS", str(self.forecast_cache_retention_days)))
+        
+        # 温度差閾値設定の読み込み
+        self.temp_diff_threshold_previous_day = float(os.getenv("TEMP_DIFF_THRESHOLD_PREVIOUS_DAY", str(self.temp_diff_threshold_previous_day)))
+        self.temp_diff_threshold_12hours = float(os.getenv("TEMP_DIFF_THRESHOLD_12HOURS", str(self.temp_diff_threshold_12hours)))
+        self.daily_temp_range_threshold_large = float(os.getenv("DAILY_TEMP_RANGE_THRESHOLD_LARGE", str(self.daily_temp_range_threshold_large)))
+        self.daily_temp_range_threshold_medium = float(os.getenv("DAILY_TEMP_RANGE_THRESHOLD_MEDIUM", str(self.daily_temp_range_threshold_medium)))
+        
+        # 温度分類の閾値の読み込み
+        self.temp_threshold_hot = float(os.getenv("TEMP_THRESHOLD_HOT", str(self.temp_threshold_hot)))
+        self.temp_threshold_warm = float(os.getenv("TEMP_THRESHOLD_WARM", str(self.temp_threshold_warm)))
+        self.temp_threshold_cool = float(os.getenv("TEMP_THRESHOLD_COOL", str(self.temp_threshold_cool)))
+        self.temp_threshold_cold = float(os.getenv("TEMP_THRESHOLD_COLD", str(self.temp_threshold_cold)))
 
 
 # 天気関連の定数クラス群
