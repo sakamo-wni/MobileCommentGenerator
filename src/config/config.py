@@ -315,6 +315,11 @@ def get_config() -> Config:
     return Config()
 
 
+def reset_config() -> None:
+    """設定インスタンスをリセット（テスト用）"""
+    get_config.cache_clear()
+
+
 # 互換性のためのヘルパー関数
 def get_api_config() -> APIConfig:
     """API設定を取得"""
