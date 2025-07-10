@@ -114,8 +114,9 @@ class AppConfig:
     
     def validate(self) -> Dict[str, Any]:
         """設定の検証"""
+        api_key_validation = self.api_keys.validate()
         validation_results = {
-            "api_keys": self.api_keys.validate(),
+            "api_keys": api_key_validation,
             "environment": self.env,
             "debug_mode": self.debug,
             "data_dir_exists": self.data_settings.data_dir.exists(),
@@ -123,7 +124,7 @@ class AppConfig:
         }
         
         # 警告の出力
-        if not validation_results["api_keys"]["wxtech"]:
+        if not api_key_validation.get("wxtech", False):
             logger.warning("WXTECH_API_KEY is not set. Weather data fetching will fail.")
         
         return validation_results
@@ -141,7 +142,7 @@ class AppConfig:
                 "default_provider": self.ui_settings.default_llm_provider
             },
             "generation_settings": {
-                "timeout": self.generation_settings.generation_timeout,
+                "timeout": self.generation_settings.timeout,
                 "max_retries": self.generation_settings.max_retries,
                 "cache_enabled": self.generation_settings.cache_enabled,
                 "batch_size": self.generation_settings.batch_size
