@@ -54,10 +54,15 @@
 
 | 環境変数 | 説明 | デフォルト値 |
 |---------|------|------------|
+| `DEFAULT_WEATHER_LOCATION` | デフォルトの地点名 | 東京 |
+| `WEATHER_FORECAST_HOURS` | デフォルト予報時間数 | 24 |
 | `WEATHER_FORECAST_HOURS_AHEAD` | 予報を取得する時間（現在時刻から） | 12 |
 | `WEATHER_FORECAST_DAYS` | 予報を取得する日数 | 3 |
 | `WEATHER_CACHE_TTL` | 予報キャッシュの有効期限（秒） | 3600 |
 | `WEATHER_CACHE_DIR` | 予報キャッシュディレクトリ | data/forecast_cache |
+| `WEATHER_ENABLE_CACHING` | キャッシュ機能の有効化 | true |
+| `WEATHER_USE_OPTIMIZED_FORECAST` | 最適化された翌日予報取得を使用 | true |
+| `FORECAST_CACHE_RETENTION_DAYS` | 予報キャッシュの保持日数 | 7 |
 
 ## 天気関連の閾値設定
 
