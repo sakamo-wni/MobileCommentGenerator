@@ -107,6 +107,11 @@ class WeatherValidator(BaseValidator):
     
     def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
         """天気条件に基づいてコメントを検証"""
+        # 霧関連コメントの検証を最初に実行
+        fog_result = self._check_fog_comment_validity(comment.comment_text, weather_data)
+        if not fog_result[0]:
+            return fog_result
+        
         return self._check_weather_conditions(
             comment.comment_text,
             comment.comment_type.value,
@@ -288,5 +293,34 @@ class WeatherValidator(BaseValidator):
             for expr in stable_expressions:
                 if expr in comment_text:
                     return False, f"不安定な曇り天気に対して不適切な安定表現: {expr}"
+        
+        return True, ""
+    
+    def _check_fog_comment_validity(self, comment_text: str, weather_data: WeatherForecast) -> Tuple[bool, str]:
+        """霧関連コメントの妥当性をチェック
+        
+        霧に関するコメントが、実際に霧の天気条件がある場合のみ使用されることを確認
+        """
+        # 霧関連のキーワード
+        fog_keywords = [
+            "霧", "きり", "視界", "見通し", "みとおし", "濃霧", "朝霧", 
+            "夕霧", "もや", "かすみ", "かすむ", "ぼんやり", "見えにくい",
+            "視程", "見えない", "見づらい"
+        ]
+        
+        # コメントに霧関連キーワードが含まれているかチェック
+        contains_fog_keyword = any(keyword in comment_text for keyword in fog_keywords)
+        
+        if contains_fog_keyword:
+            # 天気データに霧が含まれているかチェック
+            has_fog_condition = (
+                weather_data.weather_condition == WeatherCondition.FOG or
+                "霧" in weather_data.weather_description or
+                "fog" in weather_data.weather_description.lower() or
+                "もや" in weather_data.weather_description
+            )
+            
+            if not has_fog_condition:
+                return False, f"霧関連のコメントですが、天気データに霧が含まれていません"
         
         return True, ""
