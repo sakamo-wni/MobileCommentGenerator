@@ -8,7 +8,7 @@ import os
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from functools import lru_cache
 
 from dotenv import load_dotenv
@@ -29,7 +29,11 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env.shared", override=False)
 
 @dataclass
 class APIConfig:
-    """API関連の設定"""
+    """API関連の設定
+    
+    各種APIサービスの認証情報と接続設定を管理します。
+    環境変数からの読み込みをサポートし、機密情報の安全な管理を提供します。
+    """
     # API Keys
     wxtech_api_key: str = field(default="")
     openai_api_key: str = field(default="")
@@ -58,7 +62,7 @@ class APIConfig:
         self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", self.aws_secret_access_key)
         self.aws_region = os.getenv("AWS_DEFAULT_REGION", self.aws_region)
     
-    def get_llm_key(self, provider: str) -> str:
+    def get_llm_key(self, provider: str) -> Optional[str]:
         """LLMプロバイダーに対応するAPIキーを取得"""
         provider_map = {
             "openai": self.openai_api_key,
@@ -108,7 +112,11 @@ class APIConfig:
 
 @dataclass
 class WeatherConfig:
-    """天気予報関連の設定"""
+    """天気予報関連の設定
+    
+    天気情報の取得、キャッシュ、予報期間などの設定を管理します。
+    温度差や降水量の闾値など、天気コメント生成に必要なパラメータも含まれます。
+    """
     # 基本設定
     default_location: str = field(default="東京")
     forecast_hours: int = field(default=24)  # デフォルト予報時間数
@@ -341,7 +349,11 @@ class SystemConstants:
 
 @dataclass
 class AppSettings:
-    """アプリケーション全体の設定"""
+    """アプリケーション全体の設定
+    
+    環境、ログレベル、ディレクトリパスなどの基本設定を管理します。
+    環境変数からの設定オーバーライドをサポートします。
+    """
     env: str = field(default="development")
     debug: bool = field(default=False)
     log_level: str = field(default="INFO")
@@ -393,7 +405,11 @@ class ServerConfig:
 
 @dataclass
 class LLMConfig:
-    """LLM関連の設定"""
+    """LLM関連の設定
+    
+    大規模言語モデル（LLM）の設定を管理します。
+    プロバイダー、モデル名、生成パラメータなどを設定できます。
+    """
     default_provider: str = field(default="gemini")
     temperature: float = field(default=0.7)
     max_tokens: int = field(default=1000)
@@ -590,7 +606,11 @@ class SevereWeatherConfig:
 
 @dataclass
 class UISettings:
-    """UI関連の設定"""
+    """UI関連の設定
+    
+    Streamlit UIの表示設定を管理します。
+    ページタイトル、レイアウト、テーマ、日付フォーマットなどをカスタマイズできます。
+    """
     # 基本設定
     page_title: str = field(default="天気コメント生成システム")
     page_icon: str = field(default="☀️")
@@ -609,10 +629,13 @@ class UISettings:
     
     def __post_init__(self):
         """環境変数から値を読み込む"""
-        if os.getenv("MAX_LOCATIONS_PER_GENERATION"):
-            self.max_locations_per_generation = int(os.getenv("MAX_LOCATIONS_PER_GENERATION"))
-        if os.getenv("DEFAULT_LLM_PROVIDER"):
-            self.default_llm_provider = os.getenv("DEFAULT_LLM_PROVIDER")
+        max_locations = os.getenv("MAX_LOCATIONS_PER_GENERATION")
+        if max_locations:
+            self.max_locations_per_generation = int(max_locations)
+        
+        llm_provider = os.getenv("DEFAULT_LLM_PROVIDER")
+        if llm_provider:
+            self.default_llm_provider = llm_provider
 
 
 @dataclass
@@ -682,7 +705,26 @@ class DataSettings:
 
 @dataclass
 class Config:
-    """統一された設定クラス"""
+    """統合設定クラス
+    
+    アプリケーション全体の設定を一元管理するメインクラスです。
+    シングルトンパターンで実装され、アプリケーション全体で同一の設定インスタンスを使用します。
+    
+    Attributes:
+        api: API関連の設定
+        weather: 天気予報関連の設定
+        app: アプリケーション全体の設定
+        server: サーバー関連の設定
+        llm: LLM関連の設定
+        weather_constants: 天気関連の定数
+        system_constants: システム定数
+        langgraph: LangGraph統合機能の設定
+        comment: コメント関連の設定
+        severe_weather: 悪天候関連の設定
+        ui: UI関連の設定
+        generation: コメント生成関連の設定
+        data: データ関連の設定
+    """
     api: APIConfig = field(default_factory=APIConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     app: AppSettings = field(default_factory=AppSettings)
@@ -851,7 +893,7 @@ class Config:
             logger.warning("警告: APIキーが公開される可能性があります。環境変数を確認してください。")
         
         # デバッグモードでのセキュリティ警告
-        if hasattr(self.app, 'debug_mode') and self.app.debug_mode:
+        if self.app.debug:
             logger.info("デバッグモードが有効です。本番環境では無効にしてください。")
     
     def to_dict(self) -> Dict[str, Any]:
