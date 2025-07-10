@@ -42,8 +42,7 @@ MobileCommentGenerator/
 │   │   ├── comment_selector.py   # Comment Selection Logic
 │   │   ├── evaluate_candidate_node.py   # Candidate Evaluation Node
 │   │   ├── generate_comment_node.py     # Comment Generation Node
-│   │   ├── output_node.py        # Output Node
-│   │   └── mock_nodes.py         # Mock Nodes (for testing)
+│   │   └── output_node.py        # Output Node
 │   ├── workflows/                # Workflow Implementation
 │   │   └── comment_generation_workflow.py
 │   ├── llm/                      # LLM Integration
