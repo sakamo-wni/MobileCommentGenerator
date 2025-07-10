@@ -29,8 +29,8 @@ class CommentValidator:
         self.llm_validator = None
         # 環境変数を再読み込み
         load_dotenv(override=True)
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        logger.info(f"APIキー検索: GEMINI_API_KEY={'*' * 10 if os.getenv('GEMINI_API_KEY') else 'None'}, GOOGLE_API_KEY={'*' * 10 if os.getenv('GOOGLE_API_KEY') else 'None'}")
+        api_key = os.getenv("GEMINI_API_KEY")
+        logger.info(f"GEMINI_API_KEY: {'設定済み' if api_key else '未設定'}")
         if api_key:
             try:
                 self.llm_validator = LLMDuplicationValidator(api_key)
@@ -44,7 +44,8 @@ class CommentValidator:
         self, 
         weather_comment: PastComment, 
         advice_comment: PastComment, 
-        weather_data: WeatherForecast
+        weather_data: WeatherForecast,
+        state: Optional[CommentGenerationState] = None
     ) -> bool:
         """コメントペアの最終バリデーション（包括的一貫性チェック含む）"""
         weather_valid, weather_reason = self.validator.validate_comment(weather_comment, weather_data)
@@ -73,7 +74,8 @@ class CommentValidator:
                 llm_valid, llm_reason = self.llm_validator.validate_comment_pair_with_llm_sync(
                     weather_comment.comment_text,
                     advice_comment.comment_text,
-                    weather_data
+                    weather_data,
+                    state
                 )
                 if not llm_valid:
                     logger.warning(f"LLM重複検証失敗: {llm_reason}")

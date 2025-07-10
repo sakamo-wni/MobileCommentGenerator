@@ -83,7 +83,7 @@ class CommentSelector:
             return None
             
         # ペア作成前の最終バリデーション
-        if not self.comment_validator.validate_comment_pair(best_weather, best_advice, weather_data):
+        if not self.comment_validator.validate_comment_pair(best_weather, best_advice, weather_data, state):
             # 重複回避のための代替選択を試行
             alternative_pair = self._select_alternative_non_duplicate_pair(
                 filtered_weather, filtered_advice, weather_data, location_name, target_datetime, state
@@ -93,7 +93,7 @@ class CommentSelector:
             
             # 代替選択も失敗した場合はフォールバック処理
             return self._fallback_comment_selection(
-                weather_comments, advice_comments, weather_data
+                weather_comments, advice_comments, weather_data, state
             )
         
         return CommentPair(
@@ -159,15 +159,16 @@ class CommentSelector:
         self,
         weather_comments: List[PastComment],
         advice_comments: List[PastComment],
-        weather_data: WeatherForecast
+        weather_data: WeatherForecast,
+        state: Optional[CommentGenerationState] = None
     ) -> Optional[CommentPair]:
         """フォールバック選択処理"""
         logger.warning("フォールバック選択を実行")
         
         # 雨の場合の特別処理
-        if any(hw.precipitation_mm > 0 for hw in weather_data.hourly_forecasts):
-            weather_comment = self._find_rain_appropriate_weather_comment(weather_comments)
-            advice_comment = self._find_rain_appropriate_advice_comment(advice_comments)
+        if weather_data.precipitation > 0:
+            weather_comment = self._find_rain_appropriate_weather_comment(weather_comments, weather_data, state)
+            advice_comment = self._find_rain_appropriate_advice_comment(advice_comments, state)
             
             if weather_comment and advice_comment:
                 return CommentPair(
@@ -190,24 +191,75 @@ class CommentSelector:
     
     def _find_rain_appropriate_weather_comment(
         self, 
-        comments: List[PastComment]
+        comments: List[PastComment],
+        weather_data: WeatherForecast,
+        state: Optional[CommentGenerationState] = None
     ) -> Optional[PastComment]:
-        """雨に適した天気コメントを探す"""
+        """雨に適した天気コメントを探す（降水量に応じた表現の妥当性をチェック）"""
         rain_keywords = ["雨", "降水", "にわか雨", "傘"]
+        
+        # 連続雨かどうかを判定
+        is_continuous_rain = False
+        rain_hours = 0
+        if state and hasattr(state, 'period_forecasts') and state.period_forecasts:
+            rain_hours = sum(1 for f in state.period_forecasts if f.weather == "雨")
+            is_continuous_rain = rain_hours >= 4  # 4時間すべて雨
+        
+        # 降水量に基づく不適切な表現のチェック
         for comment in comments:
             if any(keyword in comment.comment_text for keyword in rain_keywords):
+                # 降水量が10mm/h未満の場合、強雨表現は不適切
+                if weather_data.precipitation < 10.0:
+                    strong_rain_expressions = ["強雨", "激しい雨", "土砂降り", "豪雨", "大雨", "どしゃ降り", "ザーザー"]
+                    if any(expr in comment.comment_text for expr in strong_rain_expressions):
+                        logger.debug(f"降水量{weather_data.precipitation}mm/hに対して過度な表現のためスキップ: {comment.comment_text}")
+                        continue
+                
+                # 降水量が5mm/h未満の場合、中程度の雨表現も不適切
+                if weather_data.precipitation < 5.0:
+                    moderate_rain_expressions = ["本降り", "しっかりとした雨", "まとまった雨"]
+                    if any(expr in comment.comment_text for expr in moderate_rain_expressions):
+                        logger.debug(f"降水量{weather_data.precipitation}mm/hに対して過度な表現のためスキップ: {comment.comment_text}")
+                        continue
+                
+                # 連続雨の場合、にわか雨表現は不適切
+                if is_continuous_rain:
+                    temporary_rain_expressions = ["にわか雨", "一時的な雨", "急な雨", "突然の雨"]
+                    if any(expr in comment.comment_text for expr in temporary_rain_expressions):
+                        logger.debug(f"連続雨（{rain_hours}時間）に対して不適切な一時的表現のためスキップ: {comment.comment_text}")
+                        continue
+                
                 return comment
+        
+        # 適切な雨コメントが見つからない場合、一般的な雨コメントを返す
         return comments[0] if comments else None
     
     def _find_rain_appropriate_advice_comment(
         self, 
-        comments: List[PastComment]
+        comments: List[PastComment],
+        state: Optional[CommentGenerationState] = None
     ) -> Optional[PastComment]:
         """雨に適したアドバイスコメントを探す"""
         rain_advice_keywords = ["傘", "雨具", "濡れ", "雨対策"]
+        
+        # 連続雨かどうかを判定
+        is_continuous_rain = False
+        rain_hours = 0
+        if state and hasattr(state, 'period_forecasts') and state.period_forecasts:
+            rain_hours = sum(1 for f in state.period_forecasts if f.weather == "雨")
+            is_continuous_rain = rain_hours >= 4  # 4時間すべて雨
+        
         for comment in comments:
             if any(keyword in comment.comment_text for keyword in rain_advice_keywords):
+                # 連続雨の場合、「傘があると安心」のような表現は不適切
+                if is_continuous_rain:
+                    mild_umbrella_expressions = ["傘があると安心", "傘がお守り", "念のため傘", "折りたたみ傘"]
+                    if any(expr in comment.comment_text for expr in mild_umbrella_expressions):
+                        logger.debug(f"連続雨（{rain_hours}時間）に対して不適切な控えめな傘表現のためスキップ: {comment.comment_text}")
+                        continue
+                
                 return comment
+        
         return comments[0] if comments else None
     
     def _select_alternative_non_duplicate_pair(
@@ -244,7 +296,7 @@ class CommentSelector:
                 advice_candidate = advice_candidates[advice_idx]['comment_object']
                 
                 # 包括的バリデーションチェック（新しい一貫性チェック含む）
-                if self.comment_validator.validate_comment_pair(weather_candidate, advice_candidate, weather_data):
+                if self.comment_validator.validate_comment_pair(weather_candidate, advice_candidate, weather_data, state):
                     logger.info(f"代替ペア選択成功 (試行{attempt+1}): 天気='{weather_candidate.comment_text}', アドバイス='{advice_candidate.comment_text}'")
                     return CommentPair(
                         weather_comment=weather_candidate,
