@@ -14,7 +14,6 @@ openpyxl>=3.1.0
 
 # UI enhancements
 plotly>=5.15.0
-altair>=5.0.0
 
 # Image handling
 Pillow>=10.0.0
@@ -30,12 +29,5 @@ streamlit-option-menu>=0.3.6
 streamlit-ace>=0.1.1
 streamlit-aggrid>=0.3.4
 
-# Color handling
-matplotlib>=3.7.0
-seaborn>=0.12.0
-
 # JavaScript integration
 streamlit-javascript>=0.1.5
-
-# Chart libraries  
-bokeh>=3.2.0
