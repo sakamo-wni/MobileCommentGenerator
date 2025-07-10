@@ -51,10 +51,10 @@ def evaluate_candidate_node(state: CommentGenerationState) -> CommentGenerationS
         # 天気の安定性を判定（validation.pyのロジックを再利用）
         from src.nodes.comment_selector.validation import CommentValidator
         from src.utils.weather_comment_validator import WeatherCommentValidator
-        from src.config.severe_weather_config import SevereWeatherConfig
+        from src.config.config import get_severe_weather_config
         
         weather_validator = WeatherCommentValidator()
-        severe_config = SevereWeatherConfig()
+        severe_config = get_severe_weather_config()
         validator = CommentValidator(weather_validator, severe_config)
         is_stable = validator._check_full_day_stability(weather_data, state)
         

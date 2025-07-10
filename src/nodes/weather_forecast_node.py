@@ -18,7 +18,7 @@ from langgraph.graph import END, START, StateGraph
 from src.data.weather_trend import WeatherTrend
 from src.data.weather_data import WeatherForecastCollection, WeatherForecast
 from src.config.weather_config import get_config
-from src.config.comment_config import get_comment_config
+from src.config.config import get_comment_config
 from src.config.config_loader import load_config
 from src.nodes.weather_forecast import WeatherDataFetcher, WeatherDataTransformer, WeatherDataValidator
 

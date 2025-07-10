@@ -12,6 +12,7 @@ from typing import Dict, Any, List
 from functools import lru_cache
 
 from dotenv import load_dotenv
+from src.data.weather_data import WeatherCondition
 
 
 class ConfigurationError(Exception):
@@ -319,6 +320,181 @@ class LLMConfig:
 
 
 @dataclass
+class LangGraphConfig:
+    """LangGraph統合機能の設定"""
+    enable_weather_integration: bool = field(default=True)
+    auto_location_detection: bool = field(default=False)
+    weather_context_window: int = field(default=24)
+    min_confidence_threshold: float = field(default=0.7)
+    
+    def __post_init__(self):
+        """環境変数から設定を読み込む"""
+        self.enable_weather_integration = os.getenv("LANGGRAPH_ENABLE_WEATHER", "true" if self.enable_weather_integration else "false").lower() == "true"
+        self.auto_location_detection = os.getenv("LANGGRAPH_AUTO_LOCATION", "true" if self.auto_location_detection else "false").lower() == "true"
+        self.weather_context_window = int(os.getenv("LANGGRAPH_WEATHER_CONTEXT_WINDOW", str(self.weather_context_window)))
+        self.min_confidence_threshold = float(os.getenv("LANGGRAPH_MIN_CONFIDENCE", str(self.min_confidence_threshold)))
+
+
+@dataclass
+class CommentConfig:
+    """コメント生成の設定"""
+    # 温度閾値
+    heat_warning_threshold: float = field(default=30.0)  # 熱中症警告温度
+    cold_warning_threshold: float = field(default=15.0)  # 防寒警告温度
+    
+    # トレンド分析期間
+    trend_hours_ahead: int = field(default=12)  # 気象変化を分析する時間（時間）
+    
+    # 天気スコア（良い天気ほど高いスコア）
+    weather_scores: Dict[WeatherCondition, int] = field(default_factory=lambda: {
+        WeatherCondition.CLEAR: 5,
+        WeatherCondition.PARTLY_CLOUDY: 4,
+        WeatherCondition.CLOUDY: 3,
+        WeatherCondition.RAIN: 2,
+        WeatherCondition.HEAVY_RAIN: 0,
+        WeatherCondition.SNOW: 1,
+        WeatherCondition.HEAVY_SNOW: 0,
+        WeatherCondition.STORM: 0,
+        WeatherCondition.FOG: 2,
+        WeatherCondition.UNKNOWN: 2,
+    })
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.heat_warning_threshold = float(os.getenv("COMMENT_HEAT_WARNING_THRESHOLD", str(self.heat_warning_threshold)))
+        self.cold_warning_threshold = float(os.getenv("COMMENT_COLD_WARNING_THRESHOLD", str(self.cold_warning_threshold)))
+        self.trend_hours_ahead = int(os.getenv("COMMENT_TREND_HOURS_AHEAD", str(self.trend_hours_ahead)))
+
+
+@dataclass
+class SevereWeatherConfig:
+    """悪天候時の特別なコメント選択設定"""
+    # 悪天候として特別扱いする条件
+    severe_weather_conditions: List[WeatherCondition] = field(default_factory=lambda: [
+        WeatherCondition.SEVERE_STORM,  # 大雨・嵐
+        WeatherCondition.STORM,         # 嵐
+        WeatherCondition.THUNDER,       # 雷
+        WeatherCondition.HEAVY_RAIN,    # 大雨
+        WeatherCondition.RAIN,          # 雨
+        WeatherCondition.FOG,           # 霧
+        WeatherCondition.HEAVY_SNOW,    # 大雪
+        WeatherCondition.SNOW,          # 雪
+    ])
+    
+    # 悪天候時に推奨される天気コメント
+    severe_weather_comments: Dict[str, List[str]] = field(default_factory=lambda: {
+        "大雨・嵐": [
+            "大荒れの空",
+            "激しい雨に警戒",
+            "外出は控えめに",
+            "安全第一の一日",
+            "荒天に要注意"
+        ],
+        "雨": [
+            "雨雲が広がる空",
+            "本格的な雨に注意",
+            "濡れ対策が必要",
+            "雨が続く空模様",
+            "雨脚が強まる可能性"
+        ],
+        "雷": [
+            "雷に注意",
+            "不安定な空模様",
+            "急な雷雨に警戒",
+            "空の様子に注意",
+            "雷鳴轟く空"
+        ],
+        "霧": [
+            "視界不良に注意",
+            "霧に包まれる朝",
+            "見通し悪い空",
+            "慎重な行動を",
+            "霧が立ち込める"
+        ],
+        "暴風": [
+            "強風に警戒",
+            "風が強い一日",
+            "飛来物に注意",
+            "外出時は要注意",
+            "荒れ模様の空"
+        ]
+    })
+    
+    # 悪天候時に推奨されるアドバイスコメント
+    severe_weather_advice: Dict[str, List[str]] = field(default_factory=lambda: {
+        "大雨・嵐": [
+            "室内で安全に",
+            "無理な外出は避けて",
+            "最新情報をチェック",
+            "早めの帰宅を",
+            "安全確保を優先"
+        ],
+        "雨": [
+            "傘がお守り",
+            "足元に注意を",
+            "濡れ対策を忘れずに",
+            "室内で過ごすのも",
+            "雨具の準備を"
+        ],
+        "雷": [
+            "建物内で待機を",
+            "高い場所は避けて",
+            "電気製品に注意",
+            "屋内で安全に",
+            "金属類から離れて"
+        ],
+        "霧": [
+            "車の運転は慎重に",
+            "ゆっくり移動を",
+            "時間に余裕を持って",
+            "足元に注意して",
+            "明るい服装で"
+        ],
+        "暴風": [
+            "飛来物に注意",
+            "窓から離れて",
+            "外出は最小限に",
+            "しっかり固定を",
+            "安全な場所で"
+        ]
+    })
+    
+    # 悪天候時の除外キーワード（これらを含むコメントは選ばない）
+    exclude_keywords_severe: List[str] = field(default_factory=lambda: [
+        "穏やか", "過ごしやすい", "快適", "爽やか", "心地良い",
+        "青空", "晴れ", "快晴", "日差し", "太陽",
+        "散歩", "ピクニック", "お出かけ", "外出日和",
+        "洗濯日和", "布団干し", "外遊び",
+        "ニワカ雨が心配", "スッキリしない", "蒸し暑い"
+    ])
+    
+    # 天気条件の日本語マッピング
+    weather_condition_japanese: Dict[WeatherCondition, str] = field(default_factory=lambda: {
+        WeatherCondition.SEVERE_STORM: "大雨・嵐",
+        WeatherCondition.STORM: "嵐",
+        WeatherCondition.THUNDER: "雷",
+        WeatherCondition.HEAVY_RAIN: "大雨",
+        WeatherCondition.RAIN: "雨",
+        WeatherCondition.FOG: "霧",
+        WeatherCondition.HEAVY_SNOW: "大雪",
+        WeatherCondition.SNOW: "雪",
+    })
+    
+    def is_severe_weather(self, condition: WeatherCondition) -> bool:
+        """指定された天気条件が悪天候かどうか判定"""
+        return condition in self.severe_weather_conditions
+    
+    def get_recommended_comments(self, condition: WeatherCondition) -> Dict[str, List[str]]:
+        """指定された天気条件に推奨されるコメントを取得"""
+        japanese_name = self.weather_condition_japanese.get(condition, "")
+        
+        return {
+            "weather": self.severe_weather_comments.get(japanese_name, []),
+            "advice": self.severe_weather_advice.get(japanese_name, [])
+        }
+
+
+@dataclass
 class Config:
     """統一された設定クラス"""
     api: APIConfig = field(default_factory=APIConfig)
@@ -328,6 +504,9 @@ class Config:
     llm: LLMConfig = field(default_factory=LLMConfig)
     weather_constants: WeatherConstants = field(default_factory=WeatherConstants)
     system_constants: SystemConstants = field(default_factory=SystemConstants)
+    langgraph: LangGraphConfig = field(default_factory=LangGraphConfig)
+    comment: CommentConfig = field(default_factory=CommentConfig)
+    severe_weather: SevereWeatherConfig = field(default_factory=SevereWeatherConfig)
     
     def __post_init__(self):
         """設定の検証"""
@@ -486,7 +665,23 @@ class Config:
                 "wind": self.weather_constants.wind.__dict__,
                 "validation": self.weather_constants.validation.__dict__,
             },
-            "system_constants": self.system_constants.__dict__
+            "system_constants": self.system_constants.__dict__,
+            "langgraph": {
+                "enable_weather_integration": self.langgraph.enable_weather_integration,
+                "auto_location_detection": self.langgraph.auto_location_detection,
+                "weather_context_window": self.langgraph.weather_context_window,
+                "min_confidence_threshold": self.langgraph.min_confidence_threshold,
+            },
+            "comment": {
+                "heat_warning_threshold": self.comment.heat_warning_threshold,
+                "cold_warning_threshold": self.comment.cold_warning_threshold,
+                "trend_hours_ahead": self.comment.trend_hours_ahead,
+                "weather_scores": {k.name: v for k, v in self.comment.weather_scores.items()},
+            },
+            "severe_weather": {
+                "severe_weather_conditions": [c.name for c in self.severe_weather.severe_weather_conditions],
+                "exclude_keywords_severe": self.severe_weather.exclude_keywords_severe,
+            }
         }
 
 
@@ -531,3 +726,18 @@ def get_weather_constants() -> WeatherConstants:
 def get_system_constants() -> SystemConstants:
     """システム定数を取得"""
     return get_config().system_constants
+
+
+def get_langgraph_config() -> LangGraphConfig:
+    """LangGraph設定を取得"""
+    return get_config().langgraph
+
+
+def get_comment_config() -> CommentConfig:
+    """コメント設定を取得"""
+    return get_config().comment
+
+
+def get_severe_weather_config() -> SevereWeatherConfig:
+    """悪天候設定を取得"""
+    return get_config().severe_weather

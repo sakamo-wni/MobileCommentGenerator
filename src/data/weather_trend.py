@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 from enum import Enum
 
 from src.data.weather_data import WeatherForecast, WeatherCondition
-from src.config.comment_config import get_comment_config
+from src.config.config import get_comment_config
 
 
 class TrendDirection(Enum):
