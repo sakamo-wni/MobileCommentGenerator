@@ -9,8 +9,7 @@
 """
 
 # 後方互換性のために全てのクラスと関数を再エクスポート
-from .weather_settings import WeatherConfig
-from .langgraph_settings import LangGraphConfig
+from .config import get_weather_config, get_langgraph_config
 from .app_settings import (
     AppConfig,
     get_config,
@@ -18,6 +17,17 @@ from .app_settings import (
     validate_config,
     setup_environment_defaults,
 )
+
+# 互換性のためのWeatherConfigとLangGraphConfigのエイリアス
+class WeatherConfig:
+    """非推奨: get_weather_config()を使用してください"""
+    def __new__(cls):
+        return get_weather_config()
+
+class LangGraphConfig:
+    """非推奨: get_langgraph_config()を使用してください"""
+    def __new__(cls):
+        return get_langgraph_config()
 
 __all__ = [
     "WeatherConfig",

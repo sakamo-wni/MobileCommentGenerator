@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.weather_trend import WeatherTrend
-from src.config.weather_config import WeatherConfig
+from src.config.config import get_weather_config
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class WeatherDataTransformer:
     
     def __init__(self):
         """初期化"""
-        self.config = WeatherConfig()
+        self.config = get_weather_config()
     
     def filter_forecasts_by_hours(
         self,

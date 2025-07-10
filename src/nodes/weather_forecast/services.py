@@ -17,7 +17,7 @@ from src.data.forecast_cache import save_forecast_to_cache, get_temperature_diff
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
-from src.config.weather_settings import WeatherConfig
+from src.config.config import get_weather_config
 from src.data.weather_trend import WeatherTrend
 from src.nodes.weather_forecast.data_validator import WeatherDataValidator
 from src.nodes.weather_forecast.constants import (
@@ -122,7 +122,7 @@ class WeatherAPIService:
         self.client = WxTechAPIClient(api_key)
         self.max_retries = API_MAX_RETRIES
         self.initial_retry_delay = API_INITIAL_RETRY_DELAY
-        self.weather_config = WeatherConfig()
+        self.weather_config = get_weather_config()
     
     def fetch_forecast_with_retry(
         self, 

@@ -11,7 +11,7 @@ from typing import Optional, Tuple, Union
 import pytz
 
 from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
-from src.config.weather_settings import WeatherConfig
+from src.config.config import get_weather_config
 from src.data.location_manager import Location, LocationManager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection
 
@@ -29,7 +29,7 @@ class WeatherDataFetcher:
         """
         self.api_key = api_key
         self.location_manager = LocationManager()
-        self.weather_config = WeatherConfig()
+        self.weather_config = get_weather_config()
     
     async def fetch_weather_data(
         self,

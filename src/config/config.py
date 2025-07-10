@@ -54,12 +54,34 @@ class APIConfig:
 @dataclass
 class WeatherConfig:
     """天気予報関連の設定"""
+    # 基本設定
+    default_location: str = field(default="東京")
+    forecast_hours: int = field(default=24)  # デフォルト予報時間数
     forecast_hours_ahead: int = field(default=12)
     forecast_days: int = field(default=3)
+    
+    # キャッシュ設定
     cache_ttl_seconds: int = field(default=3600)  # 1 hour
     cache_dir: Path = field(default_factory=lambda: Path("data/forecast_cache"))
+    enable_caching: bool = field(default=True)
+    forecast_cache_retention_days: int = field(default=7)
     
-    # 閾値設定
+    # API設定
+    use_optimized_forecast: bool = field(default=True)  # 最適化された翌日予報取得を使用
+    
+    # 温度差閾値設定（temperature_analysis.pyで使用）
+    temp_diff_threshold_previous_day: float = field(default=5.0)  # 前日との有意な気温差
+    temp_diff_threshold_12hours: float = field(default=3.0)  # 12時間での有意な気温差
+    daily_temp_range_threshold_large: float = field(default=15.0)  # 大きな日較差
+    daily_temp_range_threshold_medium: float = field(default=10.0)  # 中程度の日較差
+    
+    # 温度分類の閾値（後方互換性のため）
+    temp_threshold_hot: float = field(default=30.0)
+    temp_threshold_warm: float = field(default=25.0)
+    temp_threshold_cool: float = field(default=10.0)
+    temp_threshold_cold: float = field(default=5.0)
+    
+    # 閾値設定（廃止予定 - weather_constantsを使用）
     high_temp_threshold: float = field(default=30.0)
     low_temp_threshold: float = field(default=10.0)
     heavy_rain_threshold: float = field(default=30.0)
@@ -67,10 +89,27 @@ class WeatherConfig:
     
     def __post_init__(self):
         """環境変数から値を読み込む"""
+        self.default_location = os.getenv("DEFAULT_WEATHER_LOCATION", self.default_location)
+        self.forecast_hours = int(os.getenv("WEATHER_FORECAST_HOURS", str(self.forecast_hours)))
         self.forecast_hours_ahead = int(os.getenv("WEATHER_FORECAST_HOURS_AHEAD", str(self.forecast_hours_ahead)))
         self.forecast_days = int(os.getenv("WEATHER_FORECAST_DAYS", str(self.forecast_days)))
         self.cache_ttl_seconds = int(os.getenv("WEATHER_CACHE_TTL", str(self.cache_ttl_seconds)))
         self.cache_dir = Path(os.getenv("WEATHER_CACHE_DIR", str(self.cache_dir)))
+        self.enable_caching = os.getenv("WEATHER_ENABLE_CACHING", "true" if self.enable_caching else "false").lower() == "true"
+        self.use_optimized_forecast = os.getenv("WEATHER_USE_OPTIMIZED_FORECAST", "true" if self.use_optimized_forecast else "false").lower() == "true"
+        self.forecast_cache_retention_days = int(os.getenv("FORECAST_CACHE_RETENTION_DAYS", str(self.forecast_cache_retention_days)))
+        
+        # 温度差閾値設定の読み込み
+        self.temp_diff_threshold_previous_day = float(os.getenv("TEMP_DIFF_THRESHOLD_PREVIOUS_DAY", str(self.temp_diff_threshold_previous_day)))
+        self.temp_diff_threshold_12hours = float(os.getenv("TEMP_DIFF_THRESHOLD_12HOURS", str(self.temp_diff_threshold_12hours)))
+        self.daily_temp_range_threshold_large = float(os.getenv("DAILY_TEMP_RANGE_THRESHOLD_LARGE", str(self.daily_temp_range_threshold_large)))
+        self.daily_temp_range_threshold_medium = float(os.getenv("DAILY_TEMP_RANGE_THRESHOLD_MEDIUM", str(self.daily_temp_range_threshold_medium)))
+        
+        # 温度分類の閾値の読み込み
+        self.temp_threshold_hot = float(os.getenv("TEMP_THRESHOLD_HOT", str(self.temp_threshold_hot)))
+        self.temp_threshold_warm = float(os.getenv("TEMP_THRESHOLD_WARM", str(self.temp_threshold_warm)))
+        self.temp_threshold_cool = float(os.getenv("TEMP_THRESHOLD_COOL", str(self.temp_threshold_cool)))
+        self.temp_threshold_cold = float(os.getenv("TEMP_THRESHOLD_COLD", str(self.temp_threshold_cold)))
 
 
 # 天気関連の定数クラス群
@@ -546,6 +585,8 @@ class Config:
         # 数値範囲の検証
         self._validate_weather_constants()
         self._validate_api_settings()
+        self._validate_weather_config()
+        self._validate_langgraph_config()
         
         # ディレクトリの作成
         self.app.data_dir.mkdir(parents=True, exist_ok=True)
@@ -617,6 +658,35 @@ class Config:
                 f"無効なログレベル: {self.app.log_level}. 有効な値: {', '.join(self.system_constants.VALID_LOG_LEVELS)}"
             )
     
+    def _validate_weather_config(self):
+        """天気設定の妥当性を検証"""
+        # 予報時間の検証
+        if self.weather.forecast_hours <= 0:
+            raise ConfigurationError("forecast_hoursは1以上である必要があります")
+        
+        if self.weather.forecast_hours_ahead < 0:
+            raise ConfigurationError("forecast_hours_aheadは0以上である必要があります")
+        
+        # 予報期間の妥当性検証
+        if self.weather.forecast_hours + self.weather.forecast_hours_ahead > self.system_constants.MAX_FORECAST_HOURS:
+            raise ConfigurationError(
+                f"予報期間の合計が{self.system_constants.MAX_FORECAST_HOURS}時間を超えています"
+            )
+        
+        # キャッシュ保持日数の検証
+        if not (1 <= self.weather.forecast_cache_retention_days <= 30):
+            raise ConfigurationError("forecast_cache_retention_daysは1-30日の範囲で設定してください")
+    
+    def _validate_langgraph_config(self):
+        """LangGraph設定の妥当性を検証"""
+        # 信頼度閾値の検証
+        if not (0 <= self.langgraph.min_confidence_threshold <= 1):
+            raise ConfigurationError("min_confidence_thresholdは0.0-1.0の範囲で設定してください")
+        
+        # コンテキスト窓の検証
+        if not (1 <= self.langgraph.weather_context_window <= 168):
+            raise ConfigurationError("weather_context_windowは1-168時間の範囲で設定してください")
+    
     def to_dict(self) -> Dict[str, Any]:
         """設定を辞書形式で返す"""
         return {
@@ -630,10 +700,15 @@ class Config:
                 "retry_count": self.api.retry_count,
             },
             "weather": {
+                "default_location": self.weather.default_location,
+                "forecast_hours": self.weather.forecast_hours,
                 "forecast_hours_ahead": self.weather.forecast_hours_ahead,
                 "forecast_days": self.weather.forecast_days,
                 "cache_ttl_seconds": self.weather.cache_ttl_seconds,
                 "cache_dir": str(self.weather.cache_dir),
+                "enable_caching": self.weather.enable_caching,
+                "forecast_cache_retention_days": self.weather.forecast_cache_retention_days,
+                "use_optimized_forecast": self.weather.use_optimized_forecast,
             },
             "app": {
                 "env": self.app.env,
