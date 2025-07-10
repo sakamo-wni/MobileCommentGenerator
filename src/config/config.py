@@ -4,19 +4,20 @@
 すべての設定を一元管理し、環境変数の読み込みと検証を行う
 """
 
+import os
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, Any, List
+from functools import lru_cache
+
+from dotenv import load_dotenv
+
 
 class ConfigurationError(Exception):
     """設定エラー用のカスタム例外"""
     pass
 
-import os
-import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Optional, Dict, Any, List
-from functools import lru_cache
-
-from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,178 @@ class WeatherConfig:
         self.forecast_days = int(os.getenv("WEATHER_FORECAST_DAYS", str(self.forecast_days)))
         self.cache_ttl_seconds = int(os.getenv("WEATHER_CACHE_TTL", str(self.cache_ttl_seconds)))
         self.cache_dir = Path(os.getenv("WEATHER_CACHE_DIR", str(self.cache_dir)))
+
+
+# 天気関連の定数クラス群
+@dataclass
+class TemperatureThresholds:
+    """気温閾値の定数（環境変数でオーバーライド可能）"""
+    HOT_WEATHER: float = 30.0          # 暑い天気の閾値
+    WARM_WEATHER: float = 25.0         # 暖かい天気の閾値
+    COOL_WEATHER: float = 10.0         # 涼しい天気の閾値
+    COLD_WEATHER: float = 5.0          # 寒い天気の閾値
+    COLD_COMMENT_THRESHOLD: float = 12.0  # 寒さコメントの閾値
+    
+    # 気温差の閾値
+    SIGNIFICANT_DAILY_DIFF: float = 5.0     # 前日との有意な気温差
+    HOURLY_SIGNIFICANT_DIFF: float = 3.0    # 12時間での有意な気温差
+    LARGE_DAILY_RANGE: float = 15.0         # 大きな日較差
+    MEDIUM_DAILY_RANGE: float = 10.0        # 中程度の日較差
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.HOT_WEATHER = float(os.getenv("TEMP_HOT_WEATHER_THRESHOLD", str(self.HOT_WEATHER)))
+        self.WARM_WEATHER = float(os.getenv("TEMP_WARM_WEATHER_THRESHOLD", str(self.WARM_WEATHER)))
+        self.COOL_WEATHER = float(os.getenv("TEMP_COOL_WEATHER_THRESHOLD", str(self.COOL_WEATHER)))
+        self.COLD_WEATHER = float(os.getenv("TEMP_COLD_WEATHER_THRESHOLD", str(self.COLD_WEATHER)))
+        self.COLD_COMMENT_THRESHOLD = float(os.getenv("TEMP_COLD_COMMENT_THRESHOLD", str(self.COLD_COMMENT_THRESHOLD)))
+        self.SIGNIFICANT_DAILY_DIFF = float(os.getenv("TEMP_SIGNIFICANT_DAILY_DIFF", str(self.SIGNIFICANT_DAILY_DIFF)))
+        self.HOURLY_SIGNIFICANT_DIFF = float(os.getenv("TEMP_HOURLY_SIGNIFICANT_DIFF", str(self.HOURLY_SIGNIFICANT_DIFF)))
+        self.LARGE_DAILY_RANGE = float(os.getenv("TEMP_LARGE_DAILY_RANGE", str(self.LARGE_DAILY_RANGE)))
+        self.MEDIUM_DAILY_RANGE = float(os.getenv("TEMP_MEDIUM_DAILY_RANGE", str(self.MEDIUM_DAILY_RANGE)))
+
+
+@dataclass
+class HumidityThresholds:
+    """湿度閾値の定数（環境変数でオーバーライド可能）"""
+    HIGH_HUMIDITY: float = 80.0        # 高湿度の閾値
+    LOW_HUMIDITY: float = 30.0         # 低湿度の閾値
+    VERY_HIGH_HUMIDITY: float = 90.0   # 非常に高い湿度
+    VERY_LOW_HUMIDITY: float = 20.0    # 非常に低い湿度
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.HIGH_HUMIDITY = float(os.getenv("HUMIDITY_HIGH_THRESHOLD", str(self.HIGH_HUMIDITY)))
+        self.LOW_HUMIDITY = float(os.getenv("HUMIDITY_LOW_THRESHOLD", str(self.LOW_HUMIDITY)))
+        self.VERY_HIGH_HUMIDITY = float(os.getenv("HUMIDITY_VERY_HIGH_THRESHOLD", str(self.VERY_HIGH_HUMIDITY)))
+        self.VERY_LOW_HUMIDITY = float(os.getenv("HUMIDITY_VERY_LOW_THRESHOLD", str(self.VERY_LOW_HUMIDITY)))
+
+
+@dataclass
+class PrecipitationThresholds:
+    """降水量閾値の定数（環境変数でオーバーライド可能）"""
+    LIGHT_RAIN: float = 1.0            # 小雨の閾値
+    MODERATE_RAIN: float = 5.0         # 中雨の閾値
+    HEAVY_RAIN: float = 10.0           # 大雨の閾値
+    VERY_HEAVY_RAIN: float = 30.0      # 激しい雨の閾値
+    THUNDER_STRONG_THRESHOLD: float = 5.0  # 雷雨強弱判定の閾値
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.LIGHT_RAIN = float(os.getenv("PRECIP_LIGHT_RAIN_THRESHOLD", str(self.LIGHT_RAIN)))
+        self.MODERATE_RAIN = float(os.getenv("PRECIP_MODERATE_RAIN_THRESHOLD", str(self.MODERATE_RAIN)))
+        self.HEAVY_RAIN = float(os.getenv("PRECIP_HEAVY_RAIN_THRESHOLD", str(self.HEAVY_RAIN)))
+        self.VERY_HEAVY_RAIN = float(os.getenv("PRECIP_VERY_HEAVY_RAIN_THRESHOLD", str(self.VERY_HEAVY_RAIN)))
+        self.THUNDER_STRONG_THRESHOLD = float(os.getenv("PRECIP_THUNDER_STRONG_THRESHOLD", str(self.THUNDER_STRONG_THRESHOLD)))
+
+
+@dataclass
+class WindSpeedThresholds:
+    """風速閾値の定数（環境変数でオーバーライド可能）"""
+    LIGHT_BREEZE: float = 3.0          # 軽い風
+    MODERATE_BREEZE: float = 7.0       # 中程度の風
+    STRONG_BREEZE: float = 12.0        # 強い風
+    GALE: float = 20.0                 # 強風
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.LIGHT_BREEZE = float(os.getenv("WIND_LIGHT_BREEZE_THRESHOLD", str(self.LIGHT_BREEZE)))
+        self.MODERATE_BREEZE = float(os.getenv("WIND_MODERATE_BREEZE_THRESHOLD", str(self.MODERATE_BREEZE)))
+        self.STRONG_BREEZE = float(os.getenv("WIND_STRONG_BREEZE_THRESHOLD", str(self.STRONG_BREEZE)))
+        self.GALE = float(os.getenv("WIND_GALE_THRESHOLD", str(self.GALE)))
+
+
+@dataclass
+class DataValidationRanges:
+    """データ検証用の値域（環境変数でオーバーライド可能）"""
+    MIN_TEMPERATURE: float = -50.0     # 最低気温
+    MAX_TEMPERATURE: float = 60.0      # 最高気温
+    MIN_HUMIDITY: float = 0.0          # 最低湿度
+    MAX_HUMIDITY: float = 100.0        # 最高湿度
+    MIN_WIND_SPEED: float = 0.0        # 最低風速
+    MAX_WIND_SPEED: float = 200.0      # 最高風速（台風含む）
+    MIN_PRECIPITATION: float = 0.0     # 最低降水量
+    MAX_PRECIPITATION: float = 500.0   # 最高降水量（極端な場合）
+    MIN_WIND_DIRECTION: float = 0.0    # 最小風向
+    MAX_WIND_DIRECTION: float = 360.0  # 最大風向
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.MIN_TEMPERATURE = float(os.getenv("VALIDATION_MIN_TEMPERATURE", str(self.MIN_TEMPERATURE)))
+        self.MAX_TEMPERATURE = float(os.getenv("VALIDATION_MAX_TEMPERATURE", str(self.MAX_TEMPERATURE)))
+        self.MIN_HUMIDITY = float(os.getenv("VALIDATION_MIN_HUMIDITY", str(self.MIN_HUMIDITY)))
+        self.MAX_HUMIDITY = float(os.getenv("VALIDATION_MAX_HUMIDITY", str(self.MAX_HUMIDITY)))
+        self.MIN_WIND_SPEED = float(os.getenv("VALIDATION_MIN_WIND_SPEED", str(self.MIN_WIND_SPEED)))
+        self.MAX_WIND_SPEED = float(os.getenv("VALIDATION_MAX_WIND_SPEED", str(self.MAX_WIND_SPEED)))
+        self.MIN_PRECIPITATION = float(os.getenv("VALIDATION_MIN_PRECIPITATION", str(self.MIN_PRECIPITATION)))
+        self.MAX_PRECIPITATION = float(os.getenv("VALIDATION_MAX_PRECIPITATION", str(self.MAX_PRECIPITATION)))
+        self.MIN_WIND_DIRECTION = float(os.getenv("VALIDATION_MIN_WIND_DIRECTION", str(self.MIN_WIND_DIRECTION)))
+        self.MAX_WIND_DIRECTION = float(os.getenv("VALIDATION_MAX_WIND_DIRECTION", str(self.MAX_WIND_DIRECTION)))
+
+
+@dataclass
+class WeatherConstants:
+    """天気関連の統合定数（環境変数でオーバーライド可能）"""
+    temperature: TemperatureThresholds = field(default_factory=TemperatureThresholds)
+    humidity: HumidityThresholds = field(default_factory=HumidityThresholds)
+    precipitation: PrecipitationThresholds = field(default_factory=PrecipitationThresholds)
+    wind: WindSpeedThresholds = field(default_factory=WindSpeedThresholds)
+    validation: DataValidationRanges = field(default_factory=DataValidationRanges)
+    
+    # その他の天気定数
+    HEATSTROKE_WARNING_TEMP: float = 34.0  # 熱中症警戒開始温度
+    HEATSTROKE_SEVERE_TEMP: float = 35.0   # 熱中症厳重警戒温度
+    COLD_WARNING_TEMP: float = 15.0        # 防寒対策が不要になる温度
+    WEATHER_CHANGE_THRESHOLD: int = 2       # 「変わりやすい」と判定する変化回数の閾値
+    
+    # 天気タイプキーワード
+    SUNNY_WEATHER_KEYWORDS: List[str] = field(default_factory=lambda: ["晴", "快晴", "晴天"])
+    
+    # 天気タイプ分類用キーワード
+    WEATHER_TYPE_KEYWORDS: Dict[str, List[str]] = field(default_factory=lambda: {
+        'sunny': ["晴", "快晴"],
+        'cloudy': ["曇", "くもり", "うすぐもり", "薄曇"],
+        'rainy': ["雨", "rain"]
+    })
+    
+    def __post_init__(self):
+        """環境変数から値を読み込む"""
+        self.HEATSTROKE_WARNING_TEMP = float(os.getenv("WEATHER_HEATSTROKE_WARNING_TEMP", str(self.HEATSTROKE_WARNING_TEMP)))
+        self.HEATSTROKE_SEVERE_TEMP = float(os.getenv("WEATHER_HEATSTROKE_SEVERE_TEMP", str(self.HEATSTROKE_SEVERE_TEMP)))
+        self.COLD_WARNING_TEMP = float(os.getenv("WEATHER_COLD_WARNING_TEMP", str(self.COLD_WARNING_TEMP)))
+        self.WEATHER_CHANGE_THRESHOLD = int(os.getenv("WEATHER_CHANGE_THRESHOLD", str(self.WEATHER_CHANGE_THRESHOLD)))
+
+
+@dataclass(frozen=True)
+class SystemConstants:
+    """システム全体の定数"""
+    # API設定のデフォルト値
+    DEFAULT_API_TIMEOUT: int = 30              # APIタイムアウト（秒）
+    DEFAULT_MAX_RETRIES: int = 3               # 最大リトライ回数
+    DEFAULT_RATE_LIMIT_DELAY: float = 0.1      # レート制限回避遅延（秒）
+    DEFAULT_CACHE_TTL: int = 300               # キャッシュTTL（5分）
+    
+    # 予報設定のデフォルト値
+    DEFAULT_FORECAST_HOURS: int = 24           # デフォルト予報時間数
+    DEFAULT_FORECAST_HOURS_AHEAD: int = 0      # 現在時刻から予報を取得
+    MAX_FORECAST_HOURS: int = 168              # 最大予報時間（7日間）
+    DEFAULT_FORECAST_CACHE_RETENTION_DAYS: int = 7  # 予報キャッシュ保持日数
+    
+    # コメント関連
+    DEFAULT_COMMENT_LIMIT: int = 15            # デフォルトコメント文字数制限
+    MAX_COMMENTS_PER_SEASON: int = 20          # 季節あたりの最大コメント数
+    SEASONAL_CACHE_LIMIT: int = 3              # 季節別キャッシュの最大保持数
+    DEFAULT_RECENT_COMMENTS_LIMIT: int = 100   # デフォルト最近コメント取得数
+    
+    # 文字列制限
+    MAX_COMMENT_LENGTH: int = 50               # 最大コメント長
+    WARNING_COMMENT_LENGTH: int = 15           # コメント長警告閾値
+    MAX_LOCATION_NAME_LENGTH: int = 20         # 最大地点名長
+    MAX_ERROR_MESSAGE_LENGTH: int = 200        # 最大エラーメッセージ長
+    
+    # 検証用の制限値
+    MAX_API_TIMEOUT: int = 300                 # 最大APIタイムアウト（5分）
+    VALID_LOG_LEVELS: List[str] = field(default_factory=lambda: ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
 
 
 @dataclass
@@ -153,6 +326,8 @@ class Config:
     app: AppSettings = field(default_factory=AppSettings)
     server: ServerConfig = field(default_factory=ServerConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
+    weather_constants: WeatherConstants = field(default_factory=WeatherConstants)
+    system_constants: SystemConstants = field(default_factory=SystemConstants)
     
     def __post_init__(self):
         """設定の検証"""
@@ -189,10 +364,79 @@ class Config:
                     f"Missing required configuration for production environment: {', '.join(missing_keys)}"
                 )
         
+        # 数値範囲の検証
+        self._validate_weather_constants()
+        self._validate_api_settings()
+        
         # ディレクトリの作成
         self.app.data_dir.mkdir(parents=True, exist_ok=True)
         self.app.csv_dir.mkdir(parents=True, exist_ok=True)
         self.weather.cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    def _validate_weather_constants(self):
+        """天気関連定数の妥当性を検証"""
+        wc = self.weather_constants
+        
+        # 温度閾値の妥当性チェック
+        if not (-50 <= wc.temperature.COLD_WEATHER <= wc.temperature.COOL_WEATHER <= 
+                wc.temperature.WARM_WEATHER <= wc.temperature.HOT_WEATHER <= 60):
+            raise ConfigurationError(
+                "温度閾値が不正です: COLD < COOL < WARM < HOT の関係を保つ必要があります"
+            )
+        
+        # 湿度の範囲チェック
+        if not (0 <= wc.humidity.VERY_LOW_HUMIDITY <= wc.humidity.LOW_HUMIDITY <= 
+                wc.humidity.HIGH_HUMIDITY <= wc.humidity.VERY_HIGH_HUMIDITY <= 100):
+            raise ConfigurationError(
+                "湿度閾値が不正です: 0-100%の範囲で VERY_LOW < LOW < HIGH < VERY_HIGH の関係を保つ必要があります"
+            )
+        
+        # 降水量の妥当性チェック
+        if not (0 <= wc.precipitation.LIGHT_RAIN <= wc.precipitation.MODERATE_RAIN <= 
+                wc.precipitation.HEAVY_RAIN <= wc.precipitation.VERY_HEAVY_RAIN):
+            raise ConfigurationError(
+                "降水量閾値が不正です: LIGHT < MODERATE < HEAVY < VERY_HEAVY の関係を保つ必要があります"
+            )
+        
+        # 風速の妥当性チェック
+        if not (0 <= wc.wind.LIGHT_BREEZE <= wc.wind.MODERATE_BREEZE <= 
+                wc.wind.STRONG_BREEZE <= wc.wind.GALE):
+            raise ConfigurationError(
+                "風速閾値が不正です: LIGHT < MODERATE < STRONG < GALE の関係を保つ必要があります"
+            )
+        
+        # 検証範囲の妥当性チェック
+        val = wc.validation
+        if val.MIN_TEMPERATURE >= val.MAX_TEMPERATURE:
+            raise ConfigurationError("最低気温が最高気温以上に設定されています")
+        if val.MIN_HUMIDITY >= val.MAX_HUMIDITY:
+            raise ConfigurationError("最低湿度が最高湿度以上に設定されています")
+        if val.MIN_WIND_SPEED >= val.MAX_WIND_SPEED:
+            raise ConfigurationError("最低風速が最高風速以上に設定されています")
+        if val.MIN_PRECIPITATION >= val.MAX_PRECIPITATION:
+            raise ConfigurationError("最低降水量が最高降水量以上に設定されています")
+    
+    def _validate_api_settings(self):
+        """API設定の妥当性を検証"""
+        # APIタイムアウトの範囲チェック
+        if not (1 <= self.api.api_timeout <= self.system_constants.MAX_API_TIMEOUT):
+            raise ConfigurationError(
+                f"APIタイムアウトは1-{self.system_constants.MAX_API_TIMEOUT}秒の範囲で設定してください"
+            )
+        
+        # リトライ回数の範囲チェック
+        if not (0 <= self.api.retry_count <= 10):
+            raise ConfigurationError("リトライ回数は0-10の範囲で設定してください")
+        
+        # LLM温度パラメータの範囲チェック
+        if not (0 <= self.llm.temperature <= 2):
+            raise ConfigurationError("LLM温度パラメータは0-2の範囲で設定してください")
+        
+        # ログレベルの検証
+        if self.app.log_level not in self.system_constants.VALID_LOG_LEVELS:
+            raise ConfigurationError(
+                f"無効なログレベル: {self.app.log_level}. 有効な値: {', '.join(self.system_constants.VALID_LOG_LEVELS)}"
+            )
     
     def to_dict(self) -> Dict[str, Any]:
         """設定を辞書形式で返す"""
@@ -234,7 +478,15 @@ class Config:
                 "openai_model": self.llm.openai_model,
                 "anthropic_model": self.llm.anthropic_model,
                 "gemini_model": self.llm.gemini_model,
-            }
+            },
+            "weather_constants": {
+                "temperature": self.weather_constants.temperature.__dict__,
+                "humidity": self.weather_constants.humidity.__dict__,
+                "precipitation": self.weather_constants.precipitation.__dict__,
+                "wind": self.weather_constants.wind.__dict__,
+                "validation": self.weather_constants.validation.__dict__,
+            },
+            "system_constants": self.system_constants.__dict__
         }
 
 
@@ -269,3 +521,13 @@ def get_server_config() -> ServerConfig:
 def get_llm_config() -> LLMConfig:
     """LLM設定を取得"""
     return get_config().llm
+
+
+def get_weather_constants() -> WeatherConstants:
+    """天気関連の定数を取得"""
+    return get_config().weather_constants
+
+
+def get_system_constants() -> SystemConstants:
+    """システム定数を取得"""
+    return get_config().system_constants

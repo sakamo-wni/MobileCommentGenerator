@@ -3,7 +3,10 @@
 import logging
 from typing import Tuple, Dict, List, TypedDict
 
-from src.config.weather_constants import SUNNY_WEATHER_KEYWORDS
+from src.config.config import get_weather_constants
+
+# 定数を取得
+SUNNY_WEATHER_KEYWORDS = get_weather_constants().SUNNY_WEATHER_KEYWORDS
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment, CommentType
 from .base_validator import BaseValidator
@@ -175,7 +178,8 @@ class WeatherValidator(BaseValidator):
                     return False, f"降水量{weather_data.precipitation}mm/hに対して軽微な表現: {expr}"
         
         # 降水量チェック（少雨に対して強い表現）
-        from src.config.weather_constants import PrecipitationThresholds
+        from src.config.config import get_weather_constants
+        PrecipitationThresholds = get_weather_constants().precipitation
         
         if weather_data.precipitation < PrecipitationThresholds.HEAVY_RAIN:  # 10mm/h未満
             # 強雨表現のチェック

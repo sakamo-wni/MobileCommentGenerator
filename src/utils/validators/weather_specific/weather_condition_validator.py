@@ -5,7 +5,10 @@ import yaml
 from pathlib import Path
 from typing import Tuple, Dict, List, Optional
 
-from src.config.weather_constants import SUNNY_WEATHER_KEYWORDS
+from src.config.config import get_weather_constants
+
+# 定数を取得
+SUNNY_WEATHER_KEYWORDS = get_weather_constants().SUNNY_WEATHER_KEYWORDS
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
 

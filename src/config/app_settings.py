@@ -11,7 +11,15 @@ from dotenv import load_dotenv
 
 from .weather_settings import WeatherConfig
 from .langgraph_settings import LangGraphConfig
-from .constants import MAX_FORECAST_HOURS, MAX_API_TIMEOUT, VALID_LOG_LEVELS
+from .config import get_system_constants
+
+# 定数を取得
+_sys_const = get_system_constants()
+
+# 互換性のために既存の変数名を維持
+MAX_FORECAST_HOURS = _sys_const.MAX_FORECAST_HOURS
+MAX_API_TIMEOUT = _sys_const.MAX_API_TIMEOUT
+VALID_LOG_LEVELS = _sys_const.VALID_LOG_LEVELS
 
 
 @dataclass

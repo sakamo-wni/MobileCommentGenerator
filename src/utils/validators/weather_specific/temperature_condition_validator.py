@@ -3,11 +3,13 @@
 import logging
 from typing import Tuple, Dict, List
 
-from src.config.weather_constants import (
-    HEATSTROKE_WARNING_TEMP,
-    HEATSTROKE_SEVERE_TEMP,
-    COLD_WARNING_TEMP,
-)
+from src.config.config import get_weather_constants
+
+# 定数を取得
+_weather_const = get_weather_constants()
+HEATSTROKE_WARNING_TEMP = _weather_const.HEATSTROKE_WARNING_TEMP
+HEATSTROKE_SEVERE_TEMP = _weather_const.HEATSTROKE_SEVERE_TEMP
+COLD_WARNING_TEMP = _weather_const.COLD_WARNING_TEMP
 from src.data.weather_data import WeatherForecast
 
 logger = logging.getLogger(__name__)

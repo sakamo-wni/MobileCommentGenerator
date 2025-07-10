@@ -4,11 +4,13 @@ import logging
 import re
 from typing import Tuple, List
 
-from src.config.weather_constants import (
-    HEATSTROKE_WARNING_TEMP,
-    COLD_WARNING_TEMP,
-    SUNNY_WEATHER_KEYWORDS,
-)
+from src.config.config import get_weather_constants
+
+# 定数を取得
+_weather_const = get_weather_constants()
+HEATSTROKE_WARNING_TEMP = _weather_const.HEATSTROKE_WARNING_TEMP
+COLD_WARNING_TEMP = _weather_const.COLD_WARNING_TEMP
+SUNNY_WEATHER_KEYWORDS = _weather_const.SUNNY_WEATHER_KEYWORDS
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
 from .base_validator import BaseValidator

@@ -4,7 +4,10 @@ import logging
 from typing import Tuple, Set
 import re
 
-from src.config.weather_constants import SUNNY_WEATHER_KEYWORDS
+from src.config.config import get_weather_constants
+
+# 定数を取得
+SUNNY_WEATHER_KEYWORDS = get_weather_constants().SUNNY_WEATHER_KEYWORDS
 from src.data.weather_data import WeatherForecast
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,7 @@ import pytz
 
 from src.data.forecast_cache import ForecastCache, ensure_jst
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes, is_morning_only_change
-from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
+from src.config.config import get_weather_constants
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ class WeatherTimelineFormatter:
     def __init__(self):
         self.cache = ForecastCache()
         self.jst = pytz.timezone("Asia/Tokyo")
+        self.WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
     
     def get_weather_timeline(self, location_name: str, base_datetime: datetime) -> Dict[str, Any]:
         """翌日9:00-18:00の天気データを取得
@@ -148,7 +149,7 @@ class WeatherTimelineFormatter:
             
             # 判定ロジック
             # WEATHER_CHANGE_THRESHOLD回以上タイプが変わる場合は変わりやすい
-            if type_changes >= WEATHER_CHANGE_THRESHOLD:
+            if type_changes >= self.WEATHER_CHANGE_THRESHOLD:
                 return "変わりやすい天気"
             # 朝だけ違って、その後同じ天気が続く場合は安定
             elif type_changes == 1 and is_morning_only_change(weather_type_sequence):

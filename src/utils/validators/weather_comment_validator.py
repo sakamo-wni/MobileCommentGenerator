@@ -4,10 +4,12 @@ import logging
 from typing import List, Dict, Any, Tuple, Optional, TypedDict
 from datetime import datetime
 
-from src.config.weather_constants import (
-    HEATSTROKE_WARNING_TEMP,
-    HEATSTROKE_SEVERE_TEMP,
-)
+from src.config.config import get_weather_constants
+
+# 定数を取得
+_weather_const = get_weather_constants()
+HEATSTROKE_WARNING_TEMP = _weather_const.HEATSTROKE_WARNING_TEMP
+HEATSTROKE_SEVERE_TEMP = _weather_const.HEATSTROKE_SEVERE_TEMP
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment, CommentType
 from .base_validator import BaseValidator
