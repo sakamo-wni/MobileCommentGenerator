@@ -71,117 +71,6 @@ class WeatherConfig:
         self.cache_dir = Path(os.getenv("WEATHER_CACHE_DIR", str(self.cache_dir)))
 
 
-# 天気関連の定数クラス群
-@dataclass(frozen=True)
-class TemperatureThresholds:
-    """気温閾値の定数"""
-    HOT_WEATHER: float = 30.0          # 暑い天気の閾値
-    WARM_WEATHER: float = 25.0         # 暖かい天気の閾値
-    COOL_WEATHER: float = 10.0         # 涼しい天気の閾値
-    COLD_WEATHER: float = 5.0          # 寒い天気の閾値
-    COLD_COMMENT_THRESHOLD: float = 12.0  # 寒さコメントの閾値
-    
-    # 気温差の閾値
-    SIGNIFICANT_DAILY_DIFF: float = 5.0     # 前日との有意な気温差
-    HOURLY_SIGNIFICANT_DIFF: float = 3.0    # 12時間での有意な気温差
-    LARGE_DAILY_RANGE: float = 15.0         # 大きな日較差
-    MEDIUM_DAILY_RANGE: float = 10.0        # 中程度の日較差
-
-
-@dataclass(frozen=True)
-class HumidityThresholds:
-    """湿度閾値の定数"""
-    HIGH_HUMIDITY: float = 80.0        # 高湿度の閾値
-    LOW_HUMIDITY: float = 30.0         # 低湿度の閾値
-    VERY_HIGH_HUMIDITY: float = 90.0   # 非常に高い湿度
-    VERY_LOW_HUMIDITY: float = 20.0    # 非常に低い湿度
-
-
-@dataclass(frozen=True)
-class PrecipitationThresholds:
-    """降水量閾値の定数"""
-    LIGHT_RAIN: float = 1.0            # 小雨の閾値
-    MODERATE_RAIN: float = 5.0         # 中雨の閾値
-    HEAVY_RAIN: float = 10.0           # 大雨の閾値
-    VERY_HEAVY_RAIN: float = 30.0      # 激しい雨の閾値
-    THUNDER_STRONG_THRESHOLD: float = 5.0  # 雷雨強弱判定の閾値
-
-
-@dataclass(frozen=True)
-class WindSpeedThresholds:
-    """風速閾値の定数"""
-    LIGHT_BREEZE: float = 3.0          # 軽い風
-    MODERATE_BREEZE: float = 7.0       # 中程度の風
-    STRONG_BREEZE: float = 12.0        # 強い風
-    GALE: float = 20.0                 # 強風
-
-
-@dataclass(frozen=True)
-class DataValidationRanges:
-    """データ検証用の値域"""
-    MIN_TEMPERATURE: float = -50.0     # 最低気温
-    MAX_TEMPERATURE: float = 60.0      # 最高気温
-    MIN_HUMIDITY: float = 0.0          # 最低湿度
-    MAX_HUMIDITY: float = 100.0        # 最高湿度
-    MIN_WIND_SPEED: float = 0.0        # 最低風速
-    MAX_WIND_SPEED: float = 200.0      # 最高風速（台風含む）
-    MIN_PRECIPITATION: float = 0.0     # 最低降水量
-    MAX_PRECIPITATION: float = 500.0   # 最高降水量（極端な場合）
-    MIN_WIND_DIRECTION: float = 0.0    # 最小風向
-    MAX_WIND_DIRECTION: float = 360.0  # 最大風向
-
-
-@dataclass(frozen=True)
-class WeatherConstants:
-    """天気関連の統合定数"""
-    temperature: TemperatureThresholds = field(default_factory=TemperatureThresholds)
-    humidity: HumidityThresholds = field(default_factory=HumidityThresholds)
-    precipitation: PrecipitationThresholds = field(default_factory=PrecipitationThresholds)
-    wind: WindSpeedThresholds = field(default_factory=WindSpeedThresholds)
-    validation: DataValidationRanges = field(default_factory=DataValidationRanges)
-    
-    # その他の天気定数
-    HEATSTROKE_WARNING_TEMP: float = 34.0  # 熱中症警戒開始温度
-    HEATSTROKE_SEVERE_TEMP: float = 35.0   # 熱中症厳重警戒温度
-    COLD_WARNING_TEMP: float = 15.0        # 防寒対策が不要になる温度
-    WEATHER_CHANGE_THRESHOLD: int = 2       # 「変わりやすい」と判定する変化回数の閾値
-    
-    # 天気タイプキーワード
-    SUNNY_WEATHER_KEYWORDS: List[str] = field(default_factory=lambda: ["晴", "快晴", "晴天"])
-
-
-@dataclass(frozen=True)
-class SystemConstants:
-    """システム全体の定数"""
-    # API設定のデフォルト値
-    DEFAULT_API_TIMEOUT: int = 30              # APIタイムアウト（秒）
-    DEFAULT_MAX_RETRIES: int = 3               # 最大リトライ回数
-    DEFAULT_RATE_LIMIT_DELAY: float = 0.1      # レート制限回避遅延（秒）
-    DEFAULT_CACHE_TTL: int = 300               # キャッシュTTL（5分）
-    
-    # 予報設定のデフォルト値
-    DEFAULT_FORECAST_HOURS: int = 24           # デフォルト予報時間数
-    DEFAULT_FORECAST_HOURS_AHEAD: int = 0      # 現在時刻から予報を取得
-    MAX_FORECAST_HOURS: int = 168              # 最大予報時間（7日間）
-    DEFAULT_FORECAST_CACHE_RETENTION_DAYS: int = 7  # 予報キャッシュ保持日数
-    
-    # コメント関連
-    DEFAULT_COMMENT_LIMIT: int = 15            # デフォルトコメント文字数制限
-    MAX_COMMENTS_PER_SEASON: int = 20          # 季節あたりの最大コメント数
-    SEASONAL_CACHE_LIMIT: int = 3              # 季節別キャッシュの最大保持数
-    DEFAULT_RECENT_COMMENTS_LIMIT: int = 100   # デフォルト最近コメント取得数
-    
-    # 文字列制限
-    MAX_COMMENT_LENGTH: int = 50               # 最大コメント長
-    WARNING_COMMENT_LENGTH: int = 15           # コメント長警告閾値
-    MAX_LOCATION_NAME_LENGTH: int = 20         # 最大地点名長
-    MAX_ERROR_MESSAGE_LENGTH: int = 200        # 最大エラーメッセージ長
-    
-    # 検証用の制限値
-    MAX_API_TIMEOUT: int = 300                 # 最大APIタイムアウト（5分）
-    VALID_LOG_LEVELS: List[str] = field(default_factory=lambda: ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-
-
 @dataclass
 class AppSettings:
     """アプリケーション全体の設定"""
@@ -264,8 +153,6 @@ class Config:
     app: AppSettings = field(default_factory=AppSettings)
     server: ServerConfig = field(default_factory=ServerConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
-    weather_constants: WeatherConstants = field(default_factory=WeatherConstants)
-    system_constants: SystemConstants = field(default_factory=SystemConstants)
     
     def __post_init__(self):
         """設定の検証"""
@@ -347,15 +234,7 @@ class Config:
                 "openai_model": self.llm.openai_model,
                 "anthropic_model": self.llm.anthropic_model,
                 "gemini_model": self.llm.gemini_model,
-            },
-            "weather_constants": {
-                "temperature": self.weather_constants.temperature.__dict__,
-                "humidity": self.weather_constants.humidity.__dict__,
-                "precipitation": self.weather_constants.precipitation.__dict__,
-                "wind": self.weather_constants.wind.__dict__,
-                "validation": self.weather_constants.validation.__dict__,
-            },
-            "system_constants": self.system_constants.__dict__
+            }
         }
 
 
@@ -390,13 +269,3 @@ def get_server_config() -> ServerConfig:
 def get_llm_config() -> LLMConfig:
     """LLM設定を取得"""
     return get_config().llm
-
-
-def get_weather_constants() -> WeatherConstants:
-    """天気関連の定数を取得"""
-    return get_config().weather_constants
-
-
-def get_system_constants() -> SystemConstants:
-    """システム定数を取得"""
-    return get_config().system_constants
