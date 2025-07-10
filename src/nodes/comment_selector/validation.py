@@ -13,7 +13,10 @@ from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
-from src.config.weather_constants import WEATHER_CHANGE_THRESHOLD
+from src.config.config import get_weather_constants
+
+# 定数を取得
+WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
 from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
 
 logger = logging.getLogger(__name__)
@@ -503,9 +506,13 @@ class CommentValidator:
                 return False
             
             try:
-                from src.config.weather_constants import TemperatureThresholds, HumidityThresholds, PrecipitationThresholds
+                from src.config.config import get_weather_constants
+                weather_const = get_weather_constants()
+                TemperatureThresholds = weather_const.temperature
+                HumidityThresholds = weather_const.humidity
+                PrecipitationThresholds = weather_const.precipitation
             except ImportError:
-                logger.debug("weather_constants.pyが見つかりません。基本チェックのみ実行")
+                logger.debug("config.pyが見つかりません。基本チェックのみ実行")
                 return False
             
             # YAML設定ファイル読み込み
@@ -597,9 +604,10 @@ class CommentValidator:
                 return False
             
             try:
-                from src.config.weather_constants import PrecipitationThresholds
+                from src.config.config import get_weather_constants
+                PrecipitationThresholds = get_weather_constants().precipitation
             except ImportError:
-                logger.debug("weather_constants.pyが見つかりません。基本チェックのみ実行")
+                logger.debug("config.pyが見つかりません。基本チェックのみ実行")
                 return False
             
             # YAML設定ファイル読み込み

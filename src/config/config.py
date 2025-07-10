@@ -148,6 +148,13 @@ class WeatherConstants:
     
     # 天気タイプキーワード
     SUNNY_WEATHER_KEYWORDS: List[str] = field(default_factory=lambda: ["晴", "快晴", "晴天"])
+    
+    # 天気タイプ分類用キーワード
+    WEATHER_TYPE_KEYWORDS: Dict[str, List[str]] = field(default_factory=lambda: {
+        'sunny': ["晴", "快晴"],
+        'cloudy': ["曇", "くもり", "うすぐもり", "薄曇"],
+        'rainy': ["雨", "rain"]
+    })
 
 
 @dataclass(frozen=True)

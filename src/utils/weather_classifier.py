@@ -1,7 +1,10 @@
 """天気タイプ分類ユーティリティ"""
 
 from typing import Optional
-from src.config.weather_constants import WEATHER_TYPE_KEYWORDS
+from src.config.config import get_weather_constants
+
+# 定数を取得
+WEATHER_TYPE_KEYWORDS = get_weather_constants().WEATHER_TYPE_KEYWORDS
 
 
 def classify_weather_type(weather_desc: str) -> Optional[str]:
