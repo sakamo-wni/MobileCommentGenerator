@@ -193,23 +193,23 @@ class WxTechAPIClient:
         now_jst = datetime.now(jst)
         target_date = now_jst.date() + timedelta(days=1)
         
-        # 最適化: 翌日6時から20時までの15時間分を取得
-        # これにより、基準時刻（8-9時頃）も含まれる
-        tomorrow_6am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=6)))
-        tomorrow_8pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=20)))
+        # 最適化: 翌日8時から19時までの12時間分を確実に取得
+        # これにより、9,12,15,18時すべてが含まれる
+        tomorrow_8am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=8)))
+        tomorrow_7pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=19)))
         
-        hours_to_6am = (tomorrow_6am - now_jst).total_seconds() / 3600
+        hours_to_8am = (tomorrow_8am - now_jst).total_seconds() / 3600
         
         # 最適な取得時間を決定
-        if hours_to_6am > 0:
-            # まだ翌日6時前なので、6時から20時までの15時間分
-            forecast_hours = int(hours_to_6am) + 15
-            logger.info(f"最適化: 翌日6時まで{hours_to_6am:.1f}h → {forecast_hours}時間分を取得")
+        if hours_to_8am > 0:
+            # まだ翌日8時前なので、8時から19時までの12時間分
+            forecast_hours = int(hours_to_8am) + 12
+            logger.info(f"最適化: 翌日8時まで{hours_to_8am:.1f}h → {forecast_hours}時間分を取得")
         else:
-            # すでに翌日6時を過ぎているので、現在から20時まで
-            hours_to_8pm = (tomorrow_8pm - now_jst).total_seconds() / 3600
-            forecast_hours = max(int(hours_to_8pm) + 1, 1)
-            logger.info(f"最適化: 翌日20時まで{hours_to_8pm:.1f}h → {forecast_hours}時間分を取得")
+            # すでに翌日8時を過ぎているので、現在から19時まで
+            hours_to_7pm = (tomorrow_7pm - now_jst).total_seconds() / 3600
+            forecast_hours = max(int(hours_to_7pm) + 1, 1)
+            logger.info(f"最適化: 翌日19時まで{hours_to_7pm:.1f}h → {forecast_hours}時間分を取得")
         
         # データを取得
         forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
