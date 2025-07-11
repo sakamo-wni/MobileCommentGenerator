@@ -58,7 +58,7 @@ class LLMManager:
         logger.info("Using OpenAI API")
 
         # パフォーマンスモードをチェック
-        from src.config import get_llm_config
+        from src.config.config import get_llm_config
         llm_config = get_llm_config()
         
         if llm_config.performance_mode:
@@ -79,7 +79,7 @@ class LLMManager:
             )
 
         # パフォーマンスモードをチェック
-        from src.config import get_llm_config
+        from src.config.config import get_llm_config
         llm_config = get_llm_config()
         
         if llm_config.performance_mode:
@@ -100,7 +100,7 @@ class LLMManager:
             )
 
         # パフォーマンスモードをチェック
-        from src.config import get_llm_config
+        from src.config.config import get_llm_config
         llm_config = get_llm_config()
         
         if llm_config.performance_mode:
