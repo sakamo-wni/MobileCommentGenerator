@@ -144,6 +144,39 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
+        # まずキャッシュから読み出しを試みる
+        cache = get_forecast_cache()
+        target_dt = datetime.now(pytz.timezone("Asia/Tokyo")) + timedelta(hours=self.weather_config.forecast_hours_ahead)
+        cached = cache.get_forecast_at_time(location_name, target_dt, tolerance_hours=3)
+        
+        if cached:
+            logger.info(f"キャッシュから天気予報を取得しました: {location_name}")
+            # キャッシュエントリからWeatherForecastに変換
+            weather_forecast = WeatherForecast(
+                datetime=cached.forecast_datetime,
+                temperature=cached.temperature,
+                weather_condition=cached.weather_condition,
+                weather_description=cached.weather_description,
+                weather_code=cached.metadata.get('weather_code', ''),
+                precipitation=cached.precipitation,
+                humidity=cached.humidity,
+                wind_speed=cached.wind_speed,
+                wind_direction=cached.metadata.get('wind_direction', ''),
+                wind_direction_degrees=cached.metadata.get('wind_direction_degrees', 0),
+                pressure=cached.metadata.get('pressure', 0),
+                visibility=cached.metadata.get('visibility', 0),
+                uv_index=cached.metadata.get('uv_index', 0),
+                confidence=cached.metadata.get('confidence', 1.0)
+            )
+            # LocationオブジェクトからLocationインスタンスを作成
+            location = Location(
+                name=location_name,
+                normalized_name=location_name,
+                latitude=lat,
+                longitude=lon
+            )
+            return WeatherForecastCollection([weather_forecast], location)
+        
         retry_delay = self.initial_retry_delay
         forecast_collection = None
         
