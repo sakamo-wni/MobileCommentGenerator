@@ -15,6 +15,7 @@ from src.controllers.metadata_extractor import MetadataExtractor
 from src.controllers.validators import ValidationManager
 from src.controllers.batch_processor import BatchProcessor
 from src.controllers.progress_handler import ProgressHandler
+from src.controllers.async_batch_processor import AsyncBatchProcessor
 from app_interfaces import ICommentGenerationController
 
 logger = logging.getLogger(__name__)
@@ -122,32 +123,31 @@ class CommentGenerationController(ICommentGenerationController):
             max_workers = int(os.getenv("MAX_LLM_WORKERS", "3"))
             logger.info(f"Using MAX_LLM_WORKERS: {max_workers}")
         
-        # asyncio版を試す（利用可能な場合）
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 既存のイベントループ内では同期版を使用
-                return self._batch_processor.process_batch_sync(
-                    locations, llm_provider, 
-                    self.generate_comment_for_location,
-                    progress_callback, max_workers
-                )
-            else:
+        # 非同期版の天気予報取得を使用
+        use_async_weather = os.getenv("USE_ASYNC_WEATHER", "true").lower() == "true"
+        
+        if use_async_weather:
+            logger.info("🚀 非同期版APIクライアントを使用して天気予報を並列取得")
+            # 非同期バッチプロセッサーを使用
+            async_processor = AsyncBatchProcessor()
+            try:
                 # 新しいイベントループで非同期版を実行
                 return asyncio.run(
-                    self._batch_processor.process_batch_async(
-                        locations, llm_provider,
-                        self.generate_comment_for_location,
-                        progress_callback, max_workers
+                    async_processor.generate_comments_batch_async(
+                        locations, llm_provider, progress_callback
                     )
                 )
-        except RuntimeError:
-            # asyncioが利用できない場合は同期版にフォールバック
-            return self._batch_processor.process_batch_sync(
-                locations, llm_provider,
-                self.generate_comment_for_location,
-                progress_callback, max_workers
-            )
+            except Exception as e:
+                logger.error(f"非同期処理でエラー発生: {e}")
+                # フォールバック
+        
+        # 従来の同期版を使用
+        logger.info("同期版APIクライアントを使用")
+        return self._batch_processor.process_batch_sync(
+            locations, llm_provider, 
+            self.generate_comment_for_location,
+            progress_callback, max_workers
+        )
     
     def format_forecast_time(self, forecast_time: str) -> str:
         """予報時刻をフォーマット"""
