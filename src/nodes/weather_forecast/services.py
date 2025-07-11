@@ -12,7 +12,7 @@ from typing import Optional, List, Tuple, Dict, Any
 import pytz
 
 from src.data.location_manager import Location, get_location_manager
-from src.data.weather_data import WeatherForecast, WeatherForecastCollection
+from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
@@ -152,11 +152,14 @@ class WeatherAPIService:
         if cached:
             logger.info(f"キャッシュから天気予報を取得しました: {location_name}")
             # キャッシュエントリからWeatherForecastに変換
+            # weather_conditionを文字列からWeatherCondition列挙型に変換
+            weather_condition_enum = WeatherCondition(cached.weather_condition)
+            
             weather_forecast = WeatherForecast(
                 location=location_name,
                 datetime=cached.forecast_datetime,
                 temperature=cached.temperature,
-                weather_condition=cached.weather_condition,
+                weather_condition=weather_condition_enum,
                 weather_description=cached.weather_description,
                 weather_code=cached.metadata.get('weather_code', ''),
                 precipitation=cached.precipitation,
