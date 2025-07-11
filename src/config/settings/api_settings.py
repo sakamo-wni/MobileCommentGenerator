@@ -29,11 +29,6 @@ class APIConfig:
     api_timeout: int = field(default=30)  # seconds
     retry_count: int = field(default=3)
     
-    # AWS設定
-    aws_access_key_id: str = field(default="")
-    aws_secret_access_key: str = field(default="")
-    aws_region: str = field(default="ap-northeast-1")
-    
     def __post_init__(self):
         """環境変数から値を読み込む"""
         self.wxtech_api_key = os.getenv("WXTECH_API_KEY", self.wxtech_api_key)
@@ -41,11 +36,6 @@ class APIConfig:
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", self.anthropic_api_key)
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", self.gemini_api_key)
         self.api_timeout = int(os.getenv("API_TIMEOUT", str(self.api_timeout)))
-        
-        # AWS設定
-        self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", self.aws_access_key_id)
-        self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", self.aws_secret_access_key)
-        self.aws_region = os.getenv("AWS_DEFAULT_REGION", self.aws_region)
     
     def get_llm_key(self, provider: str) -> Optional[str]:
         """LLMプロバイダーに対応するAPIキーを取得"""
@@ -62,8 +52,7 @@ class APIConfig:
             "openai": bool(self.openai_api_key),
             "gemini": bool(self.gemini_api_key),
             "anthropic": bool(self.anthropic_api_key),
-            "wxtech": bool(self.wxtech_api_key),
-            "aws": bool(self.aws_access_key_id and self.aws_secret_access_key)
+            "wxtech": bool(self.wxtech_api_key)
         }
     
     def mask_sensitive_data(self) -> Dict[str, Any]:
@@ -73,9 +62,6 @@ class APIConfig:
             "openai_api_key": "***" if self.openai_api_key else "",
             "anthropic_api_key": "***" if self.anthropic_api_key else "",
             "gemini_api_key": "***" if self.gemini_api_key else "",
-            "aws_access_key_id": "***" if self.aws_access_key_id else "",
-            "aws_secret_access_key": "***" if self.aws_secret_access_key else "",
-            "aws_region": self.aws_region,
             "api_timeout": self.api_timeout,
             "retry_count": self.retry_count
         }

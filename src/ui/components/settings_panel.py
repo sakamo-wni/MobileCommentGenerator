@@ -119,43 +119,6 @@ def settings_panel() -> Dict[str, Any]:
                 secure_config.save_api_key("wxtech", wxtech_key)
             updated_settings["wxtech_key"] = True
     
-    # AWS設定（オプション）
-    if st.checkbox("AWS設定を表示（オプション）"):
-        st.info("S3から過去コメントを取得する場合に必要です")
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            aws_access_key = st.text_input(
-                "AWS Access Key ID",
-                value="*" * 20 if validation["aws"] else "",
-                type="password"
-            )
-            aws_secret_key = st.text_input(
-                "AWS Secret Access Key",
-                value="*" * 20 if validation["aws"] else "",
-                type="password"
-            )
-            aws_region = st.text_input(
-                "AWS Region",
-                value=config.api_keys.aws_region
-            )
-        with col2:
-            if validation["aws"]:
-                st.success("✅ 設定済み")
-            else:
-                st.warning("⚠️ 未設定")
-        
-        if aws_access_key and aws_access_key != "*" * 20:
-            os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key
-            updated_settings["aws_access_key"] = True
-        
-        if aws_secret_key and aws_secret_key != "*" * 20:
-            os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_key
-            updated_settings["aws_secret_key"] = True
-        
-        if aws_region:
-            os.environ["AWS_DEFAULT_REGION"] = aws_region
-            updated_settings["aws_region"] = aws_region
     
     # 詳細設定
     if st.checkbox("詳細設定を表示"):

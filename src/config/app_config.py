@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any
 import logging
 
 from .config import (
-    get_config as get_unified_config,
+    get_config as get_new_config,  # 紛らわしい名前を避ける
     get_api_config,
     get_ui_settings,
     get_generation_settings,
@@ -31,9 +31,6 @@ class APIKeys:
     gemini_key: Optional[str] = field(default=None)
     anthropic_key: Optional[str] = field(default=None)
     wxtech_key: Optional[str] = field(default=None)
-    aws_access_key_id: Optional[str] = field(default=None)
-    aws_secret_access_key: Optional[str] = field(default=None)
-    aws_region: str = field(default="ap-northeast-1")
     
     @classmethod
     def from_env(cls) -> "APIKeys":
@@ -48,10 +45,7 @@ class APIKeys:
                 openai_key=secure_config.get_api_key("openai") or api_config.openai_api_key,
                 gemini_key=secure_config.get_api_key("gemini") or api_config.gemini_api_key,
                 anthropic_key=secure_config.get_api_key("anthropic") or api_config.anthropic_api_key,
-                wxtech_key=secure_config.get_api_key("wxtech") or api_config.wxtech_api_key,
-                aws_access_key_id=api_config.aws_access_key_id,
-                aws_secret_access_key=api_config.aws_secret_access_key,
-                aws_region=api_config.aws_region
+                wxtech_key=secure_config.get_api_key("wxtech") or api_config.wxtech_api_key
             )
         else:
             # フォールバック: 統一設定から
@@ -59,10 +53,7 @@ class APIKeys:
                 openai_key=api_config.openai_api_key,
                 gemini_key=api_config.gemini_api_key,
                 anthropic_key=api_config.anthropic_api_key,
-                wxtech_key=api_config.wxtech_api_key,
-                aws_access_key_id=api_config.aws_access_key_id,
-                aws_secret_access_key=api_config.aws_secret_access_key,
-                aws_region=api_config.aws_region
+                wxtech_key=api_config.wxtech_api_key
             )
     
     def validate(self) -> Dict[str, bool]:
@@ -96,15 +87,15 @@ class AppConfig:
     @classmethod
     def from_env(cls) -> "AppConfig":
         """環境変数から設定を読み込む"""
-        # 統一設定から取得
-        unified_config = get_unified_config()
-        app_settings = unified_config.app
+        # 新しい設定システムから取得
+        new_config = get_new_config()
+        app_settings = new_config.app
         
         config = cls(
             api_keys=APIKeys.from_env(),
-            ui_settings=unified_config.ui,
-            generation_settings=unified_config.generation,
-            data_settings=unified_config.data,
+            ui_settings=new_config.ui,
+            generation_settings=new_config.generation,
+            data_settings=new_config.data,
             env=app_settings.env,
             debug=app_settings.debug,
             log_level=app_settings.log_level
