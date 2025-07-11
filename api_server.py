@@ -277,11 +277,14 @@ async def generate_comments_bulk(request: BulkGenerationRequest):
             batch = request.locations[i:i + BATCH_SIZE]
             
             # Run batch generation in thread pool
+            # 環境変数から並列度を取得
+            max_workers = int(os.getenv("MAX_LLM_WORKERS", "3"))
+            
             batch_result = await asyncio.to_thread(
                 controller.generate_comments_batch,
                 locations=batch,
                 llm_provider=request.llm_provider,
-                max_workers=3
+                max_workers=max_workers
             )
             
             # Convert results to API response format

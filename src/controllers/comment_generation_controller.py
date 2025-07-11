@@ -1,5 +1,6 @@
 """コメント生成コントローラー"""
 
+import os
 import asyncio
 import logging
 from typing import List, Dict, Optional, Callable
@@ -113,9 +114,14 @@ class CommentGenerationController(ICommentGenerationController):
         locations: List[str], 
         llm_provider: str,
         progress_callback: Optional[Callable[[int, int, str], None]] = None, 
-        max_workers: int = 3
+        max_workers: Optional[int] = None
     ) -> BatchGenerationResult:
         """複数地点のコメント生成（並列処理版）"""
+        # 環境変数からデフォルトの並列度を取得
+        if max_workers is None:
+            max_workers = int(os.getenv("MAX_LLM_WORKERS", "3"))
+            logger.info(f"Using MAX_LLM_WORKERS: {max_workers}")
+        
         # asyncio版を試す（利用可能な場合）
         try:
             loop = asyncio.get_event_loop()
@@ -187,8 +193,11 @@ class CommentGenerationController(ICommentGenerationController):
                     results_container, all_results, view
                 )
             
+            # 環境変数からデフォルトの並列度を取得
+            max_workers_env = int(os.getenv("MAX_LLM_WORKERS", "3"))
+            
             # 並列処理で複数地点を処理
-            with ThreadPoolExecutor(max_workers=3) as executor:
+            with ThreadPoolExecutor(max_workers=max_workers_env) as executor:
                 # 各地点の処理をサブミット
                 future_to_location = {}
                 for location in locations:
