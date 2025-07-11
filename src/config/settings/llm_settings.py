@@ -27,6 +27,12 @@ class LLMConfig:
     anthropic_model: str = field(default="claude-3-haiku-20240307")
     gemini_model: str = field(default="gemini-1.5-flash")
     
+    # パフォーマンスモード（高速モデルを使用）
+    performance_mode: bool = field(default=False)
+    performance_openai_model: str = field(default="gpt-3.5-turbo")
+    performance_anthropic_model: str = field(default="claude-3-haiku-20240307")
+    performance_gemini_model: str = field(default="gemini-1.5-flash")
+    
     def __post_init__(self):
         """環境変数から値を読み込む"""
         self.default_provider = os.getenv("DEFAULT_LLM_PROVIDER", self.default_provider)
@@ -35,6 +41,12 @@ class LLMConfig:
         self.openai_model = os.getenv("OPENAI_MODEL", self.openai_model)
         self.anthropic_model = os.getenv("ANTHROPIC_MODEL", self.anthropic_model)
         self.gemini_model = os.getenv("GEMINI_MODEL", self.gemini_model)
+        
+        # パフォーマンスモードの設定
+        self.performance_mode = os.getenv("LLM_PERFORMANCE_MODE", "false").lower() == "true"
+        self.performance_openai_model = os.getenv("PERFORMANCE_OPENAI_MODEL", self.performance_openai_model)
+        self.performance_anthropic_model = os.getenv("PERFORMANCE_ANTHROPIC_MODEL", self.performance_anthropic_model)
+        self.performance_gemini_model = os.getenv("PERFORMANCE_GEMINI_MODEL", self.performance_gemini_model)
 
 
 @dataclass
