@@ -4,6 +4,7 @@
 LangGraphを使用した天気コメント生成のメインワークフロー実装
 """
 
+import os
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import time
@@ -31,7 +32,7 @@ from src.utils.error_handler import ErrorHandler
 logger = logging.getLogger(__name__)
 
 # 定数
-MAX_RETRY_COUNT = 5
+MAX_RETRY_COUNT = int(os.environ.get("MAX_EVALUATION_RETRIES", "3"))
 
 
 def should_evaluate(state: CommentGenerationState) -> str:
