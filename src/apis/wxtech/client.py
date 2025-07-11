@@ -506,6 +506,20 @@ class WxTechAPIClient:
         with ThreadPoolExecutor() as pool:
             return await loop.run_in_executor(pool, self.get_forecast, lat, lon, forecast_hours)
     
+    async def get_forecast_for_next_day_hours_optimized_async(self, lat: float, lon: float) -> WeatherForecastCollection:
+        """非同期版: 翌日の9, 12, 15, 18時のデータを効率的に取得する最適化版
+        
+        Args:
+            lat: 緯度
+            lon: 経度
+            
+        Returns:
+            翌日の天気予報コレクション（基準時刻および9,12,15,18時を含む）
+        """
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor() as pool:
+            return await loop.run_in_executor(pool, self.get_forecast_for_next_day_hours_optimized, lat, lon)
+    
     def close(self):
         """セッションを閉じる"""
         self.api.close()
