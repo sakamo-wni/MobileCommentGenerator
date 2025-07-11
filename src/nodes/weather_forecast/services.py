@@ -153,6 +153,7 @@ class WeatherAPIService:
             logger.info(f"キャッシュから天気予報を取得しました: {location_name}")
             # キャッシュエントリからWeatherForecastに変換
             weather_forecast = WeatherForecast(
+                location=location_name,
                 datetime=cached.forecast_datetime,
                 temperature=cached.temperature,
                 weather_condition=cached.weather_condition,
