@@ -39,13 +39,7 @@ class AppSettings:
         self.data_dir = Path(os.getenv("DATA_DIR", str(self.data_dir)))
         self.csv_dir = Path(os.getenv("CSV_DIR", str(self.csv_dir)))
         
-        # ディレクトリを作成（権限エラーを考慮）
-        try:
-            self.data_dir.mkdir(parents=True, exist_ok=True)
-            self.csv_dir.mkdir(parents=True, exist_ok=True)
-        except (PermissionError, OSError):
-            # 権限エラーの場合は警告のみ（Config.ensure_directories()で後から作成可能）
-            pass
+        # ディレクトリ作成は行わない - Config.ensure_directories()で必要時に作成
 
 
 @dataclass

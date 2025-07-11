@@ -55,7 +55,7 @@ class UnifiedConfig:
     def api(self) -> APIConfig:
         """API設定を取得"""
         if self._api_config is None:
-            self._api_config = APIConfig()
+            self._api_config = APIConfig()  # APIConfigShimのインスタンス
         return self._api_config
     
     @property
@@ -67,7 +67,7 @@ class UnifiedConfig:
     def app(self) -> AppConfig:
         """アプリケーション設定を取得"""
         if self._app_config is None:
-            self._app_config = AppConfig()
+            self._app_config = AppConfig()  # AppConfigShimのインスタンス
         return self._app_config
     
     @property

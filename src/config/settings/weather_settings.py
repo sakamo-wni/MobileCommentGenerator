@@ -216,9 +216,4 @@ class WeatherConfig:
         self.temp_threshold_cool = float(os.getenv("TEMP_THRESHOLD_COOL", str(self.temp_threshold_cool)))
         self.temp_threshold_cold = float(os.getenv("TEMP_THRESHOLD_COLD", str(self.temp_threshold_cold)))
         
-        # キャッシュディレクトリを作成（権限エラーを考慮）
-        try:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-        except (PermissionError, OSError):
-            # 権限エラーの場合は警告のみ（Config.ensure_directories()で後から作成可能）
-            pass
+        # ディレクトリ作成は行わない - Config.ensure_directories()で必要時に作成

@@ -68,16 +68,18 @@ class TestWeatherConfig:
             assert config.daily_temp_range_threshold_large == 20.0
             assert config.daily_temp_range_threshold_medium == 12.0
     
-    def test_directory_creation(self, tmp_path):
-        """ディレクトリ作成のテスト"""
+    def test_directory_path_configuration(self, tmp_path):
+        """ディレクトリパスの設定テスト"""
         cache_dir = tmp_path / "test_cache"
         
         with patch.dict(os.environ, {"WEATHER_CACHE_DIR": str(cache_dir)}):
             config = WeatherConfig()
             
-            # ディレクトリが作成されていることを確認
-            assert cache_dir.exists()
-            assert cache_dir.is_dir()
+            # ディレクトリパスが正しく設定されていることを確認
+            # （実際の作成はConfig.ensure_directories()で行われる）
+            assert config.cache_dir == cache_dir
+            # ディレクトリはまだ作成されていない（遅延実行パターン）
+            assert not cache_dir.exists()
 
 
 class TestTemperatureThresholds:
