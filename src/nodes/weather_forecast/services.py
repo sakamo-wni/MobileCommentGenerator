@@ -144,38 +144,8 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
-        # まずキャッシュから読み出しを試みる
-        cache = get_forecast_cache()
-        target_dt = datetime.now(pytz.timezone("Asia/Tokyo")) + timedelta(hours=self.weather_config.forecast_hours_ahead)
-        cached = cache.get_forecast_at_time(location_name, target_dt, tolerance_hours=3)
-        
-        if cached:
-            logger.info(f"キャッシュから天気予報を取得しました: {location_name}")
-            # キャッシュエントリからWeatherForecastに変換
-            # weather_conditionを文字列からWeatherCondition列挙型に変換
-            weather_condition_enum = WeatherCondition(cached.weather_condition)
-            
-            weather_forecast = WeatherForecast(
-                location=location_name,
-                datetime=cached.forecast_datetime,
-                temperature=cached.temperature,
-                weather_condition=weather_condition_enum,
-                weather_description=cached.weather_description,
-                weather_code=cached.metadata.get('weather_code', ''),
-                precipitation=cached.precipitation,
-                humidity=cached.humidity,
-                wind_speed=cached.wind_speed,
-                wind_direction=cached.metadata.get('wind_direction', ''),
-                wind_direction_degrees=cached.metadata.get('wind_direction_degrees', 0),
-                pressure=cached.metadata.get('pressure', 0),
-                visibility=cached.metadata.get('visibility', 0),
-                uv_index=cached.metadata.get('uv_index', 0),
-                confidence=cached.metadata.get('confidence', 1.0)
-            )
-            return WeatherForecastCollection(
-                location=location_name,
-                forecasts=[weather_forecast]
-            )
+        # キャッシュ読み出しは一時的に無効化（複数時間の予報データが必要なため）
+        # TODO: 複数時間分のキャッシュデータを取得する実装に改善が必要
         
         retry_delay = self.initial_retry_delay
         forecast_collection = None
