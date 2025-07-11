@@ -157,7 +157,7 @@ class WeatherAPIService:
                 location=location_name,
                 forecasts=[
                     WeatherForecast(
-                        datetime=cached.datetime,
+                        datetime=cached.forecast_datetime,
                         temperature=cached.temperature,
                         humidity=cached.humidity,
                         weather_condition=WeatherCondition(cached.weather_condition),
@@ -252,7 +252,7 @@ class WeatherAPIService:
                 location=location_name,
                 forecasts=[
                     WeatherForecast(
-                        datetime=cached.datetime,
+                        datetime=cached.forecast_datetime,
                         temperature=cached.temperature,
                         humidity=cached.humidity,
                         weather_condition=WeatherCondition(cached.weather_condition),
