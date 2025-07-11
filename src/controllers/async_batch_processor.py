@@ -8,6 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+from src.apis.wxtech.async_client import AsyncWxTechAPIClient
 from src.nodes.weather_forecast.services import WeatherAPIService
 from src.nodes.weather_forecast.service_factory import WeatherForecastServiceFactory
 from src.config import get_config
@@ -15,6 +16,7 @@ from src.config.config import get_weather_config
 from src.workflows.comment_generation_workflow import run_comment_generation
 from src.types import LocationResult, BatchGenerationResult
 from src.utils.error_handler import ErrorHandler
+from src.data.forecast_cache import save_forecast_to_cache
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class AsyncBatchProcessor:
         self, 
         locations: List[str]
     ) -> Dict[str, Any]:
-        """全地点の天気予報データを並列で非同期取得
+        """全地点の天気予報データを並列で非同期取得（真の非同期実装）
         
         Args:
             locations: 地点名のリスト
@@ -45,49 +47,58 @@ class AsyncBatchProcessor:
             api_key
         )
         
-        # 各サービスを取得
+        # 地点情報サービスのみ取得
         location_service = service_factory.get_location_service()
-        weather_service = service_factory.get_weather_api_service()
         
-        # 非同期タスクのリストを作成
-        tasks = []
-        location_map = {}
-        
-        for location_name in locations:
-            # 地点情報の解析
-            parsed_name, lat, lon = location_service.parse_location_input(location_name)
-            try:
-                location = location_service.get_location_with_coordinates(parsed_name, lat, lon)
-                location_map[location_name] = location
-                
-                # 非同期タスクを作成
-                task = weather_service.fetch_forecast_with_retry_async(
-                    location.latitude,
-                    location.longitude,
-                    location.name
-                )
-                tasks.append((location_name, task))
-            except Exception as e:
-                logger.error(f"地点情報の取得に失敗: {location_name} - {e}")
-                continue
-        
-        # 全タスクを並列実行
-        weather_data = {}
-        results = await asyncio.gather(
-            *[task for _, task in tasks],
-            return_exceptions=True
-        )
-        
-        # 結果を辞書に格納
-        for i, (location_name, _) in enumerate(tasks):
-            if isinstance(results[i], Exception):
-                logger.error(f"天気予報取得エラー: {location_name} - {results[i]}")
-                weather_data[location_name] = None
-            else:
-                weather_data[location_name] = {
-                    'forecast_collection': results[i],
-                    'location': location_map[location_name]
-                }
+        # 真の非同期クライアントを使用
+        async with AsyncWxTechAPIClient(api_key) as client:
+            # 非同期タスクのリストを作成
+            tasks = []
+            location_map = {}
+            
+            for location_name in locations:
+                # 地点情報の解析
+                parsed_name, lat, lon = location_service.parse_location_input(location_name)
+                try:
+                    location = location_service.get_location_with_coordinates(parsed_name, lat, lon)
+                    location_map[location_name] = location
+                    
+                    # 真の非同期タスクを作成
+                    task = client.get_forecast_optimized(
+                        location.latitude,
+                        location.longitude
+                    )
+                    tasks.append((location_name, location, task))
+                except Exception as e:
+                    logger.error(f"地点情報の取得に失敗: {location_name} - {e}")
+                    continue
+            
+            # 全タスクを並列実行
+            logger.info(f"🚀 {len(tasks)}地点の天気予報を真の非同期で並列取得開始")
+            weather_data = {}
+            results = await asyncio.gather(
+                *[task for _, _, task in tasks],
+                return_exceptions=True
+            )
+            
+            # 結果を辞書に格納
+            for i, (location_name, location, _) in enumerate(tasks):
+                if isinstance(results[i], Exception):
+                    logger.error(f"天気予報取得エラー: {location_name} - {results[i]}")
+                    weather_data[location_name] = None
+                else:
+                    # キャッシュに保存
+                    try:
+                        save_forecast_to_cache(results[i], location_name)
+                    except Exception as e:
+                        logger.warning(f"キャッシュ保存エラー: {location_name} - {e}")
+                    
+                    weather_data[location_name] = {
+                        'forecast_collection': results[i],
+                        'location': location
+                    }
+            
+            logger.info(f"✅ 天気予報並列取得完了: {len([v for v in weather_data.values() if v])}地点成功")
                 
         return weather_data
     

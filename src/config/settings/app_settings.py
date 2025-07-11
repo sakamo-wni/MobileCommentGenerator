@@ -31,6 +31,11 @@ class AppSettings:
     batch_concurrent_limit: int = field(default=3)
     batch_request_timeout: int = field(default=120000)  # milliseconds
     
+    # 並列処理設定
+    max_llm_workers: int = field(default=3)  # LLM処理の最大並列数
+    max_weather_workers: int = field(default=10)  # 天気API処理の最大並列数
+    use_async_weather: bool = field(default=True)  # 非同期天気取得を使用
+    
     def __post_init__(self):
         """環境変数から値を読み込む"""
         self.env = os.getenv("APP_ENV", self.env)
@@ -38,6 +43,11 @@ class AppSettings:
         self.log_level = os.getenv("LOG_LEVEL", self.log_level).upper()
         self.data_dir = Path(os.getenv("DATA_DIR", str(self.data_dir)))
         self.csv_dir = Path(os.getenv("CSV_DIR", str(self.csv_dir)))
+        
+        # 並列処理設定
+        self.max_llm_workers = int(os.getenv("MAX_LLM_WORKERS", str(self.max_llm_workers)))
+        self.max_weather_workers = int(os.getenv("MAX_WEATHER_WORKERS", str(self.max_weather_workers)))
+        self.use_async_weather = os.getenv("USE_ASYNC_WEATHER", "true" if self.use_async_weather else "false").lower() == "true"
         
         # ディレクトリ作成は行わない - Config.ensure_directories()で必要時に作成
 

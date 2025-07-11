@@ -145,8 +145,30 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
-        # キャッシュ読み出しは一時的に無効化（複数時間の予報データが必要なため）
-        # TODO: 複数時間分のキャッシュデータを取得する実装に改善が必要
+        # まずキャッシュから読み出しを試みる（高速化）
+        cache = get_forecast_cache()
+        target_dt = datetime.now(pytz.timezone("Asia/Tokyo")) + timedelta(hours=self.weather_config.forecast_hours_ahead)
+        cached = cache.get_forecast_at_time(location_name, target_dt, tolerance_hours=3)
+        
+        if cached:
+            logger.info(f"📦 キャッシュヒット: {location_name} - 即座にreturn")
+            # キャッシュデータから即座にWeatherForecastCollectionを構築
+            forecast_collection = WeatherForecastCollection(
+                location=location_name,
+                forecasts=[
+                    WeatherForecast(
+                        datetime=cached.datetime,
+                        temperature=cached.temperature,
+                        humidity=cached.humidity,
+                        weather_condition=WeatherCondition(cached.weather_condition),
+                        weather_description=cached.weather_description,
+                        wind_speed=cached.wind_speed,
+                        precipitation=cached.precipitation,
+                        location=location_name
+                    )
+                ]
+            )
+            return forecast_collection
         
         retry_delay = self.initial_retry_delay
         forecast_collection = None
@@ -218,8 +240,30 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
-        # キャッシュ読み出しは一時的に無効化（複数時間の予報データが必要なため）
-        # TODO: 複数時間分のキャッシュデータを取得する実装に改善が必要
+        # まずキャッシュから読み出しを試みる（高速化）
+        cache = get_forecast_cache()
+        target_dt = datetime.now(pytz.timezone("Asia/Tokyo")) + timedelta(hours=self.weather_config.forecast_hours_ahead)
+        cached = cache.get_forecast_at_time(location_name, target_dt, tolerance_hours=3)
+        
+        if cached:
+            logger.info(f"📦 キャッシュヒット: {location_name} - 即座にreturn")
+            # キャッシュデータから即座にWeatherForecastCollectionを構築
+            forecast_collection = WeatherForecastCollection(
+                location=location_name,
+                forecasts=[
+                    WeatherForecast(
+                        datetime=cached.datetime,
+                        temperature=cached.temperature,
+                        humidity=cached.humidity,
+                        weather_condition=WeatherCondition(cached.weather_condition),
+                        weather_description=cached.weather_description,
+                        wind_speed=cached.wind_speed,
+                        precipitation=cached.precipitation,
+                        location=location_name
+                    )
+                ]
+            )
+            return forecast_collection
         
         retry_delay = self.initial_retry_delay
         forecast_collection = None

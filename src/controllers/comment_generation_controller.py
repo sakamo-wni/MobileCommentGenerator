@@ -118,13 +118,13 @@ class CommentGenerationController(ICommentGenerationController):
         max_workers: Optional[int] = None
     ) -> BatchGenerationResult:
         """複数地点のコメント生成（並列処理版）"""
-        # 環境変数からデフォルトの並列度を取得
+        # 設定から並列度を取得
         if max_workers is None:
-            max_workers = int(os.getenv("MAX_LLM_WORKERS", "3"))
-            logger.info(f"Using MAX_LLM_WORKERS: {max_workers}")
+            max_workers = self.config.app.max_llm_workers
+            logger.info(f"Using max_llm_workers from config: {max_workers}")
         
         # 非同期版の天気予報取得を使用
-        use_async_weather = os.getenv("USE_ASYNC_WEATHER", "true").lower() == "true"
+        use_async_weather = self.config.app.use_async_weather
         
         if use_async_weather:
             logger.info("🚀 非同期版APIクライアントを使用して天気予報を並列取得")
@@ -193,8 +193,8 @@ class CommentGenerationController(ICommentGenerationController):
                     results_container, all_results, view
                 )
             
-            # 環境変数からデフォルトの並列度を取得
-            max_workers_env = int(os.getenv("MAX_LLM_WORKERS", "3"))
+            # 設定から並列度を取得
+            max_workers_env = self.config.app.max_llm_workers
             
             # 並列処理で複数地点を処理
             with ThreadPoolExecutor(max_workers=max_workers_env) as executor:
