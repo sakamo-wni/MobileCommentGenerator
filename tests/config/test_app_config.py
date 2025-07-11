@@ -27,9 +27,6 @@ class TestAPIKeys:
         assert api_keys.gemini_key is None
         assert api_keys.anthropic_key is None
         assert api_keys.wxtech_key is None
-        assert api_keys.aws_access_key_id is None
-        assert api_keys.aws_secret_access_key is None
-        assert api_keys.aws_region == "ap-northeast-1"
     
     def test_from_env(self):
         """環境変数からの設定読み込みテスト"""
@@ -37,10 +34,7 @@ class TestAPIKeys:
             "OPENAI_API_KEY": "test_openai",
             "GEMINI_API_KEY": "test_gemini",
             "ANTHROPIC_API_KEY": "test_anthropic",
-            "WXTECH_API_KEY": "test_wxtech",
-            "AWS_ACCESS_KEY_ID": "test_aws_key",
-            "AWS_SECRET_ACCESS_KEY": "test_aws_secret",
-            "AWS_DEFAULT_REGION": "us-west-2"
+            "WXTECH_API_KEY": "test_wxtech"
         }
         
         with mock.patch.dict(os.environ, env_vars):
@@ -50,9 +44,6 @@ class TestAPIKeys:
                 mock_api.return_value.gemini_api_key = "test_gemini"
                 mock_api.return_value.anthropic_api_key = "test_anthropic"
                 mock_api.return_value.wxtech_api_key = "test_wxtech"
-                mock_api.return_value.aws_access_key_id = "test_aws_key"
-                mock_api.return_value.aws_secret_access_key = "test_aws_secret"
-                mock_api.return_value.aws_region = "us-west-2"
                 
                 api_keys = APIKeys.from_env()
                 
@@ -60,9 +51,6 @@ class TestAPIKeys:
                 assert api_keys.gemini_key == "test_gemini"
                 assert api_keys.anthropic_key == "test_anthropic"
                 assert api_keys.wxtech_key == "test_wxtech"
-                assert api_keys.aws_access_key_id == "test_aws_key"
-                assert api_keys.aws_secret_access_key == "test_aws_secret"
-                assert api_keys.aws_region == "us-west-2"
     
     def test_validate(self):
         """APIキーの存在検証テスト"""
@@ -74,17 +62,14 @@ class TestAPIKeys:
                 "openai": True,
                 "gemini": False,
                 "anthropic": False,
-                "wxtech": True,
-                "aws": True
+                "wxtech": True
             }
             mock_api_config.return_value = mock_config
             
             # 一部のキーのみ設定
             api_keys = APIKeys(
                 openai_key="key1",
-                wxtech_key="key2",
-                aws_access_key_id="aws_key",
-                aws_secret_access_key="aws_secret"
+                wxtech_key="key2"
             )
             
             validation = api_keys.validate()
@@ -93,19 +78,6 @@ class TestAPIKeys:
             assert validation["gemini"] is False
             assert validation["anthropic"] is False
             assert validation["wxtech"] is True
-            assert validation["aws"] is True  # 両方のAWSキーが必要
-            
-            # AWSキーの片方だけの場合
-            mock_config.validate_keys.return_value = {
-                "openai": False,
-                "gemini": False,
-                "anthropic": False,
-                "wxtech": False,
-                "aws": False
-            }
-            api_keys = APIKeys(aws_access_key_id="aws_key")
-            validation = api_keys.validate()
-            assert validation["aws"] is False
     
     def test_get_llm_key(self):
         """LLMプロバイダーキー取得テスト"""
@@ -241,9 +213,7 @@ class TestAppConfig:
             "WXTECH_API_KEY": "test_key",
             "OPENAI_API_KEY": "",
             "GEMINI_API_KEY": "",
-            "ANTHROPIC_API_KEY": "",
-            "AWS_ACCESS_KEY_ID": "",
-            "AWS_SECRET_ACCESS_KEY": ""
+            "ANTHROPIC_API_KEY": ""
         }
         
         with mock.patch.dict(os.environ, clean_env, clear=True):
@@ -339,8 +309,7 @@ class TestGetConfig:
                     "wxtech": False,  # WXTECHキーが未設定
                     "openai": False,
                     "gemini": False,
-                    "anthropic": False,
-                    "aws": False
+                    "anthropic": False
                 }
                 mock_api_config.return_value = mock_api
                 

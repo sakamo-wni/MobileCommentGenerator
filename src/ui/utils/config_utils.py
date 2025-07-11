@@ -19,8 +19,7 @@ def validate_api_keys() -> Dict[str, bool]:
     return {
         "openai": bool(os.getenv("OPENAI_API_KEY")),
         "anthropic": bool(os.getenv("ANTHROPIC_API_KEY")),
-        "gemini": bool(os.getenv("GEMINI_API_KEY")),
-        "aws_bedrock": bool(os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY")),
+        "gemini": bool(os.getenv("GEMINI_API_KEY"))
     }
 
 
