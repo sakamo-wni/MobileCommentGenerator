@@ -169,14 +169,10 @@ class WeatherAPIService:
                 uv_index=cached.metadata.get('uv_index', 0),
                 confidence=cached.metadata.get('confidence', 1.0)
             )
-            # LocationオブジェクトからLocationインスタンスを作成
-            location = Location(
-                name=location_name,
-                normalized_name=location_name,
-                latitude=lat,
-                longitude=lon
+            return WeatherForecastCollection(
+                location=location_name,
+                forecasts=[weather_forecast]
             )
-            return WeatherForecastCollection([weather_forecast], location)
         
         retry_delay = self.initial_retry_delay
         forecast_collection = None
