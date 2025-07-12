@@ -178,13 +178,57 @@ class CommentSelector:
                     selection_reason="雨天時フォールバック"
                 )
         
-        # 最後の手段：最初の適切なコメントを選択
+        # 最後の手段：バリデーションを通過するコメントを探す
+        valid_weather_comment = None
+        valid_advice_comment = None
+        
+        # 天気コメントから有効なものを探す
+        for comment in weather_comments:
+            is_valid, _ = self.validator.validate_comment(comment, weather_data)
+            if is_valid:
+                valid_weather_comment = comment
+                break
+        
+        # アドバイスコメントから有効なものを探す  
+        for comment in advice_comments:
+            is_valid, _ = self.validator.validate_comment(comment, weather_data)
+            if is_valid:
+                valid_advice_comment = comment
+                break
+        
+        if valid_weather_comment and valid_advice_comment:
+            return CommentPair(
+                weather_comment=valid_weather_comment,
+                advice_comment=valid_advice_comment,
+                similarity_score=0.3,
+                selection_reason="最終フォールバック（検証済み）"
+            )
+        
+        # どうしても見つからない場合は、最低限海岸関連のチェックだけ行う
         if weather_comments and advice_comments:
+            # 海岸バリデータがある場合は使用
+            if hasattr(self.validator, 'coastal_validator') and self.validator.coastal_validator:
+                for weather_comment in weather_comments:
+                    coastal_check = self.validator.coastal_validator.validate(weather_comment, weather_data)
+                    if coastal_check[0]:  # 海岸チェックを通過
+                        for advice_comment in advice_comments:
+                            coastal_check_advice = self.validator.coastal_validator.validate(advice_comment, weather_data)
+                            if coastal_check_advice[0]:  # アドバイスも海岸チェックを通過
+                                logger.warning("最終フォールバック：海岸チェックのみ通過したコメントを使用")
+                                return CommentPair(
+                                    weather_comment=weather_comment,
+                                    advice_comment=advice_comment,
+                                    similarity_score=0.2,
+                                    selection_reason="最終フォールバック（海岸チェックのみ）"
+                                )
+            
+            # 本当に最後の手段
+            logger.error("すべてのバリデーションを通過するコメントが見つかりません。最初のコメントを使用します。")
             return CommentPair(
                 weather_comment=weather_comments[0],
                 advice_comment=advice_comments[0],
-                similarity_score=0.3,
-                selection_reason="最終フォールバック"
+                similarity_score=0.1,
+                selection_reason="最終フォールバック（検証なし）"
             )
             
         return None

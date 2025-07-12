@@ -1,10 +1,12 @@
 """海岸地域バリデータ - 海岸/内陸に基づくコメント検証"""
 
 import logging
-from typing import Tuple, Set
+from typing import Tuple, Set, Optional
 
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
+from src.data.location_manager import LocationManager
+from src.utils.geography import CoastalDetector
 from .base_validator import BaseValidator
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,8 @@ class CoastalValidator(BaseValidator):
     
     def __init__(self):
         super().__init__()
-        logger.info("海岸地域バリデータを初期化しました")
+        self.location_manager = LocationManager()
+        logger.info("海岸地域バリデータを初期化しました（緯度経度ベース）")
     
     def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
         """海岸地域に基づいてコメントを検証"""
@@ -70,8 +73,38 @@ class CoastalValidator(BaseValidator):
         
         return True, "海岸地域検証OK"
     
-    def _is_coastal_location(self, location: str) -> bool:
-        """地域が海岸地域かどうかを判定"""
+    def _is_coastal_location(self, location_name: str) -> bool:
+        """地域が海岸地域かどうかを判定（緯度経度ベース）"""
+        try:
+            # LocationManagerから地点情報を取得
+            location = self.location_manager.get_location(location_name)
+            
+            if location and location.latitude and location.longitude:
+                # 緯度経度から海岸地域かどうかを判定
+                is_coastal = CoastalDetector.is_coastal(
+                    location.latitude, 
+                    location.longitude,
+                    threshold_km=15.0  # 15km以内を海岸地域とする
+                )
+                
+                logger.debug(
+                    f"{location_name} ({location.latitude}, {location.longitude}) - "
+                    f"海岸地域: {is_coastal}"
+                )
+                
+                return is_coastal
+            else:
+                logger.debug(f"{location_name}の緯度経度情報が取得できません")
+                # フォールバック: 従来の名前ベースの判定
+                return self._is_coastal_by_name(location_name)
+                
+        except Exception as e:
+            logger.error(f"海岸地域判定エラー: {e}")
+            # エラー時は従来の方法にフォールバック
+            return self._is_coastal_by_name(location_name)
+    
+    def _is_coastal_by_name(self, location: str) -> bool:
+        """地域名から海岸地域かどうかを判定（フォールバック用）"""
         # 完全一致チェック
         if location in self.COASTAL_LOCATIONS:
             return True

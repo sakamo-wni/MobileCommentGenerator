@@ -183,9 +183,23 @@ class WeatherCommentValidator:
             else:
                 logger.info(f"コメント除外: '{comment.comment_text}' - 理由: {reason}")
         
-        # 有効なコメントが少なすぎる場合の警告
+        # 有効なコメントが少なすぎる場合の警告と緩和処理
         if len(valid_comments) < len(comments) * 0.1:  # 90%以上除外された場合
             logger.warning(f"大量のコメントが除外されました: {len(comments)}件中{len(valid_comments)}件のみ有効")
+            
+            # 最低限のコメントを確保するため、海岸チェックのみで再フィルタリング
+            if len(valid_comments) < 10 and self.coastal_validator:
+                logger.info("最低限のコメント確保のため、海岸チェックのみで再フィルタリング")
+                coastal_filtered = []
+                for comment in comments:
+                    coastal_check = self.coastal_validator.validate(comment, weather_data)
+                    if coastal_check[0]:
+                        coastal_filtered.append(comment)
+                
+                if len(coastal_filtered) > len(valid_comments):
+                    logger.info(f"海岸チェックのみで{len(coastal_filtered)}件のコメントを確保")
+                    # limitパラメータが未定義なので、commentsの数に基づいて制限
+                    return coastal_filtered[:min(len(coastal_filtered), 100)]  # 最大100件まで
         
         return valid_comments
     
