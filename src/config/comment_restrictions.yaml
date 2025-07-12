@@ -57,6 +57,13 @@ weather_restrictions:
       - "さっぱり"
       - "乾燥"
       - "湿度低下"
+      # 花粉関連
+      - "花粉"
+      - "花粉症"
+      - "花粉対策"
+      - "花粉飛散"
+      - "花粉情報"
+      - "マスクで花粉"
     advice_forbidden:
       - "日焼け止め"
       - "帽子"
@@ -77,6 +84,10 @@ weather_restrictions:
       - "外干しを"
       - "窓を開けて"
       - "ベランダ作業"
+      # 花粉関連
+      - "花粉症対策"
+      - "マスクで花粉"
+      - "花粉に注意"
 
   heavy_rain:
     weather_comment_forbidden:
@@ -197,6 +208,25 @@ humidity_restrictions:
       - "ジメジメ"
       - "湿気対策"
       - "湿っぽい"
+
+# 季節による制限
+seasonal_restrictions:
+  # 花粉に関する制限
+  pollen:
+    # 花粉飛散期間外の月（6月〜1月）
+    non_pollen_months: [6, 7, 8, 9, 10, 11, 12, 1]
+    forbidden_keywords:
+      - "花粉"
+      - "花粉症"
+      - "花粉対策"
+      - "花粉飛散"
+      - "花粉情報"
+      - "マスクで花粉"
+      - "くしゃみ"
+      - "鼻水"
+      - "目のかゆみ"
+    # 雨天時は通年で花粉コメント禁止
+    rain_forbidden: true
 
 # 悪天候時の必須キーワード
 required_keywords:

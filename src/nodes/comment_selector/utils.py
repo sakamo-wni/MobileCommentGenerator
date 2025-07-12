@@ -81,6 +81,11 @@ class CommentUtils:
             if comment_validator.is_stable_weather_with_unstable_comment(comment.comment_text, weather_data, state):
                 logger.debug(f"安定天気時の急変表現を強制除外: '{comment.comment_text}'")
                 continue
+            
+            # 雨天時の花粉表現の追加チェック
+            if comment_validator.is_rain_weather_with_pollen_comment(comment.comment_text, weather_data):
+                logger.debug(f"雨天時の花粉表現を強制除外: '{comment.comment_text}'")
+                continue
                 
             # 旧式の除外チェック（後方互換）
             if comment_validator.should_exclude_weather_comment(comment.comment_text, weather_data):
@@ -223,6 +228,11 @@ class CommentUtils:
             # 月に不適切な季節表現のチェック（アドバイスも同様）
             if comment_validator.is_inappropriate_seasonal_comment(comment.comment_text, target_datetime):
                 logger.debug(f"月に不適切な季節表現を強制除外（アドバイス）: '{comment.comment_text}'")
+                continue
+            
+            # 雨天時の花粉表現の追加チェック（アドバイスも同様）
+            if comment_validator.is_rain_weather_with_pollen_comment(comment.comment_text, weather_data):
+                logger.debug(f"雨天時の花粉表現を強制除外（アドバイス）: '{comment.comment_text}'")
                 continue
                 
             # 旧式の除外チェック（後方互換）
