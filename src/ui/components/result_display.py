@@ -29,6 +29,7 @@ def display_single_result(result: Dict[str, Any]) -> None:
         # メタデータの表示
         if 'result' in result and result['result']:
             metadata = result['result'].get('generation_metadata', {})
+            logger.debug(f"result_display: location={location}, metadata keys={list(metadata.keys()) if metadata else 'None'}")
             if metadata:
                 display_metadata(metadata, location)
     else:
@@ -37,6 +38,13 @@ def display_single_result(result: Dict[str, Any]) -> None:
 
 def display_metadata(metadata: Dict[str, Any], location: str) -> None:
     """メタデータを表示"""
+    # デバッグログ追加
+    weather_timeline = metadata.get('weather_timeline')
+    logger.info(f"UI display_metadata: location={location}, weather_timeline存在={weather_timeline is not None}")
+    if weather_timeline:
+        future_forecasts = weather_timeline.get('future_forecasts', []) if isinstance(weather_timeline, dict) else []
+        logger.info(f"UI display_metadata: future_forecasts数={len(future_forecasts)}")
+    
     with st.expander(f"📊 {location}の詳細情報"):
         # 予報時刻
         forecast_time = metadata.get('forecast_time')

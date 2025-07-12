@@ -41,7 +41,11 @@ class MetadataFormatter:
         if weather_data:
             weather_info = self._format_weather_info(weather_data, state.location_name, state)
             if weather_info:
+                logger.debug(f"weather_info keys before update: {list(weather_info.keys())}")
+                if 'weather_timeline' in weather_info:
+                    logger.info(f"weather_timeline is in weather_info! future_forecasts count: {len(weather_info['weather_timeline'].get('future_forecasts', []))}")
                 metadata.update(weather_info)
+                logger.debug(f"metadata keys after weather_info update: {list(metadata.keys())}")
         
         # 選択されたコメント情報
         selected_pair = state.selected_pair
@@ -67,6 +71,13 @@ class MetadataFormatter:
         if user_preferences:
             metadata["style"] = user_preferences.get("style", "casual")
             metadata["length"] = user_preferences.get("length", "medium")
+        
+        # 最終確認
+        logger.info(f"Final metadata keys: {list(metadata.keys())}")
+        if 'weather_timeline' in metadata:
+            logger.info("weather_timeline is in final metadata!")
+        else:
+            logger.warning("weather_timeline NOT in final metadata!")
         
         return metadata
     

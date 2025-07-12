@@ -72,6 +72,17 @@ class CommentGenerationController(ICommentGenerationController):
                 llm_provider=llm_provider
             )
             
+            # weather_timelineのデバッグログ
+            generation_metadata = result.get('generation_metadata', {})
+            weather_timeline = generation_metadata.get('weather_timeline', {})
+            if weather_timeline:
+                future_forecasts = weather_timeline.get('future_forecasts', [])
+                logger.info(f"Controller: location={location}, weather_timeline存在, future_forecasts数={len(future_forecasts)}")
+                if future_forecasts:
+                    logger.debug(f"Controller: future_forecasts[0]={future_forecasts[0]}")
+            else:
+                logger.warning(f"Controller: location={location}, weather_timelineが存在しません")
+            
             # 結果を収集
             location_result: LocationResult = {
                 'location': location,
