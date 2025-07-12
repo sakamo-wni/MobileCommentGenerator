@@ -343,18 +343,24 @@ class LazyCommentRepository(CommentRepositoryInterface):
     
     def get_recent_comments(self, limit: int = 100) -> list[PastComment]:
         """最近のコメントを取得（遅延読み込み）"""
-        # 全コメントを取得してから最新のものを返す
-        all_comments = self.get_all_comments()
+        # 各季節・タイプから均等にコメントを取得
+        comments_per_category = limit // (len(self.SEASONS) * len(self.COMMENT_TYPES))
+        if comments_per_category < 1:
+            comments_per_category = 1
+            
+        result_comments = []
         
-        # PastCommentにはcreated_atがないため、datetimeフィールドでソート
-        # datetimeが設定されていない場合は現在時刻を使用（CSVからの読み込みの場合）
-        sorted_comments = sorted(
-            all_comments,
-            key=lambda c: c.datetime if c.datetime else datetime.now(),
-            reverse=True
-        )
+        # 各季節・タイプから均等に取得
+        for season in self.SEASONS:
+            for comment_type in self.COMMENT_TYPES:
+                comments = self._load_file_if_needed(season, comment_type)
+                # 各カテゴリから指定数だけ取得
+                result_comments.extend(comments[:comments_per_category])
+                
+                if len(result_comments) >= limit:
+                    return result_comments[:limit]
         
-        return sorted_comments[:limit]
+        return result_comments
     
     def refresh_cache(self) -> None:
         """キャッシュをリフレッシュ"""
