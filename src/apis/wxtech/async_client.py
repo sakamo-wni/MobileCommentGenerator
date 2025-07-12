@@ -6,8 +6,10 @@ aiohttpを使用した真の非同期実装
 
 import asyncio
 import logging
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+from functools import wraps
 
 import aiohttp
 import pytz
@@ -16,6 +18,7 @@ from src.apis.wxtech.parser import WxTechResponseParser
 from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherForecastCollection
 from src.config.config import get_config
+from src.utils.cache import TTLCache, generate_cache_key, async_cached_method
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 class AsyncWxTechAPIClient:
     """非同期版 WxTech API クライアント"""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, enable_cache: bool = True):
         self.api_key = api_key
         self.base_url = "https://wxtech-api.weathernews.com/api/v1"
         self.parser = WxTechResponseParser()
@@ -31,6 +34,14 @@ class AsyncWxTechAPIClient:
         self.config = get_config()
         self.max_retries = 3
         self.retry_delay = 1.0  # 初期リトライ遅延（秒）
+        
+        # キャッシュの設定
+        if enable_cache:
+            cache_ttl = int(os.environ.get("WXTECH_CACHE_TTL", "300"))
+            self._cache = TTLCache(default_ttl=cache_ttl)
+            logger.info(f"非同期 WxTech APIキャッシュを有効化 (TTL: {cache_ttl}秒)")
+        else:
+            self._cache = None
     
     async def __aenter__(self):
         """非同期コンテキストマネージャーの開始"""
@@ -47,6 +58,7 @@ class AsyncWxTechAPIClient:
         if self.session:
             await self.session.close()
     
+    @async_cached_method(ttl=600)  # 10分間キャッシュ
     async def get_forecast_optimized(self, lat: float, lon: float) -> WeatherForecastCollection:
         """最適化された翌日予報の非同期取得
         
@@ -170,3 +182,18 @@ class AsyncWxTechAPIClient:
         except Exception as e:
             logger.error(f"予期しないエラー: {str(e)}")
             raise
+    
+    def get_cache_stats(self) -> Optional[Dict[str, Any]]:
+        """キャッシュの統計情報を取得
+        
+        Returns:
+            キャッシュ統計情報、キャッシュが無効な場合はNone
+        """
+        if self._cache:
+            return self._cache.get_stats()
+        return None
+    
+    def clear_cache(self):
+        """キャッシュをクリア"""
+        if self._cache:
+            self._cache.clear()
