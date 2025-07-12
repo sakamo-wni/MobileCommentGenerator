@@ -4,7 +4,7 @@
 """
 
 import os
-from typing import Dict, Any, Optional, List
+from typing import Any, Optional
 import logging
 
 from src.data.weather_data import WeatherForecast
@@ -16,11 +16,37 @@ from src.llm.providers.anthropic_provider import AnthropicProvider
 
 logger = logging.getLogger(__name__)
 
+# Python 3.13 type alias
+type ProviderClass = type[LLMProvider]
+type ModelAttrs = tuple[str, str]  # (normal_model_attr, performance_model_attr)
+
 
 class LLMManager:
     """LLMプロバイダーを管理するマネージャークラス"""
+    
+    # プロバイダー設定の定義
+    PROVIDER_CONFIGS: dict[str, dict[str, Any]] = {
+        "openai": {
+            "api_key_env": "OPENAI_API_KEY",
+            "model_attrs": ("openai_model", "performance_openai_model"),
+            "provider_class": OpenAIProvider,
+            "display_name": "OpenAI API"
+        },
+        "gemini": {
+            "api_key_env": "GEMINI_API_KEY",
+            "model_attrs": ("gemini_model", "performance_gemini_model"),
+            "provider_class": GeminiProvider,
+            "display_name": "Gemini API"
+        },
+        "anthropic": {
+            "api_key_env": "ANTHROPIC_API_KEY",
+            "model_attrs": ("anthropic_model", "performance_anthropic_model"),
+            "provider_class": AnthropicProvider,
+            "display_name": "Anthropic API"
+        },
+    }
 
-    def __init__(self, provider: str = "openai", config: Optional[Any] = None):
+    def __init__(self, provider: str = "openai", config: Any | None = None):
         """
         LLMマネージャーの初期化。
 
@@ -33,83 +59,48 @@ class LLMManager:
         self.provider = self._initialize_provider(provider)
 
     def _initialize_provider(self, provider_name: str) -> LLMProvider:
-        """プロバイダーを初期化"""
-        providers = {
-            "openai": self._init_openai,
-            "gemini": self._init_gemini,
-            "anthropic": self._init_anthropic,
-        }
-
-        if provider_name not in providers:
+        """プロバイダーを初期化（統一された実装）"""
+        if provider_name not in self.PROVIDER_CONFIGS:
             raise ValueError(f"Unknown provider: {provider_name}")
-
-        return providers[provider_name]()
-
-    def _init_openai(self) -> OpenAIProvider:
-        """OpenAIプロバイダーを初期化"""
-        api_key = os.getenv("OPENAI_API_KEY")
+        
+        config = self.PROVIDER_CONFIGS[provider_name]
+        
+        # APIキーの取得
+        api_key = self._get_api_key(config["api_key_env"])
+        
+        # モデルの選択
+        model = self._get_model_name(config["model_attrs"])
+        
+        logger.info(f"Using {config['display_name']}")
+        
+        # プロバイダーインスタンスの作成
+        provider_class: ProviderClass = config["provider_class"]
+        return provider_class(api_key=api_key, model=model)
+    
+    def _get_api_key(self, env_name: str) -> str:
+        """環境変数からAPIキーを取得"""
+        api_key = os.getenv(env_name)
         if not api_key:
             raise ValueError(
-                "OPENAI_API_KEY環境変数が設定されていません。\n"
-                "設定方法: export OPENAI_API_KEY='your-api-key' または .envファイルに記載"
+                f"{env_name}環境変数が設定されていません。\n"
+                f"設定方法: export {env_name}='your-api-key' または .envファイルに記載"
             )
-        
-        # APIキーのログ出力は削除（セキュリティ対策）
-        logger.info("Using OpenAI API")
-
-        # パフォーマンスモードをチェック
+        return api_key
+    
+    def _get_model_name(self, model_attrs: ModelAttrs) -> str:
+        """設定からモデル名を取得"""
         from src.config.config import get_llm_config
         llm_config = get_llm_config()
         
-        if llm_config.performance_mode:
-            model = llm_config.performance_openai_model
-            logger.info(f"Performance mode enabled - using {model}")
-        else:
-            model = llm_config.openai_model
-            
-        return OpenAIProvider(api_key=api_key, model=model)
-
-    def _init_gemini(self) -> GeminiProvider:
-        """Geminiプロバイダーを初期化"""
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY環境変数が設定されていません。\n"
-                "設定方法: export GEMINI_API_KEY='your-api-key' または .envファイルに記載"
-            )
-
-        # パフォーマンスモードをチェック
-        from src.config.config import get_llm_config
-        llm_config = get_llm_config()
+        normal_attr, perf_attr = model_attrs
         
         if llm_config.performance_mode:
-            model = llm_config.performance_gemini_model
+            model = getattr(llm_config, perf_attr)
             logger.info(f"Performance mode enabled - using {model}")
         else:
-            model = llm_config.gemini_model
-            
-        return GeminiProvider(api_key=api_key, model=model)
-
-    def _init_anthropic(self) -> AnthropicProvider:
-        """Anthropicプロバイダーを初期化"""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY環境変数が設定されていません。\n"
-                "設定方法: export ANTHROPIC_API_KEY='your-api-key' または .envファイルに記載"
-            )
-
-        # パフォーマンスモードをチェック
-        from src.config.config import get_llm_config
-        llm_config = get_llm_config()
+            model = getattr(llm_config, normal_attr)
         
-        if llm_config.performance_mode:
-            model = llm_config.performance_anthropic_model
-            logger.info(f"Performance mode enabled - using {model}")
-        else:
-            model = llm_config.anthropic_model
-            
-        return AnthropicProvider(api_key=api_key, model=model)
+        return model
 
     def generate(self, prompt: str) -> str:
         """
@@ -162,7 +153,7 @@ class LLMManager:
             raise
 
     def generate_comment(
-        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
+        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: dict[str, Any]
     ) -> str:
         """
         天気コメントを生成する。

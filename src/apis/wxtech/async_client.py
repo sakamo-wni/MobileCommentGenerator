@@ -7,7 +7,7 @@ aiohttpを使用した真の非同期実装
 import asyncio
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Optional, Any
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -19,6 +19,7 @@ from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherForecastCollection
 from src.config.config import get_config
 from src.utils.cache import TTLCache, generate_cache_key, async_cached_method
+from src.types.api_types import CachedWxTechParams
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class AsyncWxTechAPIClient:
     def __init__(self, api_key: str, enable_cache: bool = True):
         self.api_key = api_key
         self.base_url = "https://wxtech-api.weathernews.com/api/v1"
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
         self.config = get_config()
         self.max_retries = 3
         self.retry_delay = 1.0  # 初期リトライ遅延（秒）
@@ -85,6 +86,31 @@ class AsyncWxTechAPIClient:
         
         # 非同期でAPIを呼び出し
         return await self._fetch_forecast_async(lat, lon, forecast_hours)
+    
+    async def get_forecast_with_cached_params(self, params: CachedWxTechParams) -> WeatherForecastCollection:
+        """事前計算されたキャッシュキーを使用して天気予報を取得
+        
+        Args:
+            params: 事前計算されたキャッシュキー付きパラメータ
+            
+        Returns:
+            天気予報コレクション
+        """
+        # キャッシュから取得を試みる
+        if self._cache:
+            cached_result = self._cache.get(params.cache_key)
+            if cached_result is not None:
+                logger.debug(f"Cache hit with pre-computed key: {params.cache_key}")
+                return cached_result
+        
+        # キャッシュにない場合はAPIを呼び出し
+        result = await self._fetch_forecast_async(params.lat, params.lon, params.hours)
+        
+        # キャッシュに保存
+        if self._cache:
+            self._cache.set(params.cache_key, result)
+        
+        return result
     
     async def _fetch_forecast_async(self, lat: float, lon: float, hours: int) -> WeatherForecastCollection:
         """非同期で天気予報を取得（内部メソッド）

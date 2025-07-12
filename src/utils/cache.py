@@ -3,11 +3,18 @@
 import time
 import hashlib
 import json
-from typing import Any, Dict, Optional, Callable
+import inspect
+from typing import Any, Optional, Callable, TypeVar, cast
 from functools import wraps
 import logging
 
+# Import type definitions for Python 3.13+
+from src.types.cache_types import CacheEntry, CacheStats, CacheKey
+
 logger = logging.getLogger(__name__)
+
+# Type variable for generic cache values
+T = TypeVar('T')
 
 
 class TTLCache:
@@ -23,15 +30,15 @@ class TTLCache:
         Args:
             default_ttl: デフォルトのTTL（秒）。デフォルトは5分
         """
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache: dict[CacheKey, CacheEntry[Any]] = {}
         self.default_ttl = default_ttl
-        self._stats = {
+        self._stats: dict[str, int] = {
             "hits": 0,
             "misses": 0,
             "evictions": 0
         }
     
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: CacheKey) -> Any | None:
         """キャッシュからデータを取得
         
         Args:
@@ -55,7 +62,7 @@ class TTLCache:
         self._stats["misses"] += 1
         return None
     
-    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+    def set(self, key: CacheKey, value: Any, ttl: int | None = None):
         """データをキャッシュに保存
         
         Args:
@@ -66,11 +73,14 @@ class TTLCache:
         if ttl is None:
             ttl = self.default_ttl
         
-        self._cache[key] = {
-            "value": value,
-            "expire_at": time.time() + ttl,
-            "created_at": time.time()
-        }
+        current_time = time.time()
+        self._cache[key] = CacheEntry(
+            value=value,
+            expire_at=current_time + ttl,
+            created_at=current_time,
+            access_count=0,
+            last_accessed=current_time
+        )
         logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
     
     def clear(self):
@@ -93,22 +103,36 @@ class TTLCache:
         if expired_keys:
             logger.debug(f"Cleaned up {len(expired_keys)} expired entries")
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> CacheStats:
         """キャッシュの統計情報を取得"""
         total_requests = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0
         
-        return {
-            "size": len(self._cache),
-            "hits": self._stats["hits"],
-            "misses": self._stats["misses"],
-            "evictions": self._stats["evictions"],
-            "hit_rate": hit_rate,
-            "total_requests": total_requests
-        }
+        # Calculate memory usage and entry ages
+        memory_usage = None
+        oldest_age = None
+        newest_age = None
+        
+        if self._cache:
+            current_time = time.time()
+            ages = [current_time - entry["created_at"] for entry in self._cache.values()]
+            oldest_age = max(ages)
+            newest_age = min(ages)
+        
+        return CacheStats(
+            size=len(self._cache),
+            hits=self._stats["hits"],
+            misses=self._stats["misses"],
+            evictions=self._stats["evictions"],
+            hit_rate=hit_rate,
+            total_requests=total_requests,
+            memory_usage_bytes=memory_usage,
+            oldest_entry_age_seconds=oldest_age,
+            newest_entry_age_seconds=newest_age
+        )
 
 
-def generate_cache_key(*args, **kwargs) -> str:
+def generate_cache_key(*args, **kwargs) -> CacheKey:
     """引数からキャッシュキーを生成
     
     Args:
@@ -132,78 +156,78 @@ def generate_cache_key(*args, **kwargs) -> str:
     return hashlib.md5(key_str.encode()).hexdigest()
 
 
-def async_cached_method(ttl: Optional[int] = None, cache_attr: str = "_cache"):
-    """非同期メソッドの結果をキャッシュするデコレータ
+def universal_cached_method(ttl: int | None = None, cache_attr: str = "_cache"):
+    """メソッドの結果をキャッシュする統一デコレータ（同期・非同期両対応）
     
     Args:
         ttl: TTL（秒）。Noneの場合はキャッシュのデフォルト値を使用
         cache_attr: キャッシュオブジェクトの属性名
         
     Returns:
-        デコレートされた非同期メソッド
+        デコレートされたメソッド（同期または非同期）
     """
     def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # キャッシュオブジェクトを取得
-            cache = getattr(self, cache_attr, None)
-            if cache is None:
-                # キャッシュがない場合は通常実行
-                return await func(self, *args, **kwargs)
-            
-            # キャッシュキーを生成
-            cache_key = f"{func.__name__}:{generate_cache_key(*args, **kwargs)}"
-            
-            # キャッシュから取得を試みる
-            cached_result = cache.get(cache_key)
-            if cached_result is not None:
-                return cached_result
-            
-            # キャッシュにない場合は実行してキャッシュに保存
-            result = await func(self, *args, **kwargs)
-            cache.set(cache_key, result, ttl)
-            
-            return result
+        is_async = inspect.iscoroutinefunction(func)
         
-        return wrapper
-    return decorator
-
-
-def cached_method(ttl: Optional[int] = None, cache_attr: str = "_cache"):
-    """メソッドの結果をキャッシュするデコレータ
+        if is_async:
+            @wraps(func)
+            async def async_wrapper(self, *args, **kwargs):
+                # キャッシュオブジェクトを取得
+                cache = getattr(self, cache_attr, None)
+                if cache is None:
+                    # キャッシュがない場合は通常実行
+                    return await func(self, *args, **kwargs)
+                
+                # キャッシュキーを生成
+                cache_key = f"{func.__name__}:{generate_cache_key(*args, **kwargs)}"
+                
+                # キャッシュから取得を試みる
+                cached_result = cache.get(cache_key)
+                if cached_result is not None:
+                    logger.debug(f"Cache hit for async method: {func.__name__}")
+                    return cached_result
+                
+                # キャッシュにない場合は実行してキャッシュに保存
+                result = await func(self, *args, **kwargs)
+                cache.set(cache_key, result, ttl)
+                logger.debug(f"Cached result for async method: {func.__name__}")
+                
+                return result
+            
+            return async_wrapper
+        else:
+            @wraps(func)
+            def sync_wrapper(self, *args, **kwargs):
+                # キャッシュオブジェクトを取得
+                cache = getattr(self, cache_attr, None)
+                if cache is None:
+                    # キャッシュがない場合は通常実行
+                    return func(self, *args, **kwargs)
+                
+                # キャッシュキーを生成
+                cache_key = f"{func.__name__}:{generate_cache_key(*args, **kwargs)}"
+                
+                # キャッシュから取得を試みる
+                cached_result = cache.get(cache_key)
+                if cached_result is not None:
+                    logger.debug(f"Cache hit for sync method: {func.__name__}")
+                    return cached_result
+                
+                # キャッシュにない場合は実行してキャッシュに保存
+                result = func(self, *args, **kwargs)
+                cache.set(cache_key, result, ttl)
+                logger.debug(f"Cached result for sync method: {func.__name__}")
+                
+                return result
+            
+            return sync_wrapper
     
-    Args:
-        ttl: TTL（秒）。Noneの場合はキャッシュのデフォルト値を使用
-        cache_attr: キャッシュオブジェクトの属性名
-        
-    Returns:
-        デコレートされたメソッド
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            # キャッシュオブジェクトを取得
-            cache = getattr(self, cache_attr, None)
-            if cache is None:
-                # キャッシュがない場合は通常実行
-                return func(self, *args, **kwargs)
-            
-            # キャッシュキーを生成
-            cache_key = f"{func.__name__}:{generate_cache_key(*args, **kwargs)}"
-            
-            # キャッシュから取得を試みる
-            cached_result = cache.get(cache_key)
-            if cached_result is not None:
-                return cached_result
-            
-            # キャッシュにない場合は実行してキャッシュに保存
-            result = func(self, *args, **kwargs)
-            cache.set(cache_key, result, ttl)
-            
-            return result
-        
-        return wrapper
     return decorator
+
+
+# 互換性のためのエイリアス
+async_cached_method = universal_cached_method
+cached_method = universal_cached_method
 
 
 # グローバルキャッシュインスタンス（オプション）
