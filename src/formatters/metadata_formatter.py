@@ -121,7 +121,7 @@ class MetadataFormatter:
             
             # 時系列の天気データを追加
             # period_forecastsから直接タイムラインを作成
-            period_forecasts = state.metadata.get("period_forecasts", [])
+            period_forecasts = state.generation_metadata.get("period_forecasts", [])
             if period_forecasts:
                 try:
                     timeline_data = {
