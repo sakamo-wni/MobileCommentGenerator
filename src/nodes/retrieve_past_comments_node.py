@@ -7,6 +7,7 @@ from typing import Dict, Any
 from src.data.past_comment import CommentType
 from src.data.weather_data import WeatherForecast
 from src.repositories.local_comment_repository import LocalCommentRepository
+from src.repositories.lazy_comment_repository import LazyCommentRepository
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,12 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
             
         # リポジトリ初期化（最適化フラグに基づいて選択）
         use_optimized = getattr(state, 'use_optimized_repository', False)
-        if use_optimized:
+        use_lazy_loading = getattr(state, 'use_lazy_loading', True)  # デフォルトで遅延読み込みを使用
+        
+        if use_lazy_loading:
+            logger.info("Using lazy-loading CSV repository")
+            repository = LazyCommentRepository()
+        elif use_optimized:
             logger.info("Using optimized CSV repository with indexing")
             repository = LocalCommentRepository(use_index=True)
         else:
