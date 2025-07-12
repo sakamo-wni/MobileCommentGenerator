@@ -124,6 +124,13 @@ class WeatherCommentValidator:
                                weather_data: WeatherForecast) -> Tuple[bool, str]:
         """必須キーワードのチェック"""
         weather_desc = weather_data.weather_description.lower()
+        temp = weather_data.temperature
+        
+        # 猛暑日（35°C以上）のチェック
+        if temp >= HEATSTROKE_SEVERE_TEMP:
+            heat_keywords = ["猛暑", "熱中症", "暑さ", "高温", "水分補給", "熱射病", "日射病"]
+            if not any(keyword in comment_text for keyword in heat_keywords):
+                return False, f"猛暑日（{temp}°C）で熱中症・暑さ関連の言及が必須"
         
         # 大雨・豪雨時のチェック
         if any(word in weather_desc for word in ["豪雨", "大雨", "暴風雨"]):
