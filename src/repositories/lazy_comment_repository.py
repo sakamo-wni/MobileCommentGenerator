@@ -6,7 +6,7 @@ CSVファイルを必要な時だけ読み込むことで、起動時間とメ�
 
 import logging
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from datetime import datetime
 import functools
 from concurrent.futures import ThreadPoolExecutor, as_completed
