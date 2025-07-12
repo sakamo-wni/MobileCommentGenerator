@@ -37,6 +37,21 @@ class WeatherCommentValidator:
         self.consistency_validator = ConsistencyValidator()
         self.regional_validator = RegionalValidator()
         
+        # 新しいバリデータを追加
+        try:
+            from .coastal_validator import CoastalValidator
+            self.coastal_validator = CoastalValidator()
+        except ImportError:
+            logger.warning("CoastalValidator not available")
+            self.coastal_validator = None
+        
+        try:
+            from .weather_transition_validator import WeatherTransitionValidator
+            self.weather_transition_validator = WeatherTransitionValidator()
+        except ImportError:
+            logger.warning("WeatherTransitionValidator not available")
+            self.weather_transition_validator = None
+        
         # 必須キーワード（悪天候時）
         self.required_keywords: Dict[str, RequiredKeywords] = {
             "heavy_rain": {
@@ -81,7 +96,21 @@ class WeatherCommentValidator:
             logger.info(f"地域特性エラー: {regional_check[1]} - コメント: '{comment_text}'")
             return regional_check
         
-        # 4. 必須キーワードチェック
+        # 4. 海岸地域チェック
+        if self.coastal_validator:
+            coastal_check = self.coastal_validator.validate(comment, weather_data)
+            if not coastal_check[0]:
+                logger.info(f"海岸地域エラー: {coastal_check[1]} - コメント: '{comment_text}'")
+                return coastal_check
+        
+        # 5. 天気推移チェック
+        if self.weather_transition_validator:
+            transition_check = self.weather_transition_validator.validate(comment, weather_data)
+            if not transition_check[0]:
+                logger.info(f"天気推移エラー: {transition_check[1]} - コメント: '{comment_text}'")
+                return transition_check
+        
+        # 6. 必須キーワードチェック
         required_check = self._check_required_keywords(
             comment_text, comment_type, weather_data
         )
