@@ -14,7 +14,7 @@ import pytz
 
 from src.data.location_manager import Location, get_location_manager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
-from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences
+from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
