@@ -1,13 +1,16 @@
 """遅延読み込み対応のコメントリポジトリ
 
 CSVファイルを必要な時だけ読み込むことで、起動時間とメモリ使用量を削減
+並列読み込みに対応してパフォーマンスを向上
 """
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Set, Union
+from typing import Optional, Union, Any
 from datetime import datetime
 import functools
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 
 from src.repositories.base_repository import CommentRepositoryInterface
 from src.repositories.csv_file_handler import CSVFileHandler, CommentParser
@@ -27,18 +30,23 @@ class LazyCommentRepository(CommentRepositoryInterface):
     DEFAULT_COMMENT_TYPES = ["weather_comment", "advice"]
     
     def __init__(self, output_dir: str = "output", cache_ttl_minutes: int = 60,
-                 seasons: Optional[List[str]] = None, 
-                 comment_types: Optional[List[str]] = None):
+                 seasons: Optional[list[str]] = None, 
+                 comment_types: Optional[list[str]] = None,
+                 max_workers: int | None = None):
         """
         Args:
             output_dir: CSVファイルが格納されているディレクトリ
             cache_ttl_minutes: キャッシュの有効期限（分）
             seasons: 対象とする季節のリスト（省略時はデフォルト値を使用）
             comment_types: 対象とするコメントタイプのリスト（省略時はデフォルト値を使用）
+            max_workers: 並列処理の最大ワーカー数（Noneの場合はCPU数ベースで自動設定）
         """
         self.output_dir = Path(output_dir)
         self.SEASONS = seasons or self.DEFAULT_SEASONS
         self.COMMENT_TYPES = comment_types or self.DEFAULT_COMMENT_TYPES
+        
+        # 並列処理の設定
+        self.max_workers = max_workers or min(os.cpu_count() or 1, 4)  # 最大4ワーカー
         
         # ファイルハンドラとパーサー
         self.file_handler = CSVFileHandler()
@@ -48,12 +56,12 @@ class LazyCommentRepository(CommentRepositoryInterface):
         self._file_cache = TTLCache(default_ttl=cache_ttl_minutes * 60)
         
         # 読み込み済みファイルのトラッキング
-        self._loaded_files: Set[str] = set()
+        self._loaded_files: set[str] = set()
         
         # ディレクトリの存在確認のみ実行
         self._ensure_output_dir_exists()
         
-        logger.info(f"LazyCommentRepository initialized (no files loaded yet)")
+        logger.info(f"LazyCommentRepository initialized (no files loaded yet, max_workers={self.max_workers})")
     
     def _ensure_output_dir_exists(self) -> None:
         """出力ディレクトリの存在を確認し、なければ作成"""
@@ -70,7 +78,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         """キャッシュキーを生成"""
         return f"{season}_{comment_type}"
     
-    def _load_file_if_needed(self, season: str, comment_type: str) -> List[PastComment]:
+    def _load_file_if_needed(self, season: str, comment_type: str) -> list[PastComment]:
         """必要に応じてファイルを読み込む（キャッシュ済みならキャッシュから返す）"""
         cache_key = self._get_cache_key(season, comment_type)
         
@@ -90,7 +98,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         logger.info(f"Lazy loaded {len(comments)} {comment_type} comments for season {season}")
         return comments
     
-    def _load_comments_from_file(self, file_path: Path, comment_type: str, season: str) -> List[PastComment]:
+    def _load_comments_from_file(self, file_path: Path, comment_type: str, season: str) -> list[PastComment]:
         """特定のファイルからコメントを読み込み"""
         if not file_path.exists():
             logger.debug(f"File not found: {file_path}")
@@ -114,19 +122,37 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return comments
     
-    def get_all_comments(self) -> List[PastComment]:
-        """全てのコメントを取得（遅延読み込み）"""
+    def get_all_comments(self) -> list[PastComment]:
+        """全てのコメントを取得（並列遅延読み込み）"""
         all_comments = []
         
-        for season in self.SEASONS:
-            for comment_type in self.COMMENT_TYPES:
-                comments = self._load_file_if_needed(season, comment_type)
-                all_comments.extend(comments)
+        # 読み込むべきファイルの組み合わせを作成
+        file_combinations = [(season, comment_type) 
+                           for season in self.SEASONS 
+                           for comment_type in self.COMMENT_TYPES]
         
+        # 並列でファイルを読み込む
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            # Future オブジェクトとその対応する(season, comment_type)をマッピング
+            future_to_params = {
+                executor.submit(self._load_file_if_needed, season, comment_type): (season, comment_type)
+                for season, comment_type in file_combinations
+            }
+            
+            # 完了したタスクから結果を収集
+            for future in as_completed(future_to_params):
+                try:
+                    comments = future.result()
+                    all_comments.extend(comments)
+                except Exception as e:
+                    season, comment_type = future_to_params[future]
+                    logger.error(f"Error loading {comment_type} for {season}: {e}")
+        
+        logger.info(f"Loaded total of {len(all_comments)} comments using {self.max_workers} workers")
         return all_comments
     
-    def get_comments_by_season(self, seasons: Union[str, List[str]], limit: int = 100) -> List[PastComment]:
-        """指定された季節のコメントを取得（遅延読み込み）
+    def get_comments_by_season(self, seasons: Union[str, list[str]], limit: int = 100) -> list[PastComment]:
+        """指定された季節のコメントを取得（並列遅延読み込み）
         
         Args:
             seasons: 季節名または季節名のリスト
@@ -136,22 +162,45 @@ class LazyCommentRepository(CommentRepositoryInterface):
         if isinstance(seasons, str):
             seasons = [seasons]
         
+        # 有効な季節のみフィルタリング
+        valid_seasons = [s for s in seasons if s in self.SEASONS]
+        if not valid_seasons:
+            logger.warning(f"No valid seasons found in: {seasons}")
+            return []
+        
         comments = []
-        for season in seasons:
-            if season not in self.SEASONS:
-                logger.warning(f"Unknown season: {season}")
-                continue
+        
+        # 読み込むべきファイルの組み合わせを作成
+        file_combinations = [(season, comment_type) 
+                           for season in valid_seasons
+                           for comment_type in self.COMMENT_TYPES]
+        
+        # 並列でファイルを読み込む
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_params = {
+                executor.submit(self._load_file_if_needed, season, comment_type): (season, comment_type)
+                for season, comment_type in file_combinations
+            }
             
-            for comment_type in self.COMMENT_TYPES:
-                season_comments = self._load_file_if_needed(season, comment_type)
-                comments.extend(season_comments)
-                
-                if len(comments) >= limit:
-                    return comments[:limit]
+            for future in as_completed(future_to_params):
+                try:
+                    season_comments = future.result()
+                    comments.extend(season_comments)
+                    
+                    # limit に達したら早期終了
+                    if len(comments) >= limit:
+                        # 残りのタスクをキャンセル
+                        for f in future_to_params:
+                            if not f.done():
+                                f.cancel()
+                        return comments[:limit]
+                except Exception as e:
+                    season, comment_type = future_to_params[future]
+                    logger.error(f"Error loading {comment_type} for {season}: {e}")
         
         return comments[:limit]
     
-    def get_comments_by_season_single(self, season: str) -> List[PastComment]:
+    def get_comments_by_season_single(self, season: str) -> list[PastComment]:
         """特定の季節のコメントを取得（遅延読み込み）"""
         comments = []
         
@@ -165,7 +214,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return comments
     
-    def get_weather_comments_by_season(self, season: str) -> List[PastComment]:
+    def get_weather_comments_by_season(self, season: str) -> list[PastComment]:
         """特定の季節の天気コメントのみを取得（遅延読み込み）"""
         if season not in self.SEASONS:
             logger.warning(f"Unknown season: {season}")
@@ -173,7 +222,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return self._load_file_if_needed(season, "weather_comment")
     
-    def get_advice_by_season(self, season: str) -> List[PastComment]:
+    def get_advice_by_season(self, season: str) -> list[PastComment]:
         """特定の季節のアドバイスのみを取得（遅延読み込み）"""
         if season not in self.SEASONS:
             logger.warning(f"Unknown season: {season}")
@@ -181,7 +230,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return self._load_file_if_needed(season, "advice")
     
-    def search_comments(self, **criteria) -> List[PastComment]:
+    def search_comments(self, **criteria) -> list[PastComment]:
         """条件に基づいてコメントを検索（必要なファイルのみ読み込み）"""
         # 季節が指定されている場合は、その季節のみを読み込む
         target_seasons = self.SEASONS
@@ -210,7 +259,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return matching_comments
     
-    def _matches_criteria(self, comment: PastComment, criteria: Dict[str, Any]) -> bool:
+    def _matches_criteria(self, comment: PastComment, criteria: dict[str, Any]) -> bool:
         """コメントが検索条件に一致するかチェック"""
         # 各条件をチェック
         if 'comment_type' in criteria and criteria['comment_type']:
@@ -231,7 +280,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return True
     
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """統計情報を取得"""
         stats = {
             "total_seasons": len(self.SEASONS),
@@ -267,7 +316,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         logger.info("Comment repository cache cleared")
     
     # 抽象メソッドの実装
-    def get_all_available_comments(self, max_per_season_per_type: int = 20) -> List[PastComment]:
+    def get_all_available_comments(self, max_per_season_per_type: int = 20) -> list[PastComment]:
         """全ての利用可能なコメントを取得（遅延読み込み）"""
         all_comments = []
         comments_per_type = {}
@@ -292,20 +341,26 @@ class LazyCommentRepository(CommentRepositoryInterface):
         
         return all_comments
     
-    def get_recent_comments(self, limit: int = 100) -> List[PastComment]:
+    def get_recent_comments(self, limit: int = 100) -> list[PastComment]:
         """最近のコメントを取得（遅延読み込み）"""
-        # 全コメントを取得してから最新のものを返す
-        all_comments = self.get_all_comments()
+        # 各季節・タイプから均等にコメントを取得
+        comments_per_category = limit // (len(self.SEASONS) * len(self.COMMENT_TYPES))
+        if comments_per_category < 1:
+            comments_per_category = 1
+            
+        result_comments = []
         
-        # PastCommentにはcreated_atがないため、datetimeフィールドでソート
-        # datetimeが設定されていない場合は現在時刻を使用（CSVからの読み込みの場合）
-        sorted_comments = sorted(
-            all_comments,
-            key=lambda c: c.datetime if c.datetime else datetime.now(),
-            reverse=True
-        )
+        # 各季節・タイプから均等に取得
+        for season in self.SEASONS:
+            for comment_type in self.COMMENT_TYPES:
+                comments = self._load_file_if_needed(season, comment_type)
+                # 各カテゴリから指定数だけ取得
+                result_comments.extend(comments[:comments_per_category])
+                
+                if len(result_comments) >= limit:
+                    return result_comments[:limit]
         
-        return sorted_comments[:limit]
+        return result_comments
     
     def refresh_cache(self) -> None:
         """キャッシュをリフレッシュ"""

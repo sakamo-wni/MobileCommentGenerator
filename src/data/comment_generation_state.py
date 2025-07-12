@@ -7,8 +7,18 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Optional, Any
 from datetime import datetime
+
+# Import new type definitions for Python 3.13+
+from src.types.workflow_types import (
+    GenerationMetadata,
+    WorkflowError,
+    SelectedCommentInfo,
+    WeatherConditionInfo,
+    CommentSource,
+    ValidationStatus,
+)
 
 
 @dataclass
@@ -27,56 +37,66 @@ class CommentGenerationState:
     exclude_previous: bool = False
 
     # ===== 中間データ =====
-    location: Optional[Any] = None  # Location オブジェクト
-    weather_data: Optional[Any] = None  # WeatherForecast オブジェクト
-    past_comments: List[Any] = field(default_factory=list)  # PastComment のリスト
-    selected_pair: Optional[Any] = None  # CommentPair オブジェクト
-    generated_comment: Optional[str] = None
+    location: Any | None = None  # Location オブジェクト
+    weather_data: Any | None = None  # WeatherForecast オブジェクト
+    past_comments: list[Any] = field(default_factory=list)  # PastComment のリスト
+    selected_pair: Any | None = None  # CommentPair オブジェクト
+    generated_comment: str | None = None
 
     # ===== 制御フラグ =====
     retry_count: int = 0
     max_retry_count: int = field(default_factory=lambda: int(os.environ.get("MAX_EVALUATION_RETRIES", "3")))
-    validation_result: Optional[Any] = None  # ValidationResult オブジェクト
+    validation_result: Any | None = None  # ValidationResult オブジェクト
     should_retry: bool = False
     use_lazy_loading: bool = field(default_factory=lambda: os.environ.get("USE_LAZY_CSV_LOADING", "true").lower() == "true")
 
     # ===== 出力データ =====
-    final_comment: Optional[str] = None
-    generation_metadata: Dict[str, Any] = field(default_factory=dict)
+    final_comment: str | None = None
+    generation_metadata: GenerationMetadata = field(default_factory=dict)
 
     # ===== エラー情報 =====
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         """初期化後の処理"""
         if not self.generation_metadata:
-            self.generation_metadata = {
-                "workflow_started_at": datetime.now().isoformat(),
-                "retry_count": 0,
-                "errors": [],
-                "warnings": [],
-            }
+            self.generation_metadata = GenerationMetadata(
+                workflow_started_at=datetime.now().isoformat(),
+                completed_at=None,
+                execution_time_ms=None,
+                retry_count=0,
+                errors=[],
+                warnings=[],
+                has_errors=False,
+                has_warnings=False,
+                final_comment_source=None,
+                selected_past_comments=[],
+                weather_condition=None,
+                validation_status=None,
+            )
 
-    def add_error(self, error_message: str, node_name: str = None):
+    def add_error(self, error_message: str, node_name: str | None = None):
         """エラーを追加"""
-        error_info = {
-            "message": error_message,
-            "node": node_name,
-            "timestamp": datetime.now().isoformat(),
-        }
+        error_info = WorkflowError(
+            message=error_message,
+            node=node_name,
+            timestamp=datetime.now().isoformat(),
+        )
         self.errors.append(error_message)
-        self.generation_metadata.setdefault("errors", []).append(error_info)
+        self.generation_metadata["errors"].append(error_info)
+        self.generation_metadata["has_errors"] = True
 
-    def add_warning(self, warning_message: str, node_name: str = None):
+    def add_warning(self, warning_message: str, node_name: str | None = None):
         """警告を追加"""
-        warning_info = {
-            "message": warning_message,
-            "node": node_name,
-            "timestamp": datetime.now().isoformat(),
-        }
+        warning_info = WorkflowError(
+            message=warning_message,
+            node=node_name,
+            timestamp=datetime.now().isoformat(),
+        )
         self.warnings.append(warning_message)
-        self.generation_metadata.setdefault("warnings", []).append(warning_info)
+        self.generation_metadata["warnings"].append(warning_info)
+        self.generation_metadata["has_warnings"] = True
 
     def increment_retry(self) -> bool:
         """
@@ -93,12 +113,16 @@ class CommentGenerationState:
         """リトライが可能かどうか"""
         return self.retry_count < self.max_retry_count
 
-    def set_final_comment(self, comment: str, source: str = "generated"):
+    def set_final_comment(self, comment: str, source: CommentSource = "generated"):
         """最終コメントを設定"""
         self.final_comment = comment
-        self.generation_metadata.update(
-            {"final_comment_source": source, "completed_at": datetime.now().isoformat()}
-        )
+        self.generation_metadata["final_comment_source"] = source
+        self.generation_metadata["completed_at"] = datetime.now().isoformat()
+        
+        # Calculate execution time
+        start_time = datetime.fromisoformat(self.generation_metadata["workflow_started_at"])
+        end_time = datetime.now()
+        self.generation_metadata["execution_time_ms"] = int((end_time - start_time).total_seconds() * 1000)
 
     def update_metadata(self, key: str, value: Any):
         """メタデータを更新"""
@@ -128,7 +152,7 @@ class CommentGenerationState:
             # 新しい属性は追加しない（予期しない動作を防ぐため）
             raise KeyError(f"Cannot set '{key}' - not a valid attribute of CommentGenerationState")
 
-    def get_execution_summary(self) -> Dict[str, Any]:
+    def get_execution_summary(self) -> dict[str, Any]:
         """実行サマリーを取得"""
         return {
             "location_name": self.location_name,
@@ -146,41 +170,41 @@ class CommentGenerationState:
             "metadata": self.generation_metadata,
         }
 
-    def to_output_format(self) -> Dict[str, Any]:
+    def to_output_format(self) -> dict[str, Any]:
         """外部出力用フォーマットに変換"""
+        # Update weather condition info if available
+        if self.weather_data:
+            weather_condition_info = WeatherConditionInfo(
+                temperature=getattr(self.weather_data, "temperature", 0.0),
+                description=getattr(self.weather_data, "weather_description", ""),
+                is_severe=getattr(self.weather_data, "is_severe_weather", False),
+                is_heat_wave=getattr(self.weather_data, "temperature", 0) >= 35,
+            )
+            self.generation_metadata["weather_condition"] = weather_condition_info
+        
+        # Update selected comments
+        self.generation_metadata["selected_past_comments"] = self._format_selected_comments()
+        
+        # Update validation status
+        if self.validation_result:
+            self.generation_metadata["validation_status"] = "passed" if getattr(self.validation_result, "is_valid", False) else "failed"
+        
+        # Update additional metadata
+        self.generation_metadata["location_name"] = self.location_name
+        self.generation_metadata["target_datetime"] = (
+            self.target_datetime.isoformat()
+            if isinstance(self.target_datetime, datetime)
+            else str(self.target_datetime)
+        )
+        self.generation_metadata["llm_provider"] = self.llm_provider
+        self.generation_metadata["retry_count"] = self.retry_count
+        
         return {
             "final_comment": self.final_comment,
-            "generation_metadata": {
-                **self.generation_metadata,
-                "location_name": self.location_name,
-                "target_datetime": (
-                    self.target_datetime.isoformat()
-                    if isinstance(self.target_datetime, datetime)
-                    else str(self.target_datetime)
-                ),
-                "llm_provider": self.llm_provider,
-                "retry_count": self.retry_count,
-                "execution_time_ms": self._calculate_execution_time(),
-                "weather_condition": (
-                    getattr(self.weather_data, "weather_description", None)
-                    if self.weather_data
-                    else None
-                ),
-                "temperature": (
-                    getattr(self.weather_data, "temperature", None) if self.weather_data else None
-                ),
-                "selected_past_comments": self._format_selected_comments(),
-                "validation_passed": (
-                    getattr(self.validation_result, "is_valid", None)
-                    if self.validation_result
-                    else None
-                ),
-                "has_errors": bool(self.errors),
-                "has_warnings": bool(self.warnings),
-            },
+            "generation_metadata": dict(self.generation_metadata),  # Convert TypedDict to regular dict
         }
 
-    def _calculate_execution_time(self) -> Optional[int]:
+    def _calculate_execution_time(self) -> int | None:
         """実行時間を計算（ミリ秒）"""
         start_time_str = self.generation_metadata.get("workflow_started_at")
         end_time_str = self.generation_metadata.get("completed_at")
@@ -194,9 +218,9 @@ class CommentGenerationState:
                 return None
         return None
 
-    def _format_selected_comments(self) -> List[Dict[str, Any]]:
+    def _format_selected_comments(self) -> list[SelectedCommentInfo]:
         """選択された過去コメントをフォーマット"""
-        selected_comments = []
+        selected_comments: list[SelectedCommentInfo] = []
 
         if self.selected_pair:
             if (
@@ -204,17 +228,21 @@ class CommentGenerationState:
                 and self.selected_pair.weather_comment
             ):
                 selected_comments.append(
-                    {
-                        "text": getattr(self.selected_pair.weather_comment, "comment_text", ""),
-                        "type": "weather_comment",
-                    }
+                    SelectedCommentInfo(
+                        text=getattr(self.selected_pair.weather_comment, "comment_text", ""),
+                        type="weather_comment",
+                        score=getattr(self.selected_pair.weather_comment, "score", None),
+                        original_index=getattr(self.selected_pair.weather_comment, "original_index", 0),
+                    )
                 )
             if hasattr(self.selected_pair, "advice_comment") and self.selected_pair.advice_comment:
                 selected_comments.append(
-                    {
-                        "text": getattr(self.selected_pair.advice_comment, "comment_text", ""),
-                        "type": "advice",
-                    }
+                    SelectedCommentInfo(
+                        text=getattr(self.selected_pair.advice_comment, "comment_text", ""),
+                        type="advice",
+                        score=getattr(self.selected_pair.advice_comment, "score", None),
+                        original_index=getattr(self.selected_pair.advice_comment, "original_index", 0),
+                    )
                 )
 
         return selected_comments
@@ -278,7 +306,7 @@ def should_retry_generation(state: CommentGenerationState) -> bool:
 
 
 def create_initial_state(
-    location_name: str, target_datetime: datetime = None, llm_provider: str = "openai"
+    location_name: str, target_datetime: datetime | None = None, llm_provider: str = "openai"
 ) -> CommentGenerationState:
     """
     初期状態を作成
