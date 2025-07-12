@@ -14,7 +14,7 @@ import pytz
 
 from src.data.location_manager import Location, get_location_manager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
-from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
+from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
@@ -145,8 +145,6 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
-        # 最適化版の場合は複数時間分のキャッシュ取得をスキップ（APIから取得）
-        # TODO: 将来的には複数時間分のキャッシュ取得を実装
         
         retry_delay = self.initial_retry_delay
         forecast_collection = None
@@ -218,8 +216,6 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
-        # 最適化版の場合は複数時間分のキャッシュ取得をスキップ（APIから取得）
-        # TODO: 将来的には複数時間分のキャッシュ取得を実装
         
         retry_delay = self.initial_retry_delay
         forecast_collection = None

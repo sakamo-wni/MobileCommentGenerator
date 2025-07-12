@@ -10,7 +10,6 @@ from src.data.past_comment import CommentType, PastCommentCollection, PastCommen
 from src.data.weather_data import WeatherForecast
 from src.llm.llm_manager import LLMManager
 from src.config.config import get_comment_config, get_severe_weather_config
-from src.data.forecast_cache import ForecastCache
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.nodes.comment_selector import CommentSelector

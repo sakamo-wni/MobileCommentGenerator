@@ -4,7 +4,7 @@ WxTech API クライアント
 高レベルのAPI操作インターフェースを提供
 """
 
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any, Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -12,7 +12,6 @@ import pytz
 from datetime import timedelta, datetime
 
 from src.data.weather_data import WeatherForecastCollection
-from src.data.location_manager import Location
 from src.apis.wxtech.api import WxTechAPI
 from src.apis.wxtech.parser import parse_forecast_response, analyze_response_patterns
 from src.apis.wxtech.errors import WxTechAPIError
@@ -540,7 +539,7 @@ class WxTechAPIClient:
     def __enter__(self):
         return self
     
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+    def __exit__(self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
         self.close()
 
 
