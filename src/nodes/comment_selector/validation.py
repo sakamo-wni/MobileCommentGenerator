@@ -521,8 +521,16 @@ class CommentValidator:
                 logger.debug("comment_restrictions.yaml が見つかりません。基本チェックのみ実行")
                 return False
             
-            with open(config_path, 'r', encoding='utf-8') as f:
-                restrictions = yaml.safe_load(f)
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    restrictions = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
+                # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except Exception as e:
+                logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
+                return False
             
             # 天気条件による除外チェック
             weather_desc = weather_data.weather_description.lower()
@@ -616,8 +624,16 @@ class CommentValidator:
                 logger.debug("comment_restrictions.yaml が見つかりません。基本チェックのみ実行")
                 return False
             
-            with open(config_path, 'r', encoding='utf-8') as f:
-                restrictions = yaml.safe_load(f)
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    restrictions = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
+                # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except Exception as e:
+                logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
+                return False
             
             # 天気条件による除外チェック
             weather_desc = weather_data.weather_description.lower()
