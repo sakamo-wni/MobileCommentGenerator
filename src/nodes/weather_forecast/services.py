@@ -13,7 +13,7 @@ from typing import Optional, List, Tuple, Dict, Any
 import pytz
 
 from src.data.location_manager import Location, get_location_manager
-from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition
+from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
 from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
@@ -153,6 +153,8 @@ class WeatherAPIService:
         if cached:
             logger.info(f"📦 キャッシュヒット: {location_name} - 即座にreturn")
             # キャッシュデータから即座にWeatherForecastCollectionを構築
+            # metadataから必要なフィールドを取得
+            metadata = cached.metadata or {}
             forecast_collection = WeatherForecastCollection(
                 location=location_name,
                 forecasts=[
@@ -164,7 +166,10 @@ class WeatherAPIService:
                         weather_description=cached.weather_description,
                         wind_speed=cached.wind_speed,
                         precipitation=cached.precipitation,
-                        location=location_name
+                        location=location_name,
+                        weather_code=metadata.get("weather_code", ""),
+                        wind_direction=WindDirection(metadata.get("wind_direction", "unknown")),
+                        wind_direction_degrees=metadata.get("wind_direction_degrees", 0)
                     )
                 ]
             )
@@ -248,6 +253,8 @@ class WeatherAPIService:
         if cached:
             logger.info(f"📦 キャッシュヒット: {location_name} - 即座にreturn")
             # キャッシュデータから即座にWeatherForecastCollectionを構築
+            # metadataから必要なフィールドを取得
+            metadata = cached.metadata or {}
             forecast_collection = WeatherForecastCollection(
                 location=location_name,
                 forecasts=[
@@ -259,7 +266,10 @@ class WeatherAPIService:
                         weather_description=cached.weather_description,
                         wind_speed=cached.wind_speed,
                         precipitation=cached.precipitation,
-                        location=location_name
+                        location=location_name,
+                        weather_code=metadata.get("weather_code", ""),
+                        wind_direction=WindDirection(metadata.get("wind_direction", "unknown")),
+                        wind_direction_degrees=metadata.get("wind_direction_degrees", 0)
                     )
                 ]
             )
