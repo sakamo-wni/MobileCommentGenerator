@@ -94,7 +94,7 @@ def display_metadata(metadata: Dict[str, Any], location: str) -> None:
         if weather_timeline and isinstance(weather_timeline, dict):
             future_forecasts = weather_timeline.get('future_forecasts', [])
             if future_forecasts:
-                st.markdown("**📅 翌日の天気予報:**")
+                st.markdown("**📅 翌日の天気予報 (9時、12時、15時、18時):**")
                 timeline_data = []
                 for forecast in future_forecasts:
                     timeline_data.append({
@@ -105,7 +105,22 @@ def display_metadata(metadata: Dict[str, Any], location: str) -> None:
                     })
                 if timeline_data:
                     df = pd.DataFrame(timeline_data)
-                    st.dataframe(df, hide_index=True)
+                    st.dataframe(df, hide_index=True, use_container_width=True)
+                    
+                    # サマリー情報の表示
+                    summary = weather_timeline.get('summary')
+                    if summary:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("気温範囲", summary.get('temperature_range', 'N/A'))
+                        with col2:
+                            st.metric("最大降水量", summary.get('max_precipitation', 'N/A'))
+                        with col3:
+                            st.metric("天気パターン", summary.get('weather_pattern', 'N/A'))
+            else:
+                st.info("🌦️ 詳細天気予報データが利用できません")
+        else:
+            logger.debug(f"weather_timeline not found or invalid: {weather_timeline}")
 
 
 def display_batch_results(results: List[Dict[str, Any]]) -> None:
