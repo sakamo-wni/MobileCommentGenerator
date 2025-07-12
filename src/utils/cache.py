@@ -4,6 +4,8 @@ import time
 import hashlib
 import json
 import inspect
+import threading
+import sys
 from typing import Any, Optional, Callable, TypeVar, cast
 from functools import wraps
 import logging
@@ -18,28 +20,45 @@ T = TypeVar('T')
 
 
 class TTLCache:
-    """TTL（Time To Live）付きキャッシュ
+    """TTL（Time To Live）付きキャッシュ（スレッドセーフ版）
     
     指定された期間だけデータをメモリにキャッシュし、
-    期限切れのデータは自動的に削除される
+    期限切れのデータは自動的に削除される。
+    threadingモジュールのRLockを使用してスレッドセーフを保証。
     """
     
-    def __init__(self, default_ttl: int = 300):
+    def __init__(self, default_ttl: int = 300, max_size: int | None = None,
+                 auto_cleanup: bool = True, cleanup_interval: int = 60):
         """初期化
         
         Args:
             default_ttl: デフォルトのTTL（秒）。デフォルトは5分
+            max_size: キャッシュの最大サイズ（エントリ数）。Noneの場合は無制限
+            auto_cleanup: 自動クリーンアップを有効にするか。デフォルトはTrue
+            cleanup_interval: クリーンアップの実行間隔（秒）。デフォルトは60秒
         """
         self._cache: dict[CacheKey, CacheEntry[Any]] = {}
         self.default_ttl = default_ttl
+        self.max_size = max_size
         self._stats: dict[str, int] = {
             "hits": 0,
             "misses": 0,
             "evictions": 0
         }
+        # RLock（再入可能ロック）を使用してスレッドセーフを保証
+        self._lock = threading.RLock()
+        
+        # 自動クリーンアップ機能
+        self.auto_cleanup = auto_cleanup
+        self.cleanup_interval = cleanup_interval
+        self._cleanup_thread: threading.Thread | None = None
+        self._stop_cleanup = threading.Event()
+        
+        if self.auto_cleanup:
+            self._start_cleanup_thread()
     
     def get(self, key: CacheKey) -> Any | None:
-        """キャッシュからデータを取得
+        """キャッシュからデータを取得（スレッドセーフ）
         
         Args:
             key: キャッシュキー
@@ -47,23 +66,28 @@ class TTLCache:
         Returns:
             キャッシュされたデータ、存在しないか期限切れの場合はNone
         """
-        if key in self._cache:
-            entry = self._cache[key]
-            if time.time() < entry["expire_at"]:
-                self._stats["hits"] += 1
-                logger.debug(f"Cache hit: {key}")
-                return entry["value"]
-            else:
-                # 期限切れのエントリを削除
-                del self._cache[key]
-                self._stats["evictions"] += 1
-                logger.debug(f"Cache expired: {key}")
-        
-        self._stats["misses"] += 1
-        return None
+        with self._lock:
+            if key in self._cache:
+                entry = self._cache[key]
+                current_time = time.time()
+                if current_time < entry["expire_at"]:
+                    self._stats["hits"] += 1
+                    # アクセス情報を更新
+                    entry["access_count"] += 1
+                    entry["last_accessed"] = current_time
+                    logger.debug(f"Cache hit: {key}")
+                    return entry["value"]
+                else:
+                    # 期限切れのエントリを削除
+                    del self._cache[key]
+                    self._stats["evictions"] += 1
+                    logger.debug(f"Cache expired: {key}")
+            
+            self._stats["misses"] += 1
+            return None
     
     def set(self, key: CacheKey, value: Any, ttl: int | None = None):
-        """データをキャッシュに保存
+        """データをキャッシュに保存（スレッドセーフ）
         
         Args:
             key: キャッシュキー
@@ -73,63 +97,140 @@ class TTLCache:
         if ttl is None:
             ttl = self.default_ttl
         
-        current_time = time.time()
-        self._cache[key] = CacheEntry(
-            value=value,
-            expire_at=current_time + ttl,
-            created_at=current_time,
-            access_count=0,
-            last_accessed=current_time
-        )
-        logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
+        with self._lock:
+            # 最大サイズチェック
+            if self.max_size and len(self._cache) >= self.max_size:
+                # LRU（Least Recently Used）エビクション
+                self._evict_lru()
+            
+            current_time = time.time()
+            self._cache[key] = CacheEntry(
+                value=value,
+                expire_at=current_time + ttl,
+                created_at=current_time,
+                access_count=0,
+                last_accessed=current_time
+            )
+            logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
+    
+    def _evict_lru(self):
+        """最も最近使われていないエントリを削除（内部メソッド）"""
+        # ロックは既に取得済みの前提
+        if not self._cache:
+            return
+        
+        # 最も古いアクセス時刻を持つキーを探す
+        lru_key = min(self._cache.keys(), 
+                     key=lambda k: self._cache[k]["last_accessed"])
+        del self._cache[lru_key]
+        self._stats["evictions"] += 1
+        logger.debug(f"LRU eviction: {lru_key}")
     
     def clear(self):
-        """キャッシュをクリア"""
-        self._cache.clear()
-        logger.info("Cache cleared")
+        """キャッシュをクリア（スレッドセーフ）"""
+        with self._lock:
+            self._cache.clear()
+            logger.info("Cache cleared")
     
     def cleanup_expired(self):
-        """期限切れのエントリを削除"""
-        current_time = time.time()
-        expired_keys = [
-            key for key, entry in self._cache.items()
-            if current_time >= entry["expire_at"]
-        ]
-        
-        for key in expired_keys:
-            del self._cache[key]
-            self._stats["evictions"] += 1
-        
-        if expired_keys:
-            logger.debug(f"Cleaned up {len(expired_keys)} expired entries")
+        """期限切れのエントリを削除（スレッドセーフ）"""
+        with self._lock:
+            current_time = time.time()
+            expired_keys = [
+                key for key, entry in self._cache.items()
+                if current_time >= entry["expire_at"]
+            ]
+            
+            for key in expired_keys:
+                del self._cache[key]
+                self._stats["evictions"] += 1
+            
+            if expired_keys:
+                logger.debug(f"Cleaned up {len(expired_keys)} expired entries")
     
     def get_stats(self) -> CacheStats:
-        """キャッシュの統計情報を取得"""
-        total_requests = self._stats["hits"] + self._stats["misses"]
-        hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0
+        """キャッシュの統計情報を取得（スレッドセーフ）"""
+        with self._lock:
+            total_requests = self._stats["hits"] + self._stats["misses"]
+            hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0
+            
+            # Calculate memory usage
+            memory_usage = self._estimate_memory_usage()
+            
+            oldest_age = None
+            newest_age = None
+            
+            if self._cache:
+                current_time = time.time()
+                ages = [current_time - entry["created_at"] for entry in self._cache.values()]
+                oldest_age = max(ages)
+                newest_age = min(ages)
+            
+            return CacheStats(
+                size=len(self._cache),
+                hits=self._stats["hits"],
+                misses=self._stats["misses"],
+                evictions=self._stats["evictions"],
+                hit_rate=hit_rate,
+                total_requests=total_requests,
+                memory_usage_bytes=memory_usage,
+                oldest_entry_age_seconds=oldest_age,
+                newest_entry_age_seconds=newest_age
+            )
+    
+    def _estimate_memory_usage(self) -> int:
+        """キャッシュのメモリ使用量を推定（バイト単位）"""
+        # ロックは既に取得済みの前提
+        total_size = 0
         
-        # Calculate memory usage and entry ages
-        memory_usage = None
-        oldest_age = None
-        newest_age = None
+        # 基本的なオーバーヘッド（辞書、統計情報など）
+        total_size += sys.getsizeof(self._cache)
+        total_size += sys.getsizeof(self._stats)
         
-        if self._cache:
-            current_time = time.time()
-            ages = [current_time - entry["created_at"] for entry in self._cache.values()]
-            oldest_age = max(ages)
-            newest_age = min(ages)
+        # 各エントリのサイズを推定
+        for key, entry in self._cache.items():
+            # キーのサイズ
+            total_size += sys.getsizeof(key)
+            # エントリのサイズ（辞書のオーバーヘッド含む）
+            total_size += sys.getsizeof(entry)
+            # 値のサイズ（深い推定は避け、表層のみ）
+            total_size += sys.getsizeof(entry["value"])
         
-        return CacheStats(
-            size=len(self._cache),
-            hits=self._stats["hits"],
-            misses=self._stats["misses"],
-            evictions=self._stats["evictions"],
-            hit_rate=hit_rate,
-            total_requests=total_requests,
-            memory_usage_bytes=memory_usage,
-            oldest_entry_age_seconds=oldest_age,
-            newest_entry_age_seconds=newest_age
-        )
+        return total_size
+    
+    def _start_cleanup_thread(self):
+        """自動クリーンアップスレッドを開始"""
+        def cleanup_worker():
+            """クリーンアップワーカー"""
+            while not self._stop_cleanup.is_set():
+                # 指定された間隔で待機
+                if self._stop_cleanup.wait(self.cleanup_interval):
+                    break
+                
+                # 期限切れエントリをクリーンアップ
+                try:
+                    self.cleanup_expired()
+                    logger.debug("Automatic cache cleanup executed")
+                except Exception as e:
+                    logger.error(f"Error during automatic cache cleanup: {e}")
+        
+        self._cleanup_thread = threading.Thread(target=cleanup_worker, daemon=True)
+        self._cleanup_thread.start()
+        logger.info(f"Started automatic cache cleanup thread (interval: {self.cleanup_interval}s)")
+    
+    def stop_cleanup(self):
+        """自動クリーンアップを停止"""
+        if self._cleanup_thread and self._cleanup_thread.is_alive():
+            self._stop_cleanup.set()
+            self._cleanup_thread.join(timeout=5)
+            logger.info("Stopped automatic cache cleanup thread")
+    
+    def __del__(self):
+        """デストラクタ - クリーンアップスレッドを停止"""
+        try:
+            self.stop_cleanup()
+        except Exception:
+            pass  # デストラクタでのエラーは無視
 
 
 def generate_cache_key(*args, **kwargs) -> CacheKey:
@@ -231,7 +332,8 @@ cached_method = universal_cached_method
 
 
 # グローバルキャッシュインスタンス（オプション）
-_global_cache = TTLCache(default_ttl=300)
+# 自動クリーンアップを有効化、60秒間隔でクリーンアップ
+_global_cache = TTLCache(default_ttl=300, auto_cleanup=True, cleanup_interval=60)
 
 
 def get_global_cache() -> TTLCache:
