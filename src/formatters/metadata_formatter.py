@@ -70,6 +70,26 @@ class MetadataFormatter:
         
         return metadata
     
+    def _get_weather_pattern(self, forecasts: List[Dict[str, Any]]) -> str:
+        """天気パターンを簡易分析"""
+        if not forecasts:
+            return "データなし"
+        
+        weather_conditions = [f["weather"] for f in forecasts]
+        
+        # 雨や悪天候のチェック
+        has_rain = any("雨" in w for w in weather_conditions)
+        has_snow = any("雪" in w for w in weather_conditions)
+        
+        if has_snow:
+            return "雪の予報あり"
+        elif has_rain:
+            return "雨の予報あり"
+        elif len(set(weather_conditions)) == 1:
+            return "安定した天気"
+        else:
+            return "変わりやすい天気"
+    
     def _format_weather_info(self, weather_data: Any, location_name: Optional[str]) -> Dict[str, Any]:
         """天気情報をフォーマット"""
         weather_info = {}
@@ -100,18 +120,43 @@ class MetadataFormatter:
             weather_info["weather_forecast_time"] = weather_datetime.isoformat()
             
             # 時系列の天気データを追加
-            if location_name:
+            # period_forecastsから直接タイムラインを作成
+            period_forecasts = state.metadata.get("period_forecasts", [])
+            if period_forecasts:
                 try:
-                    timeline_data = self.weather_timeline_formatter.get_weather_timeline(
-                        location_name, weather_datetime
-                    )
+                    timeline_data = {
+                        "future_forecasts": [],
+                        "past_forecasts": [],
+                        "base_time": weather_datetime.isoformat()
+                    }
+                    
+                    # period_forecastsをタイムライン形式に変換
+                    for forecast in period_forecasts:
+                        timeline_data["future_forecasts"].append({
+                            "time": forecast.datetime.strftime("%m/%d %H:%M"),
+                            "label": forecast.datetime.strftime("%H:%M"),
+                            "weather": forecast.weather_description,
+                            "temperature": forecast.temperature,
+                            "precipitation": forecast.precipitation
+                        })
+                    
+                    # サマリー情報を追加
+                    if timeline_data["future_forecasts"]:
+                        temps = [f["temperature"] for f in timeline_data["future_forecasts"]]
+                        precipitations = [f["precipitation"] for f in timeline_data["future_forecasts"]]
+                        
+                        timeline_data["summary"] = {
+                            "temperature_range": f"{min(temps):.1f}°C〜{max(temps):.1f}°C",
+                            "max_precipitation": f"{max(precipitations):.1f}mm",
+                            "weather_pattern": self._get_weather_pattern(timeline_data["future_forecasts"])
+                        }
+                    
                     weather_info["weather_timeline"] = timeline_data
                     logger.info(
-                        f"時系列データを追加: 過去{len(timeline_data.get('past_forecasts', []))}件、"
-                        f"未来{len(timeline_data.get('future_forecasts', []))}件"
+                        f"period_forecastsから時系列データを作成: {len(timeline_data['future_forecasts'])}件"
                     )
                 except Exception as e:
-                    logger.warning(f"時系列データ取得エラー: {e}")
+                    logger.warning(f"時系列データ作成エラー: {e}")
                     weather_info["weather_timeline"] = {"error": str(e)}
         
         return weather_info
