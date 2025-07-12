@@ -297,10 +297,11 @@ class LazyCommentRepository(CommentRepositoryInterface):
         # 全コメントを取得してから最新のものを返す
         all_comments = self.get_all_comments()
         
-        # 作成日時でソート（新しい順）
+        # PastCommentにはcreated_atがないため、datetimeフィールドでソート
+        # datetimeが設定されていない場合は現在時刻を使用（CSVからの読み込みの場合）
         sorted_comments = sorted(
             all_comments,
-            key=lambda c: c.created_at if c.created_at else datetime.min,
+            key=lambda c: c.datetime if c.datetime else datetime.now(),
             reverse=True
         )
         

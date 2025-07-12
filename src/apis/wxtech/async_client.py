@@ -14,7 +14,7 @@ from functools import wraps
 import aiohttp
 import pytz
 
-from src.apis.wxtech.parser import WxTechResponseParser
+from src.apis.wxtech.parser import parse_forecast_response
 from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherForecastCollection
 from src.config.config import get_config
@@ -29,7 +29,6 @@ class AsyncWxTechAPIClient:
     def __init__(self, api_key: str, enable_cache: bool = True):
         self.api_key = api_key
         self.base_url = "https://wxtech-api.weathernews.com/api/v1"
-        self.parser = WxTechResponseParser()
         self.session: Optional[aiohttp.ClientSession] = None
         self.config = get_config()
         self.max_retries = 3
@@ -155,19 +154,14 @@ class AsyncWxTechAPIClient:
                 data = await response.json()
                 logger.info(f"✅ 非同期API応答受信: {len(data.get('hourly', []))}時間分のデータ")
                 
-                # パーサーで解析
-                forecasts = self.parser.parse_response(data)
+                # レスポンスを解析
+                location_name = f"{lat:.2f},{lon:.2f}"
+                forecast_collection = parse_forecast_response(data, location_name)
                 
-                if not forecasts:
+                if not forecast_collection or not forecast_collection.forecasts:
                     raise ValueError("予報データが空です")
                 
-                # location_nameを適切に設定
-                location_name = f"{lat:.2f},{lon:.2f}"
-                
-                return WeatherForecastCollection(
-                    location=location_name,
-                    forecasts=forecasts
-                )
+                return forecast_collection
                 
         except asyncio.TimeoutError:
             raise WxTechAPIError(

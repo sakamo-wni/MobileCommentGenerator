@@ -12,12 +12,18 @@ import pytz
 from datetime import timedelta, datetime
 import os
 
+try:
+    import aiohttp
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    AIOHTTP_AVAILABLE = False
+
 from src.data.weather_data import WeatherForecastCollection
 from src.data.location_manager import Location
 from src.apis.wxtech.api import WxTechAPI
 from src.apis.wxtech.parser import parse_forecast_response, analyze_response_patterns
 from src.apis.wxtech.errors import WxTechAPIError
-from src.utils.cache import TTLCache, cached_method
+from src.utils.cache import TTLCache, cached_method, async_cached_method
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +42,13 @@ class WxTechAPIClient:
             timeout: タイムアウト秒数（デフォルト: 30秒）
             enable_cache: キャッシュを有効にするか（デフォルト: True）
         """
+        self.api_key = api_key
         self.api = WxTechAPI(api_key, timeout)
+        self.timeout = timeout
+        
+        # 非同期セッション（必要時に初期化）
+        self._async_session: Optional[aiohttp.ClientSession] = None
+        self.base_url = "https://wxtech.weathernews.com/api/v1"
         
         # キャッシュの設定
         if enable_cache:
@@ -571,6 +583,121 @@ class WxTechAPIClient:
     
     def __exit__(self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
         self.close()
+    
+    async def __aenter__(self):
+        """非同期コンテキストマネージャーの開始"""
+        if AIOHTTP_AVAILABLE and self._async_session is None:
+            # 接続数制限を設定
+            connector = aiohttp.TCPConnector(
+                limit=10,  # 全体の最大接続数
+                limit_per_host=5  # ホストごとの最大接続数
+            )
+            self._async_session = aiohttp.ClientSession(connector=connector)
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """非同期コンテキストマネージャーの終了"""
+        if self._async_session:
+            await self._async_session.close()
+            self._async_session = None
+    
+    async def ensure_async_session(self):
+        """非同期セッションが存在することを確認"""
+        if not AIOHTTP_AVAILABLE:
+            raise RuntimeError("aiohttpがインストールされていません。pip install aiohttpを実行してください。")
+        
+        if self._async_session is None:
+            connector = aiohttp.TCPConnector(
+                limit=10,
+                limit_per_host=5
+            )
+            self._async_session = aiohttp.ClientSession(connector=connector)
+    
+    @async_cached_method(ttl=600)  # 10分間キャッシュ
+    async def async_get_forecast_optimized(self, lat: float, lon: float) -> WeatherForecastCollection:
+        """最適化された翌日予報の非同期取得（真の非同期実装）
+        
+        Args:
+            lat: 緯度
+            lon: 経度
+            
+        Returns:
+            天気予報コレクション
+        """
+        await self.ensure_async_session()
+        
+        jst = pytz.timezone("Asia/Tokyo")
+        now_jst = datetime.now(jst)
+        target_date = now_jst.date() + timedelta(days=1)
+        
+        # 翌日8時から19時までの12時間分を確実に取得
+        tomorrow_8am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=8)))
+        hours_to_8am = (tomorrow_8am - now_jst).total_seconds() / 3600
+        
+        if hours_to_8am > 0:
+            forecast_hours = int(hours_to_8am) + 12
+        else:
+            tomorrow_7pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=19)))
+            hours_to_7pm = (tomorrow_7pm - now_jst).total_seconds() / 3600
+            forecast_hours = max(int(hours_to_7pm) + 1, 1)
+        
+        # 非同期でAPIを呼び出し
+        return await self._async_fetch_forecast(lat, lon, forecast_hours)
+    
+    async def _async_fetch_forecast(self, lat: float, lon: float, hours: int) -> WeatherForecastCollection:
+        """非同期で天気予報を取得（内部メソッド）"""
+        endpoint = f"{self.base_url}/ss1wx"
+        params = {
+            "lat": lat,
+            "lon": lon,
+            "hours": hours
+        }
+        headers = {
+            "X-API-Key": self.api_key,
+            "User-Agent": "WxTechAPIClient/2.0",
+            "Accept": "application/json"
+        }
+        
+        try:
+            logger.info(f"🔄 非同期API呼び出し: lat={lat}, lon={lon}, hours={hours}")
+            
+            async with self._async_session.get(
+                endpoint, 
+                params=params, 
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=self.timeout)
+            ) as response:
+                
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise WxTechAPIError(
+                        f"APIエラー: ステータス {response.status}",
+                        status_code=response.status,
+                        response_text=error_text
+                    )
+                
+                data = await response.json()
+                logger.info(f"✅ 非同期API応答受信: {len(data.get('hourly', []))}時間分のデータ")
+                
+                # レスポンスを解析
+                location_name = f"{lat:.2f},{lon:.2f}"
+                forecast_collection = parse_forecast_response(data, location_name)
+                
+                if not forecast_collection or not forecast_collection.forecasts:
+                    raise ValueError("予報データが空です")
+                
+                return forecast_collection
+                
+        except asyncio.TimeoutError:
+            raise WxTechAPIError(
+                "APIタイムアウト",
+                error_type="timeout"
+            )
+        except Exception as e:
+            if isinstance(e, WxTechAPIError):
+                raise
+            logger.error(f"予期しないエラー: {str(e)}")
+            raise WxTechAPIError(f"予期しないエラー: {str(e)}")
 
 
 # 既存の関数との互換性を保つためのラッパー関数

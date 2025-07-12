@@ -114,7 +114,7 @@ def _fetch_comments_wrapper(state: CommentGenerationState) -> Dict[str, Any]:
 def should_use_unified_mode(state: CommentGenerationState) -> str:
     """統合モードを使用するかどうかを判定"""
     # use_unified_modeフラグがTrueの場合は統合モードを使用
-    if getattr(state, "use_unified_mode", False):
+    if state.get("use_unified_mode", False):
         return "unified"
     return "traditional"
 
