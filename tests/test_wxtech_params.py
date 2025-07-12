@@ -11,7 +11,8 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 
-from src.apis.wxtech_client import WxTechAPIClient, WxTechAPIError
+from src.apis.wxtech import WxTechAPIClient
+from src.apis.wxtech.errors import WxTechAPIError
 
 # 環境変数をロード
 load_dotenv()

@@ -36,6 +36,9 @@ class AppSettings:
     max_weather_workers: int = field(default=10)  # 天気API処理の最大並列数
     use_async_weather: bool = field(default=True)  # 非同期天気取得を使用
     
+    # CSV読み込み設定
+    use_lazy_csv_loading: bool = field(default=True)  # 遅延CSV読み込みを使用
+    
     def __post_init__(self):
         """環境変数から値を読み込む"""
         self.env = os.getenv("APP_ENV", self.env)
@@ -48,6 +51,9 @@ class AppSettings:
         self.max_llm_workers = int(os.getenv("MAX_LLM_WORKERS", str(self.max_llm_workers)))
         self.max_weather_workers = int(os.getenv("MAX_WEATHER_WORKERS", str(self.max_weather_workers)))
         self.use_async_weather = os.getenv("USE_ASYNC_WEATHER", "true" if self.use_async_weather else "false").lower() == "true"
+        
+        # CSV読み込み設定
+        self.use_lazy_csv_loading = os.getenv("USE_LAZY_CSV_LOADING", "true" if self.use_lazy_csv_loading else "false").lower() == "true"
         
         # ディレクトリ作成は行わない - Config.ensure_directories()で必要時に作成
 

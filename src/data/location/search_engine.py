@@ -1,10 +1,11 @@
 """地点データ検索エンジン - 地点データの高速検索機能を提供"""
 
 import logging
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Tuple
 from collections import defaultdict
 
 from .models import Location
+from .trie import LocationTrie
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class LocationSearchEngine:
         self.normalized_index: Dict[str, Location] = {}
         self.prefecture_index: Dict[str, List[Location]] = defaultdict(list)
         self.region_index: Dict[str, List[Location]] = defaultdict(list)
-        self.prefix_index: Dict[str, Set[Location]] = defaultdict(set)
+        self.prefix_trie = LocationTrie()  # Trie構造を使用
         
         # インデックスの構築
         for location in self.locations:
@@ -47,14 +48,10 @@ class LocationSearchEngine:
                 self.region_index[location.region].append(location)
             
             # プレフィックスインデックス（前方一致検索用）
-            name_lower = location.name.lower()
-            for i in range(1, len(name_lower) + 1):
-                self.prefix_index[name_lower[:i]].add(location)
-            
-            normalized_lower = location.normalized_name.lower()
-            if normalized_lower != name_lower:
-                for i in range(1, len(normalized_lower) + 1):
-                    self.prefix_index[normalized_lower[:i]].add(location)
+            # Trieに挿入（効率的）
+            self.prefix_trie.insert(location.name, location)
+            if location.normalized_name.lower() != location.name.lower():
+                self.prefix_trie.insert(location.normalized_name, location)
         
         logger.info(
             f"インデックス構築完了: "
@@ -85,9 +82,9 @@ class LocationSearchEngine:
         if name_lower in self.normalized_index:
             return self.normalized_index[name_lower]
         
-        # 前方一致検索
-        if name_lower in self.prefix_index:
-            candidates = list(self.prefix_index[name_lower])
+        # 前方一致検索（Trieを使用）
+        candidates = self.prefix_trie.search_prefix(name_lower)
+        if candidates:
             if len(candidates) == 1:
                 return candidates[0]
             # 複数候補がある場合は最短のものを選択
@@ -215,7 +212,7 @@ class LocationSearchEngine:
             "indexed_normalized": len(self.normalized_index),
             "prefectures": len(self.prefecture_index),
             "regions": len(self.region_index),
-            "prefix_patterns": len(self.prefix_index),
+            "prefix_patterns": len(self.prefix_trie._location_ids),
             "locations_with_coordinates": sum(
                 1 for loc in self.locations 
                 if loc.latitude and loc.longitude

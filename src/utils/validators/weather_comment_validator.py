@@ -37,6 +37,21 @@ class WeatherCommentValidator:
         self.consistency_validator = ConsistencyValidator()
         self.regional_validator = RegionalValidator()
         
+        # 新しいバリデータを追加
+        try:
+            from .coastal_validator import CoastalValidator
+            self.coastal_validator = CoastalValidator()
+        except ImportError:
+            logger.warning("CoastalValidator not available")
+            self.coastal_validator = None
+        
+        try:
+            from .weather_transition_validator import WeatherTransitionValidator
+            self.weather_transition_validator = WeatherTransitionValidator()
+        except ImportError:
+            logger.warning("WeatherTransitionValidator not available")
+            self.weather_transition_validator = None
+        
         # 必須キーワード（悪天候時）
         self.required_keywords: Dict[str, RequiredKeywords] = {
             "heavy_rain": {
@@ -81,7 +96,21 @@ class WeatherCommentValidator:
             logger.info(f"地域特性エラー: {regional_check[1]} - コメント: '{comment_text}'")
             return regional_check
         
-        # 4. 必須キーワードチェック
+        # 4. 海岸地域チェック
+        if self.coastal_validator:
+            coastal_check = self.coastal_validator.validate(comment, weather_data)
+            if not coastal_check[0]:
+                logger.info(f"海岸地域エラー: {coastal_check[1]} - コメント: '{comment_text}'")
+                return coastal_check
+        
+        # 5. 天気推移チェック
+        if self.weather_transition_validator:
+            transition_check = self.weather_transition_validator.validate(comment, weather_data)
+            if not transition_check[0]:
+                logger.info(f"天気推移エラー: {transition_check[1]} - コメント: '{comment_text}'")
+                return transition_check
+        
+        # 6. 必須キーワードチェック
         required_check = self._check_required_keywords(
             comment_text, comment_type, weather_data
         )
@@ -95,6 +124,13 @@ class WeatherCommentValidator:
                                weather_data: WeatherForecast) -> Tuple[bool, str]:
         """必須キーワードのチェック"""
         weather_desc = weather_data.weather_description.lower()
+        temp = weather_data.temperature
+        
+        # 猛暑日（35°C以上）のチェック
+        if temp >= HEATSTROKE_SEVERE_TEMP:
+            heat_keywords = ["猛暑", "熱中症", "暑さ", "高温", "水分補給", "熱射病", "日射病"]
+            if not any(keyword in comment_text for keyword in heat_keywords):
+                return False, f"猛暑日（{temp}°C）で熱中症・暑さ関連の言及が必須"
         
         # 大雨・豪雨時のチェック
         if any(word in weather_desc for word in ["豪雨", "大雨", "暴風雨"]):
@@ -154,9 +190,23 @@ class WeatherCommentValidator:
             else:
                 logger.info(f"コメント除外: '{comment.comment_text}' - 理由: {reason}")
         
-        # 有効なコメントが少なすぎる場合の警告
+        # 有効なコメントが少なすぎる場合の警告と緩和処理
         if len(valid_comments) < len(comments) * 0.1:  # 90%以上除外された場合
             logger.warning(f"大量のコメントが除外されました: {len(comments)}件中{len(valid_comments)}件のみ有効")
+            
+            # 最低限のコメントを確保するため、海岸チェックのみで再フィルタリング
+            if len(valid_comments) < 10 and self.coastal_validator:
+                logger.info("最低限のコメント確保のため、海岸チェックのみで再フィルタリング")
+                coastal_filtered = []
+                for comment in comments:
+                    coastal_check = self.coastal_validator.validate(comment, weather_data)
+                    if coastal_check[0]:
+                        coastal_filtered.append(comment)
+                
+                if len(coastal_filtered) > len(valid_comments):
+                    logger.info(f"海岸チェックのみで{len(coastal_filtered)}件のコメントを確保")
+                    # limitパラメータが未定義なので、commentsの数に基づいて制限
+                    return coastal_filtered[:min(len(coastal_filtered), 100)]  # 最大100件まで
         
         return valid_comments
     

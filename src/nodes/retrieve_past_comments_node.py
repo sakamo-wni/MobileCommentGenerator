@@ -7,6 +7,7 @@ from typing import Dict, Any
 from src.data.past_comment import CommentType
 from src.data.weather_data import WeatherForecast
 from src.repositories.local_comment_repository import LocalCommentRepository
+from src.repositories.lazy_comment_repository import LazyCommentRepository
 
 logger = logging.getLogger(__name__)
 
@@ -30,25 +31,22 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError("location_name が指定されていません")
             
         # リポジトリ初期化（最適化フラグに基づいて選択）
-        use_optimized = getattr(state, 'use_optimized_repository', False)
-        if use_optimized:
+        use_optimized = state.get('use_optimized_repository', False)
+        use_lazy_loading = state.get('use_lazy_loading', True)  # デフォルトで遅延読み込みを使用
+        
+        if use_lazy_loading:
+            logger.info("Using lazy-loading CSV repository")
+            repository = LazyCommentRepository()
+        elif use_optimized:
             logger.info("Using optimized CSV repository with indexing")
             repository = LocalCommentRepository(use_index=True)
         else:
             repository = LocalCommentRepository(use_index=False)
         
-        # WeatherForecastチェック
-        if not isinstance(weather_data, WeatherForecast):
+        # WeatherForecastチェック（並列実行対応）
+        if weather_data is not None and not isinstance(weather_data, WeatherForecast):
             logger.warning("weather_data is not a WeatherForecast object")
-            state.past_comments = []
-            state.update_metadata("comment_retrieval_metadata", {
-                "total_comments": 0,
-                "search_location": location_name,
-                "error": "Invalid weather data format",
-                "retrieval_successful": False,
-                "retrieval_timestamp": datetime.now().isoformat(),
-            })
-            return state
+            # 並列実行時はweather_dataがまだ設定されていない可能性があるため、処理を続行
             
         # コメント取得
         past_comments = repository.get_recent_comments(
@@ -64,12 +62,15 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
         metadata = {
             "total_comments": len(past_comments),
             "search_location": location_name,
-            "weather_condition": weather_data.weather_description,
-            "temperature": weather_data.temperature,
             "type_distribution": type_counts,
             "retrieval_successful": True,
             "retrieval_timestamp": datetime.now().isoformat(),
         }
+        
+        # weather_dataが利用可能な場合のみ天気情報を追加
+        if weather_data is not None and isinstance(weather_data, WeatherForecast):
+            metadata["weather_condition"] = weather_data.weather_description
+            metadata["temperature"] = weather_data.temperature
         
         # 状態更新
         state.past_comments = past_comments

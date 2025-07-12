@@ -8,7 +8,8 @@ import warnings
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 
-from src.apis.wxtech_client import WxTechAPIClient, WxTechAPIError
+from src.apis.wxtech import WxTechAPIClient
+from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherCondition, WindDirection
 from src.data.location_manager import Location
 
