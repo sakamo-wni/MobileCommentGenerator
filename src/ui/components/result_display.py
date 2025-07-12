@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import pytz
 import logging
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,24 @@ def display_metadata(metadata: Dict[str, Any], location: str) -> None:
             provider = selection_meta.get('llm_provider')
             if provider:
                 st.text(f"選択方法: LLM ({provider})")
+        
+        # 天気タイムラインの表示
+        weather_timeline = metadata.get('weather_timeline')
+        if weather_timeline and isinstance(weather_timeline, dict):
+            future_forecasts = weather_timeline.get('future_forecasts', [])
+            if future_forecasts:
+                st.markdown("**📅 翌日の天気予報:**")
+                timeline_data = []
+                for forecast in future_forecasts:
+                    timeline_data.append({
+                        "時刻": forecast.get('time', ''),
+                        "天気": forecast.get('weather', ''),
+                        "気温": f"{forecast.get('temperature', '')}°C",
+                        "降水量": f"{forecast.get('precipitation', 0)}mm"
+                    })
+                if timeline_data:
+                    df = pd.DataFrame(timeline_data)
+                    st.dataframe(df, hide_index=True)
 
 
 def display_batch_results(results: List[Dict[str, Any]]) -> None:
