@@ -9,7 +9,6 @@ from src.nodes.weather_forecast.services import (
     LocationService,
     WeatherAPIService,
     ForecastProcessingService,
-    CacheService,
     TemperatureAnalysisService
 )
 
@@ -26,7 +25,6 @@ class WeatherForecastServiceFactory:
         location_service: Optional[LocationService] = None,
         weather_api_service: Optional[WeatherAPIService] = None,
         forecast_processing_service: Optional[ForecastProcessingService] = None,
-        cache_service: Optional[CacheService] = None,
         temperature_analysis_service: Optional[TemperatureAnalysisService] = None
     ):
         """サービスファクトリーの初期化
@@ -35,13 +33,11 @@ class WeatherForecastServiceFactory:
             location_service: 地点サービス（Noneの場合はデフォルト実装を使用）
             weather_api_service: API通信サービス（Noneの場合はAPIキーが必要）
             forecast_processing_service: 予報処理サービス
-            cache_service: キャッシュサービス
             temperature_analysis_service: 温度分析サービス
         """
         self._location_service = location_service
         self._weather_api_service = weather_api_service
         self._forecast_processing_service = forecast_processing_service
-        self._cache_service = cache_service
         self._temperature_analysis_service = temperature_analysis_service
         self._api_key: Optional[str] = None
     
@@ -68,12 +64,6 @@ class WeatherForecastServiceFactory:
         if self._forecast_processing_service is None:
             self._forecast_processing_service = ForecastProcessingService()
         return self._forecast_processing_service
-    
-    def get_cache_service(self) -> CacheService:
-        """キャッシュサービスを取得"""
-        if self._cache_service is None:
-            self._cache_service = CacheService()
-        return self._cache_service
     
     def get_temperature_analysis_service(self) -> TemperatureAnalysisService:
         """温度分析サービスを取得"""

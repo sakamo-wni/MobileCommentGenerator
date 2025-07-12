@@ -53,6 +53,8 @@ dependencies = [
     "cryptography>=41.0.0",
     # Web Framework
     "fastapi>=0.104.0",
+    # Async HTTP
+    "aiohttp>=3.9.0",  # For true async HTTP requests
 ]
 
 # オプション依存関係 - 用途別グループ化

@@ -27,7 +27,6 @@ from src.nodes.weather_forecast.services import (
     LocationService,
     WeatherAPIService,
     ForecastProcessingService,
-    CacheService,
     TemperatureAnalysisService
 )
 from src.nodes.weather_forecast.service_factory import WeatherForecastServiceFactory
@@ -109,6 +108,89 @@ class WeatherForecastNode:
             return {**state, "error_message": f"天気予報データの取得に失敗しました: {e!s}"}
 
 
+async def fetch_weather_forecast_node_async(
+    state,
+    service_factory: Optional[WeatherForecastServiceFactory] = None
+):
+    """非同期版: ワークフロー用の天気予報取得ノード関数
+
+    巨大な関数を責務ごとのサービスに分割して実装
+    
+    Args:
+        state: ワークフローの状態
+        service_factory: サービスファクトリ（テスト用）
+        
+    Returns:
+        更新された状態
+    """
+    try:
+        # サービスファクトリの初期化
+        if service_factory is None:
+            config = get_config()
+            weather_config = get_weather_config()
+            api_key = os.getenv("WXTECH_API_KEY", "")
+            service_factory = WeatherForecastServiceFactory(config, weather_config, api_key)
+        
+        # 各サービスを取得
+        location_service = service_factory.get_location_service()
+        weather_service = service_factory.get_weather_api_service()
+        processor = service_factory.get_forecast_processor()
+        
+        # 地点情報の取得
+        location_name_raw = state.get("location", "")
+        location_name, lat, lon = location_service.parse_location_input(location_name_raw)
+        location = location_service.get_location_with_coordinates(location_name, lat, lon)
+        
+        # 天気予報データの取得（非同期版）
+        forecast_collection = await weather_service.fetch_forecast_with_retry_async(
+            location.latitude, 
+            location.longitude,
+            location.name
+        )
+        
+        # 予報データの選択と最適化
+        selected_forecast, forecasts_for_timeline = processor.select_forecast_with_priority(
+            forecast_collection.forecasts
+        )
+        
+        # タイムライン用データの抽出
+        timeline_forecasts = processor.extract_forecasts_for_target_hours(
+            forecast_collection,
+            processor.target_date,
+            processor.target_hours
+        )
+        
+        # 天気傾向の分析
+        weather_trend = processor.analyze_trend(timeline_forecasts)
+        
+        
+        # データの変換
+        transformer = WeatherDataTransformer()
+        transformed_data = transformer.transform_to_state_format(
+            selected_forecast,
+            forecasts_for_timeline,
+            weather_trend,
+            location
+        )
+        
+        # ノード実行時間の記録
+        metadata = state.get("generation_metadata", {})
+        metadata["node_execution_times"] = metadata.get("node_execution_times", {})
+        
+        return {
+            **state,
+            **transformed_data,
+            "generation_metadata": metadata
+        }
+        
+    except Exception as e:
+        logger.error(f"天気予報データ取得エラー: {str(e)}", exc_info=True)
+        return {
+            **state,
+            "error_message": f"天気予報データの取得に失敗しました: {str(e)}"
+        }
+
+
 def fetch_weather_forecast_node(
     state,
     service_factory: Optional[WeatherForecastServiceFactory] = None
@@ -156,7 +238,6 @@ def fetch_weather_forecast_node(
         location_service = service_factory.get_location_service()
         weather_api_service = service_factory.get_weather_api_service()
         forecast_processing_service = service_factory.get_forecast_processing_service()
-        cache_service = service_factory.get_cache_service()
         temperature_analysis_service = service_factory.get_temperature_analysis_service()
         
         # === 2. 地点情報の処理 ===
@@ -182,15 +263,27 @@ def fetch_weather_forecast_node(
         
         # === 3. 天気予報の取得 ===
         
-        try:
-            forecast_collection = weather_api_service.fetch_forecast_with_retry(
-                lat, lon, location_name
-            )
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"天気予報取得エラー: {error_msg}")
-            state.add_error(error_msg, "weather_forecast")
-            raise
+        # 事前取得した天気データがある場合はそれを使用
+        if state.get("pre_fetched_weather"):
+            logger.info(f"事前取得した天気データを使用: {location_name}")
+            pre_fetched = state.get("pre_fetched_weather")
+            forecast_collection = pre_fetched.get("forecast_collection")
+            if not forecast_collection:
+                error_msg = "事前取得した天気データが不正です"
+                logger.error(error_msg)
+                state.add_error(error_msg, "weather_forecast")
+                raise ValueError(error_msg)
+        else:
+            # 通常の天気予報取得
+            try:
+                forecast_collection = weather_api_service.fetch_forecast_with_retry(
+                    lat, lon, location_name
+                )
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"天気予報取得エラー: {error_msg}")
+                state.add_error(error_msg, "weather_forecast")
+                raise
         
         # === 4. 予報データの処理 ===
         
@@ -277,12 +370,6 @@ def fetch_weather_forecast_node(
         if weather_trend:
             state.update_metadata("weather_trend", weather_trend)
         
-        # キャッシュに保存
-        cache_service.save_forecasts(
-            selected_forecast,
-            forecast_collection.forecasts,
-            location_name
-        )
         
         # 気温差の計算
         temperature_differences = temperature_analysis_service.calculate_temperature_differences(

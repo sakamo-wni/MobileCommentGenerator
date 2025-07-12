@@ -5,6 +5,7 @@ Weather forecast node services
 責務ごとに分離されたサービスを提供
 """
 
+import asyncio
 import logging
 import time
 from datetime import datetime, timedelta
@@ -12,8 +13,8 @@ from typing import Optional, List, Tuple, Dict, Any
 import pytz
 
 from src.data.location_manager import Location, get_location_manager
-from src.data.weather_data import WeatherForecast, WeatherForecastCollection
-from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
+from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
+from src.data.forecast_cache import get_temperature_differences
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
@@ -144,6 +145,7 @@ class WeatherAPIService:
             WxTechAPIError: API通信エラー
             ValueError: データ取得失敗
         """
+        
         retry_delay = self.initial_retry_delay
         forecast_collection = None
         
@@ -185,6 +187,81 @@ class WeatherAPIService:
                         f"APIエラー ({e.error_type}). {retry_delay}秒後にリトライします。"
                     )
                     time.sleep(retry_delay)
+                    retry_delay *= API_RETRY_BACKOFF_MULTIPLIER
+                    continue
+                else:
+                    # リトライ不可能なエラーまたは最後の試行の場合
+                    self._handle_api_error(e)
+                    raise
+        
+        raise ValueError("予期しないエラー: リトライループが正常に終了しませんでした")
+    
+    async def fetch_forecast_with_retry_async(
+        self, 
+        lat: float, 
+        lon: float,
+        location_name: str
+    ) -> WeatherForecastCollection:
+        """非同期版: リトライ機能付きで天気予報を取得
+        
+        Args:
+            lat: 緯度
+            lon: 経度
+            location_name: 地点名（ログ用）
+            
+        Returns:
+            WeatherForecastCollection
+            
+        Raises:
+            WxTechAPIError: API通信エラー
+            ValueError: データ取得失敗
+        """
+        
+        retry_delay = self.initial_retry_delay
+        forecast_collection = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                # 最適化版の使用を判定
+                if self.weather_config.use_optimized_forecast:
+                    logger.info("最適化された予報取得を使用")
+                    # 非同期版メソッドを呼び出し
+                    forecast_collection = await self.client.get_forecast_for_next_day_hours_optimized_async(lat, lon)
+                else:
+                    # 通常の非同期版メソッド
+                    forecast_collection = await self.client.get_forecast_async(lat, lon)
+                
+                # 予報データがある場合
+                if forecast_collection and forecast_collection.forecasts:
+                    logger.info(
+                        f"🌤️ {location_name} の天気予報を取得しました。"
+                        f"データ数: {len(forecast_collection.forecasts)}"
+                    )
+                    break
+                else:
+                    # データが取得できなかった場合、リトライするかチェック
+                    if attempt < self.max_retries - 1:
+                        logger.warning(
+                            f"Attempt {attempt + 1}/{self.max_retries}: "
+                            f"天気データが空です。{retry_delay}秒後にリトライします。"
+                        )
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= API_RETRY_BACKOFF_MULTIPLIER
+                        continue
+                    else:
+                        raise ValueError(
+                            f"地点 '{location_name}' の天気予報データが取得できませんでした"
+                        )
+                        
+            except WxTechAPIError as e:
+                # リトライ可能なエラーかチェック
+                if (e.error_type in ['network_error', 'timeout', 'server_error'] 
+                    and attempt < self.max_retries - 1):
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{self.max_retries}: "
+                        f"APIエラー ({e.error_type}). {retry_delay}秒後にリトライします。"
+                    )
+                    await asyncio.sleep(retry_delay)
                     retry_delay *= API_RETRY_BACKOFF_MULTIPLIER
                     continue
                 else:
@@ -381,58 +458,6 @@ class ForecastProcessingService:
         """
         return self.validator.select_priority_forecast(forecasts)
 
-
-class CacheService:
-    """キャッシュ処理を担当するサービス"""
-    
-    def __init__(self):
-        self.cache = get_forecast_cache()
-    
-    def save_forecasts(
-        self, 
-        selected_forecast: WeatherForecast,
-        all_forecasts: List[WeatherForecast],
-        location_name: str
-    ) -> None:
-        """予報データをキャッシュに保存
-        
-        Args:
-            selected_forecast: 選択された予報
-            all_forecasts: 全予報データ
-            location_name: 地点名
-        """
-        try:
-            # 選択された予報データを保存
-            save_forecast_to_cache(selected_forecast, location_name)
-            
-            # タイムライン表示用に必要な時間帯のデータのみを保存
-            # 翌日の9, 12, 15, 18時の前後1時間（8-10時、11-13時、14-16時、17-19時）
-            jst = pytz.timezone("Asia/Tokyo")
-            target_hours = [(8, 10), (11, 13), (14, 16), (17, 19)]
-            
-            filtered_forecasts = []
-            for forecast in all_forecasts:
-                forecast_hour = forecast.datetime.astimezone(jst).hour
-                for start_hour, end_hour in target_hours:
-                    if start_hour <= forecast_hour <= end_hour:
-                        filtered_forecasts.append(forecast)
-                        break
-            
-            # フィルタリングされた予報データをキャッシュに保存
-            for forecast in filtered_forecasts:
-                try:
-                    self.cache.save_forecast(forecast, location_name)
-                except Exception as forecast_save_error:
-                    logger.debug(f"個別予報保存に失敗: {forecast_save_error}")
-                    continue
-                    
-            logger.info(
-                f"予報データをキャッシュに保存: {location_name} "
-                f"(全{len(all_forecasts)}件中{len(filtered_forecasts)}件を保存)"
-            )
-        except Exception as e:
-            logger.warning(f"キャッシュ保存に失敗: {e}")
-            # キャッシュ保存の失敗は致命的エラーではないので続行
 
 
 class TemperatureAnalysisService:

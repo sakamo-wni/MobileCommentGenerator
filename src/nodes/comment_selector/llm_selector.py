@@ -224,8 +224,13 @@ class LLMCommentSelector:
                     context += "  - 「爽やか」「カラッと」など雨と矛盾する表現\n"
                     context += "【必須】雨・傘・濡れる・降水などのキーワードを含むコメントを選んでください。\n"
                 
-                if max_temp_in_timeline >= 35.0:
-                    context += f"\n【重要】翌日の最高気温が{max_temp_in_timeline}°Cの猛暑日です。熱中症対策を考慮してください。\n"
+                # 翌日の最高気温が35℃以上の場合の注意事項
+                if max_temp_in_timeline >= 35:
+                    context += f"\n【重要】翌日の最高気温が{max_temp_in_timeline}°Cの猛暑日です。\n"
+                    context += "【必須】熱中症対策に関するコメントを選択してください。\n"
+                elif max_temp_in_timeline < 30:
+                    context += f"\n【注意】翌日の最高気温は{max_temp_in_timeline}°Cです。\n"
+                    context += "【禁止】熱中症に関するコメントは選ばないでください。\n"
         
         return context
     

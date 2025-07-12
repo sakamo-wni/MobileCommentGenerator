@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import pytz
 import logging
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def display_single_result(result: Dict[str, Any]) -> None:
         # メタデータの表示
         if 'result' in result and result['result']:
             metadata = result['result'].get('generation_metadata', {})
+            logger.debug(f"result_display: location={location}, metadata keys={list(metadata.keys()) if metadata else 'None'}")
             if metadata:
                 display_metadata(metadata, location)
     else:
@@ -36,6 +38,13 @@ def display_single_result(result: Dict[str, Any]) -> None:
 
 def display_metadata(metadata: Dict[str, Any], location: str) -> None:
     """メタデータを表示"""
+    # デバッグログ追加
+    weather_timeline = metadata.get('weather_timeline')
+    logger.info(f"UI display_metadata: location={location}, weather_timeline存在={weather_timeline is not None}")
+    if weather_timeline:
+        future_forecasts = weather_timeline.get('future_forecasts', []) if isinstance(weather_timeline, dict) else []
+        logger.info(f"UI display_metadata: future_forecasts数={len(future_forecasts)}")
+    
     with st.expander(f"📊 {location}の詳細情報"):
         # 予報時刻
         forecast_time = metadata.get('forecast_time')
@@ -87,6 +96,39 @@ def display_metadata(metadata: Dict[str, Any], location: str) -> None:
             provider = selection_meta.get('llm_provider')
             if provider:
                 st.text(f"選択方法: LLM ({provider})")
+        
+        # 天気タイムラインの表示
+        weather_timeline = metadata.get('weather_timeline')
+        if weather_timeline and isinstance(weather_timeline, dict):
+            future_forecasts = weather_timeline.get('future_forecasts', [])
+            if future_forecasts:
+                st.markdown("**📅 翌日の天気予報 (9時、12時、15時、18時):**")
+                timeline_data = []
+                for forecast in future_forecasts:
+                    timeline_data.append({
+                        "時刻": forecast.get('time', ''),
+                        "天気": forecast.get('weather', ''),
+                        "気温": f"{forecast.get('temperature', '')}°C",
+                        "降水量": f"{forecast.get('precipitation', 0)}mm"
+                    })
+                if timeline_data:
+                    df = pd.DataFrame(timeline_data)
+                    st.dataframe(df, hide_index=True, use_container_width=True)
+                    
+                    # サマリー情報の表示
+                    summary = weather_timeline.get('summary')
+                    if summary:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("気温範囲", summary.get('temperature_range', 'N/A'))
+                        with col2:
+                            st.metric("最大降水量", summary.get('max_precipitation', 'N/A'))
+                        with col3:
+                            st.metric("天気パターン", summary.get('weather_pattern', 'N/A'))
+            else:
+                st.info("🌦️ 詳細天気予報データが利用できません")
+        else:
+            logger.debug(f"weather_timeline not found or invalid: {weather_timeline}")
 
 
 def display_batch_results(results: List[Dict[str, Any]]) -> None:

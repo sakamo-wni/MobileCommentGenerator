@@ -57,7 +57,16 @@ class LLMManager:
         # APIキーのログ出力は削除（セキュリティ対策）
         logger.info("Using OpenAI API")
 
-        model = os.getenv("OPENAI_MODEL", "gpt-4")
+        # パフォーマンスモードをチェック
+        from src.config.config import get_llm_config
+        llm_config = get_llm_config()
+        
+        if llm_config.performance_mode:
+            model = llm_config.performance_openai_model
+            logger.info(f"Performance mode enabled - using {model}")
+        else:
+            model = llm_config.openai_model
+            
         return OpenAIProvider(api_key=api_key, model=model)
 
     def _init_gemini(self) -> GeminiProvider:
@@ -69,13 +78,16 @@ class LLMManager:
                 "設定方法: export GEMINI_API_KEY='your-api-key' または .envファイルに記載"
             )
 
-        # 設定から、もしくは環境変数からモデルを取得
-        if self.config and hasattr(self.config, 'llm') and hasattr(self.config.llm, 'gemini_model'):
-            model = self.config.llm.gemini_model
+        # パフォーマンスモードをチェック
+        from src.config.config import get_llm_config
+        llm_config = get_llm_config()
+        
+        if llm_config.performance_mode:
+            model = llm_config.performance_gemini_model
+            logger.info(f"Performance mode enabled - using {model}")
         else:
-            # 後方互換性のため、設定がない場合はconfig.pyのデフォルト値を使用
-            from src.config.config import get_llm_config
-            model = get_llm_config().gemini_model
+            model = llm_config.gemini_model
+            
         return GeminiProvider(api_key=api_key, model=model)
 
     def _init_anthropic(self) -> AnthropicProvider:
@@ -87,7 +99,16 @@ class LLMManager:
                 "設定方法: export ANTHROPIC_API_KEY='your-api-key' または .envファイルに記載"
             )
 
-        model = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
+        # パフォーマンスモードをチェック
+        from src.config.config import get_llm_config
+        llm_config = get_llm_config()
+        
+        if llm_config.performance_mode:
+            model = llm_config.performance_anthropic_model
+            logger.info(f"Performance mode enabled - using {model}")
+        else:
+            model = llm_config.anthropic_model
+            
         return AnthropicProvider(api_key=api_key, model=model)
 
     def generate(self, prompt: str) -> str:

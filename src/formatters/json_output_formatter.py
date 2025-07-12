@@ -56,13 +56,19 @@ class JsonOutputFormatter:
                     execution_time_delta = execution_end - execution_start
                     execution_time_ms = int(execution_time_delta.total_seconds() * 1000)
 
-            # 最終コメントの確定
-            final_comment = self.final_comment_formatter.determine_final_comment(state)
-            state.final_comment = final_comment
+            # 最終コメントの確定（既に設定されていない場合のみ）
+            if not state.final_comment:
+                final_comment = self.final_comment_formatter.determine_final_comment(state)
+                state.final_comment = final_comment
+            else:
+                final_comment = state.final_comment
 
-            # メタデータの生成
-            generation_metadata = self.metadata_formatter.create_generation_metadata(state, execution_time_ms)
-            state.generation_metadata = generation_metadata
+            # メタデータは既に生成されているはず（output_nodeで生成済み）
+            generation_metadata = state.generation_metadata
+            if not generation_metadata:
+                # フォールバック: メタデータが無い場合のみ生成
+                generation_metadata = self.metadata_formatter.create_generation_metadata(state, execution_time_ms)
+                state.generation_metadata = generation_metadata
 
             # 出力データの構築
             output_data = {"final_comment": final_comment, "generation_metadata": generation_metadata}

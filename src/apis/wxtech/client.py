@@ -4,7 +4,7 @@ WxTech API クライアント
 高レベルのAPI操作インターフェースを提供
 """
 
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any, Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -193,56 +193,69 @@ class WxTechAPIClient:
         now_jst = datetime.now(jst)
         target_date = now_jst.date() + timedelta(days=1)
         
-        # 最適化: 翌日6時から20時までの15時間分を取得
-        # これにより、基準時刻（8-9時頃）も含まれる
-        tomorrow_6am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=6)))
-        tomorrow_8pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=20)))
+        # 最適化: 翌日8時から19時までの12時間分を確実に取得
+        # これにより、9,12,15,18時すべてが含まれる
+        tomorrow_8am = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=8)))
+        tomorrow_7pm = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=19)))
         
-        hours_to_6am = (tomorrow_6am - now_jst).total_seconds() / 3600
+        hours_to_8am = (tomorrow_8am - now_jst).total_seconds() / 3600
         
         # 最適な取得時間を決定
-        if hours_to_6am > 0:
-            # まだ翌日6時前なので、6時から20時までの15時間分
-            forecast_hours = int(hours_to_6am) + 15
-            logger.info(f"最適化: 翌日6時まで{hours_to_6am:.1f}h → {forecast_hours}時間分を取得")
+        if hours_to_8am > 0:
+            # まだ翌日8時前なので、8時から19時までの12時間分
+            forecast_hours = int(hours_to_8am) + 12
+            logger.info(f"最適化: 翌日8時まで{hours_to_8am:.1f}h → {forecast_hours}時間分を取得")
         else:
-            # すでに翌日6時を過ぎているので、現在から20時まで
-            hours_to_8pm = (tomorrow_8pm - now_jst).total_seconds() / 3600
-            forecast_hours = max(int(hours_to_8pm) + 1, 1)
-            logger.info(f"最適化: 翌日20時まで{hours_to_8pm:.1f}h → {forecast_hours}時間分を取得")
+            # すでに翌日8時を過ぎているので、現在から19時まで
+            hours_to_7pm = (tomorrow_7pm - now_jst).total_seconds() / 3600
+            forecast_hours = max(int(hours_to_7pm) + 1, 1)
+            logger.info(f"最適化: 翌日19時まで{hours_to_7pm:.1f}h → {forecast_hours}時間分を取得")
         
         # データを取得
         forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
         
-        # 翌日のデータのみをフィルタリング（全時間を保持）
-        filtered_forecasts = []
-        
-        for forecast in forecast_collection.forecasts:
-            if forecast.datetime.date() == target_date:
-                filtered_forecasts.append(forecast)
-        
-        # 特定時刻のデータが含まれているか確認
+        # 翌日の9, 12, 15, 18時に最も近い予報を選択
         target_hours = [9, 12, 15, 18]
-        found_hours = set()
-        for forecast in filtered_forecasts:
-            if forecast.datetime.hour in target_hours:
-                found_hours.add(forecast.datetime.hour)
+        selected_forecasts = []
+        
+        for hour in target_hours:
+            target_time = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
+            closest_forecast = None
+            min_diff = float('inf')
+            
+            for forecast in forecast_collection.forecasts:
+                # forecastのdatetimeがnaiveな場合はJSTとして扱う
+                forecast_dt = forecast.datetime
+                if forecast_dt.tzinfo is None:
+                    forecast_dt = jst.localize(forecast_dt)
+                
+                # 翌日のデータのみを対象
+                if forecast_dt.date() == target_date:
+                    # 目標時刻との差を計算
+                    diff = abs((forecast_dt - target_time).total_seconds())
+                    if diff < min_diff:
+                        min_diff = diff
+                        closest_forecast = forecast
+            
+            if closest_forecast:
+                selected_forecasts.append(closest_forecast)
+                logger.debug(
+                    f"目標時刻 {hour:02d}:00 → 選択: {closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')} "
+                    f"(差: {min_diff/3600:.1f}時間)"
+                )
+            else:
+                logger.warning(f"目標時刻 {hour:02d}:00 の予報が見つかりません")
         
         # フィルタリング結果のログ
         logger.info(
-            f"最適化結果: {len(forecast_collection.forecasts)}件から{len(filtered_forecasts)}件に絞り込み "
-            f"(削減率: {(1 - len(filtered_forecasts)/len(forecast_collection.forecasts))*100:.1f}%) "
-            f"- 含まれる時間: {sorted(set(f.datetime.hour for f in filtered_forecasts))}"
+            f"最適化結果: {len(forecast_collection.forecasts)}件から{len(selected_forecasts)}件に絞り込み "
+            f"- 選択された時刻: {[f.datetime.strftime('%H:%M') for f in selected_forecasts]}"
         )
-        
-        if len(found_hours) != len(target_hours):
-            missing_hours = set(target_hours) - found_hours
-            logger.warning(f"警告: 以下の時刻のデータが不足: {sorted(missing_hours)}")
         
         # フィルタリングしたデータを新しいコレクションとして返す
         filtered_collection = WeatherForecastCollection(
             location=forecast_collection.location,
-            forecasts=filtered_forecasts
+            forecasts=selected_forecasts
         )
         
         return filtered_collection
@@ -506,6 +519,20 @@ class WxTechAPIClient:
         with ThreadPoolExecutor() as pool:
             return await loop.run_in_executor(pool, self.get_forecast, lat, lon, forecast_hours)
     
+    async def get_forecast_for_next_day_hours_optimized_async(self, lat: float, lon: float) -> WeatherForecastCollection:
+        """非同期版: 翌日の9, 12, 15, 18時のデータを効率的に取得する最適化版
+        
+        Args:
+            lat: 緯度
+            lon: 経度
+            
+        Returns:
+            翌日の天気予報コレクション（基準時刻および9,12,15,18時を含む）
+        """
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor() as pool:
+            return await loop.run_in_executor(pool, self.get_forecast_for_next_day_hours_optimized, lat, lon)
+    
     def close(self):
         """セッションを閉じる"""
         self.api.close()
@@ -513,7 +540,7 @@ class WxTechAPIClient:
     def __enter__(self):
         return self
     
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+    def __exit__(self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
         self.close()
 
 

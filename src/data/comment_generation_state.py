@@ -5,6 +5,7 @@
 状態データを管理するデータクラスを定義します。
 """
 
+import os
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -34,7 +35,7 @@ class CommentGenerationState:
 
     # ===== 制御フラグ =====
     retry_count: int = 0
-    max_retry_count: int = 5
+    max_retry_count: int = field(default_factory=lambda: int(os.environ.get("MAX_EVALUATION_RETRIES", "3")))
     validation_result: Optional[Any] = None  # ValidationResult オブジェクト
     should_retry: bool = False
 

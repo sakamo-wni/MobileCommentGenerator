@@ -40,6 +40,22 @@ ANTHROPIC_API_KEY=your_key_here
 WXTECH_API_KEY=your_key_here
 ```
 
+### 2-1. パフォーマンスチューニング（オプション）
+実行時間を大幅に短縮したい場合、以下の環境変数を設定できます：
+
+```env
+# 高速なLLMモデルを使用（GPT-3.5-turbo等）
+LLM_PERFORMANCE_MODE=true
+
+# 並列実行数を増やす（デフォルト: 3）
+MAX_LLM_WORKERS=8
+
+# 評価リトライ回数を減らす（デフォルト: 3）
+MAX_EVALUATION_RETRIES=2
+```
+
+これらの設定により、処理時間を最大80%削減できます。
+
 ### 3. 実行
 ```bash
 # APIサーバー起動
