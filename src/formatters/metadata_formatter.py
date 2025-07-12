@@ -39,7 +39,7 @@ class MetadataFormatter:
         # 天気情報の追加
         weather_data = state.weather_data
         if weather_data:
-            weather_info = self._format_weather_info(weather_data, state.location_name)
+            weather_info = self._format_weather_info(weather_data, state.location_name, state)
             if weather_info:
                 metadata.update(weather_info)
         
@@ -90,7 +90,7 @@ class MetadataFormatter:
         else:
             return "変わりやすい天気"
     
-    def _format_weather_info(self, weather_data: Any, location_name: Optional[str]) -> Dict[str, Any]:
+    def _format_weather_info(self, weather_data: Any, location_name: Optional[str], state: CommentGenerationState) -> Dict[str, Any]:
         """天気情報をフォーマット"""
         weather_info = {}
         
