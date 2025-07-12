@@ -14,7 +14,7 @@ import pytz
 
 from src.data.location_manager import Location, get_location_manager
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
-from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences, get_forecast_cache
+from src.data.forecast_cache import save_forecast_to_cache, get_temperature_differences
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.client import WxTechAPIClient
 from src.config.config_loader import load_config
@@ -458,58 +458,6 @@ class ForecastProcessingService:
         """
         return self.validator.select_priority_forecast(forecasts)
 
-
-class CacheService:
-    """キャッシュ処理を担当するサービス"""
-    
-    def __init__(self):
-        self.cache = get_forecast_cache()
-    
-    def save_forecasts(
-        self, 
-        selected_forecast: WeatherForecast,
-        all_forecasts: List[WeatherForecast],
-        location_name: str
-    ) -> None:
-        """予報データをキャッシュに保存
-        
-        Args:
-            selected_forecast: 選択された予報
-            all_forecasts: 全予報データ
-            location_name: 地点名
-        """
-        try:
-            # 選択された予報データを保存
-            save_forecast_to_cache(selected_forecast, location_name)
-            
-            # タイムライン表示用に必要な時間帯のデータのみを保存
-            # 翌日の9, 12, 15, 18時の前後1時間（8-10時、11-13時、14-16時、17-19時）
-            jst = pytz.timezone("Asia/Tokyo")
-            target_hours = [(8, 10), (11, 13), (14, 16), (17, 19)]
-            
-            filtered_forecasts = []
-            for forecast in all_forecasts:
-                forecast_hour = forecast.datetime.astimezone(jst).hour
-                for start_hour, end_hour in target_hours:
-                    if start_hour <= forecast_hour <= end_hour:
-                        filtered_forecasts.append(forecast)
-                        break
-            
-            # フィルタリングされた予報データをキャッシュに保存
-            for forecast in filtered_forecasts:
-                try:
-                    self.cache.save_forecast(forecast, location_name)
-                except Exception as forecast_save_error:
-                    logger.debug(f"個別予報保存に失敗: {forecast_save_error}")
-                    continue
-                    
-            logger.info(
-                f"予報データをキャッシュに保存: {location_name} "
-                f"(全{len(all_forecasts)}件中{len(filtered_forecasts)}件を保存)"
-            )
-        except Exception as e:
-            logger.warning(f"キャッシュ保存に失敗: {e}")
-            # キャッシュ保存の失敗は致命的エラーではないので続行
 
 
 class TemperatureAnalysisService:

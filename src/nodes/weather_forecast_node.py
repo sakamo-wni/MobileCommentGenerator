@@ -27,7 +27,6 @@ from src.nodes.weather_forecast.services import (
     LocationService,
     WeatherAPIService,
     ForecastProcessingService,
-    CacheService,
     TemperatureAnalysisService
 )
 from src.nodes.weather_forecast.service_factory import WeatherForecastServiceFactory
@@ -136,7 +135,6 @@ async def fetch_weather_forecast_node_async(
         location_service = service_factory.get_location_service()
         weather_service = service_factory.get_weather_api_service()
         processor = service_factory.get_forecast_processor()
-        cache_service = service_factory.get_cache_service()
         
         # 地点情報の取得
         location_name_raw = state.get("location", "")
@@ -165,8 +163,6 @@ async def fetch_weather_forecast_node_async(
         # 天気傾向の分析
         weather_trend = processor.analyze_trend(timeline_forecasts)
         
-        # キャッシュへの保存
-        cache_service.save_forecasts(forecast_collection, location.name)
         
         # データの変換
         transformer = WeatherDataTransformer()
@@ -242,7 +238,6 @@ def fetch_weather_forecast_node(
         location_service = service_factory.get_location_service()
         weather_api_service = service_factory.get_weather_api_service()
         forecast_processing_service = service_factory.get_forecast_processing_service()
-        cache_service = service_factory.get_cache_service()
         temperature_analysis_service = service_factory.get_temperature_analysis_service()
         
         # === 2. 地点情報の処理 ===
@@ -363,12 +358,6 @@ def fetch_weather_forecast_node(
         if weather_trend:
             state.update_metadata("weather_trend", weather_trend)
         
-        # キャッシュに保存
-        cache_service.save_forecasts(
-            selected_forecast,
-            forecast_collection.forecasts,
-            location_name
-        )
         
         # 気温差の計算
         temperature_differences = temperature_analysis_service.calculate_temperature_differences(

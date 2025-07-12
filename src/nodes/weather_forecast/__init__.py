@@ -13,7 +13,6 @@ from .services import (
     LocationService,
     WeatherAPIService,
     ForecastProcessingService,
-    CacheService,
     TemperatureAnalysisService
 )
 
@@ -24,6 +23,5 @@ __all__ = [
     "LocationService",
     "WeatherAPIService",
     "ForecastProcessingService",
-    "CacheService",
     "TemperatureAnalysisService"
 ]
