@@ -15,6 +15,7 @@ import pytz
 from src.apis.wxtech.parser import WxTechResponseParser
 from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherForecastCollection
+from src.config.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,18 @@ class AsyncWxTechAPIClient:
         self.base_url = "https://wxtech-api.weathernews.com/api/v1"
         self.parser = WxTechResponseParser()
         self.session: Optional[aiohttp.ClientSession] = None
+        self.config = get_config()
+        self.max_retries = 3
+        self.retry_delay = 1.0  # 初期リトライ遅延（秒）
     
     async def __aenter__(self):
         """非同期コンテキストマネージャーの開始"""
-        self.session = aiohttp.ClientSession()
+        # 接続数制限を設定
+        connector = aiohttp.TCPConnector(
+            limit=10,  # 全体の最大接続数
+            limit_per_host=5  # ホストごとの最大接続数
+        )
+        self.session = aiohttp.ClientSession(connector=connector)
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -80,6 +89,27 @@ class AsyncWxTechAPIClient:
         if not self.session:
             raise RuntimeError("セッションが初期化されていません。async with を使用してください。")
         
+        # リトライループ
+        retry_delay = self.retry_delay
+        for attempt in range(self.max_retries):
+            try:
+                return await self._make_request(lat, lon, hours)
+            except (WxTechAPIError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+                if attempt < self.max_retries - 1:
+                    logger.warning(
+                        f"API呼び出し失敗 (試行 {attempt + 1}/{self.max_retries}): {str(e)}. "
+                        f"{retry_delay}秒後にリトライします。"
+                    )
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # 指数バックオフ
+                else:
+                    logger.error(f"全てのリトライが失敗しました: {str(e)}")
+                    raise
+        
+        raise WxTechAPIError("予期しないエラー: リトライループが正常に終了しませんでした")
+    
+    async def _make_request(self, lat: float, lon: float, hours: int) -> WeatherForecastCollection:
+        """実際のAPIリクエストを実行"""
         endpoint = f"{self.base_url}/ss1wx"
         params = {
             "lat": lat,
@@ -99,7 +129,7 @@ class AsyncWxTechAPIClient:
                 endpoint, 
                 params=params, 
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=30)
+                timeout=aiohttp.ClientTimeout(total=self.config.api.api_timeout)
             ) as response:
                 
                 if response.status != 200:

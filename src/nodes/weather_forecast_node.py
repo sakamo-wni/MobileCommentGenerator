@@ -263,15 +263,27 @@ def fetch_weather_forecast_node(
         
         # === 3. 天気予報の取得 ===
         
-        try:
-            forecast_collection = weather_api_service.fetch_forecast_with_retry(
-                lat, lon, location_name
-            )
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"天気予報取得エラー: {error_msg}")
-            state.add_error(error_msg, "weather_forecast")
-            raise
+        # 事前取得した天気データがある場合はそれを使用
+        if state.get("pre_fetched_weather"):
+            logger.info(f"事前取得した天気データを使用: {location_name}")
+            pre_fetched = state.get("pre_fetched_weather")
+            forecast_collection = pre_fetched.get("forecast_collection")
+            if not forecast_collection:
+                error_msg = "事前取得した天気データが不正です"
+                logger.error(error_msg)
+                state.add_error(error_msg, "weather_forecast")
+                raise ValueError(error_msg)
+        else:
+            # 通常の天気予報取得
+            try:
+                forecast_collection = weather_api_service.fetch_forecast_with_retry(
+                    lat, lon, location_name
+                )
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"天気予報取得エラー: {error_msg}")
+                state.add_error(error_msg, "weather_forecast")
+                raise
         
         # === 4. 予報データの処理 ===
         
