@@ -122,7 +122,9 @@ class MetadataFormatter:
             # 時系列の天気データを追加
             # period_forecastsから直接タイムラインを作成
             period_forecasts = state.generation_metadata.get("period_forecasts", [])
+            logger.debug(f"period_forecasts type: {type(period_forecasts)}, length: {len(period_forecasts) if period_forecasts else 0}")
             if period_forecasts:
+                logger.debug(f"First forecast type: {type(period_forecasts[0]) if period_forecasts else 'empty'}")
                 try:
                     timeline_data = {
                         "future_forecasts": [],
@@ -132,13 +134,25 @@ class MetadataFormatter:
                     
                     # period_forecastsをタイムライン形式に変換
                     for forecast in period_forecasts:
-                        timeline_data["future_forecasts"].append({
-                            "time": forecast.datetime.strftime("%m/%d %H:%M"),
-                            "label": forecast.datetime.strftime("%H:%M"),
-                            "weather": forecast.weather_description,
-                            "temperature": forecast.temperature,
-                            "precipitation": forecast.precipitation
-                        })
+                        # オブジェクトか辞書かを判定
+                        if hasattr(forecast, 'datetime'):
+                            # WeatherForecastオブジェクトの場合
+                            timeline_data["future_forecasts"].append({
+                                "time": forecast.datetime.strftime("%m/%d %H:%M"),
+                                "label": forecast.datetime.strftime("%H:%M"),
+                                "weather": forecast.weather_description,
+                                "temperature": forecast.temperature,
+                                "precipitation": forecast.precipitation
+                            })
+                        elif isinstance(forecast, dict):
+                            # 辞書の場合
+                            timeline_data["future_forecasts"].append({
+                                "time": forecast.get('datetime', ''),
+                                "label": forecast.get('datetime', '')[-5:] if forecast.get('datetime') else '',
+                                "weather": forecast.get('weather_description', ''),
+                                "temperature": forecast.get('temperature', 0),
+                                "precipitation": forecast.get('precipitation', 0)
+                            })
                     
                     # サマリー情報を追加
                     if timeline_data["future_forecasts"]:
