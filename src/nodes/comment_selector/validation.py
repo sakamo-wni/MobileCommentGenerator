@@ -338,8 +338,10 @@ class CommentValidator:
         month = target_datetime.month
         
         # 花粉関連のチェック（PollenValidatorに委譲）
+        # 地域情報を取得できる場合は渡す
+        location = getattr(target_datetime, '_location', None)  # 将来の拡張用
         if self.pollen_validator.is_inappropriate_pollen_comment(
-            comment_text, None, target_datetime
+            comment_text, None, target_datetime, location
         ):
             return True
         
@@ -512,9 +514,10 @@ class CommentValidator:
     
     def is_rain_weather_with_pollen_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """雨天時に花粉関連のコメントが含まれているかチェック"""
-        # PollenValidatorに委譲（target_datetimeは不要なのでweather_dataのdatetimeを使用）
+        # PollenValidatorに委譲（地域情報も渡す）
+        location = getattr(weather_data, 'location', None)
         return self.pollen_validator.is_inappropriate_pollen_comment(
-            comment_text, weather_data, weather_data.datetime
+            comment_text, weather_data, weather_data.datetime, location
         )
     
     def should_exclude_weather_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
