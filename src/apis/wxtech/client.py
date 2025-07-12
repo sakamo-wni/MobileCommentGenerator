@@ -214,35 +214,48 @@ class WxTechAPIClient:
         # データを取得
         forecast_collection = self.get_forecast(lat, lon, forecast_hours=forecast_hours)
         
-        # 翌日のデータのみをフィルタリング（全時間を保持）
-        filtered_forecasts = []
-        
-        for forecast in forecast_collection.forecasts:
-            if forecast.datetime.date() == target_date:
-                filtered_forecasts.append(forecast)
-        
-        # 特定時刻のデータが含まれているか確認
+        # 翌日の9, 12, 15, 18時に最も近い予報を選択
         target_hours = [9, 12, 15, 18]
-        found_hours = set()
-        for forecast in filtered_forecasts:
-            if forecast.datetime.hour in target_hours:
-                found_hours.add(forecast.datetime.hour)
+        selected_forecasts = []
+        
+        for hour in target_hours:
+            target_time = jst.localize(datetime.combine(target_date, datetime.min.time().replace(hour=hour)))
+            closest_forecast = None
+            min_diff = float('inf')
+            
+            for forecast in forecast_collection.forecasts:
+                # forecastのdatetimeがnaiveな場合はJSTとして扱う
+                forecast_dt = forecast.datetime
+                if forecast_dt.tzinfo is None:
+                    forecast_dt = jst.localize(forecast_dt)
+                
+                # 翌日のデータのみを対象
+                if forecast_dt.date() == target_date:
+                    # 目標時刻との差を計算
+                    diff = abs((forecast_dt - target_time).total_seconds())
+                    if diff < min_diff:
+                        min_diff = diff
+                        closest_forecast = forecast
+            
+            if closest_forecast:
+                selected_forecasts.append(closest_forecast)
+                logger.debug(
+                    f"目標時刻 {hour:02d}:00 → 選択: {closest_forecast.datetime.strftime('%Y-%m-%d %H:%M')} "
+                    f"(差: {min_diff/3600:.1f}時間)"
+                )
+            else:
+                logger.warning(f"目標時刻 {hour:02d}:00 の予報が見つかりません")
         
         # フィルタリング結果のログ
         logger.info(
-            f"最適化結果: {len(forecast_collection.forecasts)}件から{len(filtered_forecasts)}件に絞り込み "
-            f"(削減率: {(1 - len(filtered_forecasts)/len(forecast_collection.forecasts))*100:.1f}%) "
-            f"- 含まれる時間: {sorted(set(f.datetime.hour for f in filtered_forecasts))}"
+            f"最適化結果: {len(forecast_collection.forecasts)}件から{len(selected_forecasts)}件に絞り込み "
+            f"- 選択された時刻: {[f.datetime.strftime('%H:%M') for f in selected_forecasts]}"
         )
-        
-        if len(found_hours) != len(target_hours):
-            missing_hours = set(target_hours) - found_hours
-            logger.warning(f"警告: 以下の時刻のデータが不足: {sorted(missing_hours)}")
         
         # フィルタリングしたデータを新しいコレクションとして返す
         filtered_collection = WeatherForecastCollection(
             location=forecast_collection.location,
-            forecasts=filtered_forecasts
+            forecasts=selected_forecasts
         )
         
         return filtered_collection
