@@ -14,6 +14,7 @@ from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
 from src.config.config import get_weather_constants
+from src.utils.validators.pollen_validator import PollenValidator
 
 # 定数を取得
 WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
@@ -28,6 +29,7 @@ class CommentValidator:
     def __init__(self, validator: WeatherCommentValidator, severe_config):
         self.validator = validator
         self.severe_config = severe_config
+        self.pollen_validator = PollenValidator()
         # LLMバリデータの初期化（APIキーが利用可能な場合のみ）
         self.llm_validator = None
         # 環境変数を再読み込み
@@ -99,21 +101,48 @@ class CommentValidator:
     
     def _is_duplicate_content(self, weather_text: str, advice_text: str) -> bool:
         """天気コメントとアドバイスの重複をチェック"""
-        # 基本的な重複パターンをチェック
         
-        # 1. 完全一致・ほぼ完全一致
+        # 1. 基本的な一致チェック
+        if self._check_basic_duplication(weather_text, advice_text):
+            return True
+        
+        # 2. キーワードの重複チェック
+        if self._check_keyword_duplication(weather_text, advice_text):
+            return True
+        
+        # 3. 意味的矛盾チェック
+        if self._check_semantic_contradiction(weather_text, advice_text):
+            return True
+        
+        # 4. 傘関連の重複チェック
+        if self._check_umbrella_duplication(weather_text, advice_text):
+            return True
+        
+        # 5. 類似表現のチェック
+        if self._check_similar_expressions(weather_text, advice_text):
+            return True
+        
+        # 6. 文字列の類似度チェック（短いコメントのみ）
+        if self._check_string_similarity(weather_text, advice_text):
+            return True
+        
+        return False
+    
+    def _check_basic_duplication(self, weather_text: str, advice_text: str) -> bool:
+        """基本的な重複チェック（完全一致、正規化後の一致など）"""
+        # 完全一致
         if weather_text == advice_text:
             return True
-            
-        # 1.5. ほぼ同じ内容の検出（語尾の微差を無視）
+        
+        # 語尾の微差を無視した一致
         weather_normalized = weather_text.replace("です", "").replace("だ", "").replace("である", "").replace("。", "").strip()
         advice_normalized = advice_text.replace("です", "").replace("だ", "").replace("である", "").replace("。", "").strip()
         
         if weather_normalized == advice_normalized:
             logger.debug(f"ほぼ完全一致検出: '{weather_text}' ≈ '{advice_text}'")
             return True
-            
-        # 句読点や助詞の差のみの場合も検出
+        
+        # 句読点や助詞の差のみの場合
         weather_core = re.sub(r'[。、！？\s　]', '', weather_text)
         advice_core = re.sub(r'[。、！？\s　]', '', advice_text)
         
@@ -121,44 +150,36 @@ class CommentValidator:
             logger.debug(f"句読点差のみ検出: '{weather_text}' ≈ '{advice_text}'")
             return True
         
-        # 2. 主要キーワードの重複チェック
-        # 同じ重要キーワードが両方に含まれている場合は重複と判定
+        return False
+    
+    def _check_keyword_duplication(self, weather_text: str, advice_text: str) -> bool:
+        """キーワードベースの重複チェック"""
         duplicate_keywords = [
             "にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑",
-            "注意", "警戒", "対策", "気をつけ", "備え", "準備",
-            "傘"  # 傘関連の重複を防ぐ
+            "注意", "警戒", "対策", "気をつけ", "備え", "準備", "傘"
         ]
         
-        weather_keywords = []
-        advice_keywords = []
+        weather_keywords = [kw for kw in duplicate_keywords if kw in weather_text]
+        advice_keywords = [kw for kw in duplicate_keywords if kw in advice_text]
         
-        for keyword in duplicate_keywords:
-            if keyword in weather_text:
-                weather_keywords.append(keyword)
-            if keyword in advice_text:
-                advice_keywords.append(keyword)
-        
-        # 3. 重要キーワードが重複している場合
         common_keywords = set(weather_keywords) & set(advice_keywords)
         if common_keywords:
-            # 特に以下のキーワードは重複を強く示唆
             critical_duplicates = {"にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑"}
             if any(keyword in critical_duplicates for keyword in common_keywords):
                 logger.debug(f"重複キーワード検出: {common_keywords}")
                 return True
         
-        # 4. 意味的矛盾パターンのチェック（新機能）
+        return False
+    
+    def _check_semantic_contradiction(self, weather_text: str, advice_text: str) -> bool:
+        """意味的矛盾のチェック"""
         contradiction_patterns = [
-            # 日差し・太陽関連の矛盾
             (["日差しの活用", "日差しを楽しん", "陽射しを活用", "太陽を楽しん", "日光浴", "日向"], 
              ["紫外線対策", "日焼け対策", "日差しに注意", "陽射しに注意", "UV対策", "日陰"]),
-            # 外出関連の矛盾  
             (["外出推奨", "お出かけ日和", "散歩日和", "外出には絶好", "外で過ごそう"], 
              ["外出時は注意", "外出を控え", "屋内にいよう", "外出は危険"]),
-            # 暑さ関連の矛盾
             (["暑さを楽しん", "夏を満喫", "暑いけど気持ち"], 
              ["暑さに注意", "熱中症対策", "暑さを避け"]),
-            # 雨関連の矛盾
             (["雨を楽しん", "雨音が心地", "恵みの雨"], 
              ["雨に注意", "濡れないよう", "雨対策"])
         ]
@@ -166,24 +187,45 @@ class CommentValidator:
         for positive_patterns, negative_patterns in contradiction_patterns:
             has_positive = any(pattern in weather_text for pattern in positive_patterns)
             has_negative = any(pattern in advice_text for pattern in negative_patterns)
-            
-            # 逆パターンもチェック
             has_positive_advice = any(pattern in advice_text for pattern in positive_patterns)
             has_negative_weather = any(pattern in weather_text for pattern in negative_patterns)
             
             if (has_positive and has_negative) or (has_positive_advice and has_negative_weather):
                 logger.debug(f"意味的矛盾検出: ポジティブ={positive_patterns}, ネガティブ={negative_patterns}")
-                logger.debug(f"天気コメント: '{weather_text}', アドバイス: '{advice_text}'")
                 return True
         
-        # 5. 類似表現のチェック
+        return False
+    
+    def _check_umbrella_duplication(self, weather_text: str, advice_text: str) -> bool:
+        """傘関連の重複チェック"""
+        umbrella_expressions = [
+            "傘が必須", "傘がお守り", "傘を忘れずに", "傘をお忘れなく",
+            "傘の準備", "傘が活躍", "折り畳み傘", "傘があると安心",
+            "傘をお持ちください", "傘の携帯"
+        ]
+        
+        weather_has_umbrella = any(expr in weather_text for expr in umbrella_expressions) or "傘" in weather_text
+        advice_has_umbrella = any(expr in advice_text for expr in umbrella_expressions) or "傘" in advice_text
+        
+        if weather_has_umbrella and advice_has_umbrella:
+            similar_meanings = ["必須", "お守り", "必要", "忘れずに", "お忘れなく", "携帯", "準備", "活躍", "安心"]
+            weather_meanings = [m for m in similar_meanings if m in weather_text]
+            advice_meanings = [m for m in similar_meanings if m in advice_text]
+            
+            if weather_meanings and advice_meanings:
+                logger.debug(f"傘関連の意味的重複検出: 天気側={weather_meanings}, アドバイス側={advice_meanings}")
+                return True
+        
+        return False
+    
+    def _check_similar_expressions(self, weather_text: str, advice_text: str) -> bool:
+        """類似表現のチェック"""
         similarity_patterns = [
             (["雨が心配", "雨に注意"], ["雨", "注意"]),
             (["暑さが心配", "暑さに注意"], ["暑", "注意"]),
             (["風が強い", "風に注意"], ["風", "注意"]),
             (["紫外線が強い", "紫外線対策"], ["紫外線"]),
             (["雷が心配", "雷に注意"], ["雷", "注意"]),
-            # 傘関連の類似表現を追加
             (["傘が必須", "傘を忘れずに", "傘をお忘れなく"], ["傘", "必要", "お守り", "安心"]),
             (["傘がお守り", "傘が安心"], ["傘", "必要", "必須", "忘れずに"]),
         ]
@@ -195,49 +237,19 @@ class CommentValidator:
                 logger.debug(f"類似表現検出: 天気パターン={weather_patterns}, アドバイスパターン={advice_patterns}")
                 return True
         
-        # 6. 傘関連の特別チェック（より厳格な判定）
-        umbrella_expressions = [
-            "傘が必須", "傘がお守り", "傘を忘れずに", "傘をお忘れなく",
-            "傘の準備", "傘が活躍", "折り畳み傘", "傘があると安心",
-            "傘をお持ちください", "傘の携帯"
-        ]
-        
-        # 両方のコメントに傘関連の表現が含まれている場合
-        weather_has_umbrella = any(expr in weather_text for expr in umbrella_expressions) or "傘" in weather_text
-        advice_has_umbrella = any(expr in advice_text for expr in umbrella_expressions) or "傘" in advice_text
-        
-        if weather_has_umbrella and advice_has_umbrella:
-            # 傘という単語が両方に含まれていたら、より詳細にチェック
-            logger.debug(f"傘関連の重複候補検出: 天気='{weather_text}', アドバイス='{advice_text}'")
-            
-            # 同じような意味の傘表現は重複とみなす
-            similar_umbrella_meanings = [
-                ["必須", "お守り", "必要", "忘れずに", "お忘れなく", "携帯", "準備", "活躍", "安心"],
-            ]
-            
-            for meaning_group in similar_umbrella_meanings:
-                weather_meanings = [m for m in meaning_group if m in weather_text]
-                advice_meanings = [m for m in meaning_group if m in advice_text]
-                
-                # 同じ意味グループの単語が両方に含まれている場合は重複
-                if weather_meanings and advice_meanings:
-                    logger.debug(f"傘関連の意味的重複検出: 天気側={weather_meanings}, アドバイス側={advice_meanings}")
-                    return True
-        
-        # 7. 文字列の類似度チェック（最適化版）
-        # 短いコメントのみ対象とし、計算コストを削減
+        return False
+    
+    def _check_string_similarity(self, weather_text: str, advice_text: str) -> bool:
+        """文字列の類似度チェック（短いコメントのみ）"""
         if len(weather_text) <= 10 and len(advice_text) <= 10:
-            # 最小長による早期判定
             min_length = min(len(weather_text), len(advice_text))
             if min_length == 0:
                 return False
                 
-            # 長さ差が大きい場合は類似度が低いと判定
             max_length = max(len(weather_text), len(advice_text))
-            if max_length / min_length > 2.0:  # 長さが2倍以上違う場合
+            if max_length / min_length > 2.0:
                 return False
             
-            # 文字集合の重複計算（set演算は効率的）
             common_chars = set(weather_text) & set(advice_text)
             similarity_ratio = len(common_chars) / max_length
             
@@ -325,33 +337,38 @@ class CommentValidator:
         from datetime import datetime
         month = target_datetime.month
         
+        # 花粉関連のチェック（PollenValidatorに委譲）
+        # 地域情報を取得できる場合は渡す
+        location = getattr(target_datetime, '_location', None)  # 将来の拡張用
+        if self.pollen_validator.is_inappropriate_pollen_comment(
+            comment_text, None, target_datetime, location
+        ):
+            return True
+        
+        # 季節表現のチェック
+        seasonal_patterns = self._get_inappropriate_seasonal_patterns(month)
+        for pattern in seasonal_patterns:
+            if pattern in comment_text:
+                logger.debug(f"{month}月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
+                return True
+                    
+        return False
+    
+    def _get_inappropriate_seasonal_patterns(self, month: int) -> List[str]:
+        """月ごとの不適切な季節表現パターンを取得"""
         if month in [6, 7, 8]:  # 夏
-            # 7月に不適切な表現
-            inappropriate_patterns = [
+            patterns = [
                 "残暑", "晩夏", "初秋", "秋めく", "秋の気配",
                 "秋晴れ", "秋風", "涼秋", "仲秋", "晩秋"
             ]
             if month == 6:
-                # 6月特有の不適切表現を追加
-                inappropriate_patterns.extend(["盛夏", "真夏日", "猛暑日", "酷暑"])
+                patterns.extend(["盛夏", "真夏日", "猛暑日", "酷暑"])
             elif month == 7:
-                # 7月特有の不適切表現
-                inappropriate_patterns.extend(["初夏", "残暑"])
-                
-            for pattern in inappropriate_patterns:
-                if pattern in comment_text:
-                    logger.debug(f"{month}月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
-                    return True
-                    
+                patterns.extend(["初夏", "残暑"])
+            return patterns
         elif month == 9:
-            # 9月に不適切な表現
-            inappropriate_patterns = ["真夏", "盛夏", "初夏", "梅雨"]
-            for pattern in inappropriate_patterns:
-                if pattern in comment_text:
-                    logger.debug(f"9月に不適切な季節表現検出: '{comment_text}' - パターン「{pattern}」")
-                    return True
-                    
-        return False
+            return ["真夏", "盛夏", "初夏", "梅雨"]
+        return []
     
     def is_stable_weather_with_unstable_comment(self, comment_text: str, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
         """安定した天気時に急変・不安定表現が含まれているかチェック"""
@@ -495,6 +512,14 @@ class CommentValidator:
         # その他の場合は不安定
         return False
     
+    def is_rain_weather_with_pollen_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
+        """雨天時に花粉関連のコメントが含まれているかチェック"""
+        # PollenValidatorに委譲（地域情報も渡す）
+        location = getattr(weather_data, 'location', None)
+        return self.pollen_validator.is_inappropriate_pollen_comment(
+            comment_text, weather_data, weather_data.datetime, location
+        )
+    
     def should_exclude_weather_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """天気コメントを除外すべきかチェック（YAML設定ベース）"""
         try:
@@ -521,8 +546,16 @@ class CommentValidator:
                 logger.debug("comment_restrictions.yaml が見つかりません。基本チェックのみ実行")
                 return False
             
-            with open(config_path, 'r', encoding='utf-8') as f:
-                restrictions = yaml.safe_load(f)
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    restrictions = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
+                # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except Exception as e:
+                logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
+                return False
             
             # 天気条件による除外チェック
             weather_desc = weather_data.weather_description.lower()
@@ -616,8 +649,16 @@ class CommentValidator:
                 logger.debug("comment_restrictions.yaml が見つかりません。基本チェックのみ実行")
                 return False
             
-            with open(config_path, 'r', encoding='utf-8') as f:
-                restrictions = yaml.safe_load(f)
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    restrictions = yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
+                # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except Exception as e:
+                logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
+                return False
             
             # 天気条件による除外チェック
             weather_desc = weather_data.weather_description.lower()
