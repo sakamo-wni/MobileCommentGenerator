@@ -5,7 +5,8 @@
 """
 
 import streamlit as st
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Any
+from .security_utils import sanitize_html, sanitize_css_value
 
 
 def apply_responsive_styles():
@@ -28,8 +29,8 @@ def apply_responsive_styles():
             max-width: 100%;
         }
         
-        /* ボタンのスタイル調整 */
-        .stButton > button {
+        /* MCG専用ボタンのスタイル調整 */
+        .mcg-button {
             width: 100%;
             padding: 0.5rem 1rem;
             font-size: 1rem;
@@ -46,8 +47,8 @@ def apply_responsive_styles():
             max-width: 100%;
         }
         
-        /* テキストエリアの高さ調整 */
-        .stTextArea textarea {
+        /* MCGテキストエリアの高さ調整 */
+        .mcg-textarea {
             min-height: 100px;
         }
         
@@ -69,21 +70,27 @@ def apply_responsive_styles():
         }
     }
     
-    /* 共通のアクセシビリティ向上 */
+    /* MCG専用アクセシビリティ向上 */
     /* フォーカス状態の明確化 */
-    button:focus, input:focus, select:focus, textarea:focus {
+    .mcg-app button:focus,
+    .mcg-app input:focus,
+    .mcg-app select:focus,
+    .mcg-app textarea:focus {
         outline: 2px solid #0066cc;
         outline-offset: 2px;
     }
     
-    /* タッチターゲットの最小サイズ確保 */
-    button, .stCheckbox, .stRadio > div {
+    /* MCGタッチターゲットの最小サイズ確保 */
+    .mcg-app button,
+    .mcg-app .stCheckbox,
+    .mcg-app .stRadio > div {
         min-height: 44px;
         min-width: 44px;
     }
     
-    /* 読みやすさの向上 */
-    p, li {
+    /* MCG読みやすさの向上 */
+    .mcg-app p,
+    .mcg-app li {
         line-height: 1.6;
     }
     
@@ -124,7 +131,7 @@ def apply_responsive_styles():
 def create_responsive_columns(
     ratios: List[float],
     gap: str = "medium"
-) -> List:
+) -> List[Any]:
     """
     レスポンシブ対応のカラムを作成
     
