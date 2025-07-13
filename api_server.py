@@ -114,12 +114,12 @@ class BulkGenerationResponse(BaseModel):
     success_count: int
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check():
+async def health_check() -> HealthResponse:
     """Health check endpoint"""
     return HealthResponse(status="ok", version="1.0.0")
 
 @app.get("/api/locations", response_model=LocationResponse)
-async def get_locations():
+async def get_locations() -> LocationResponse:
     """Get available locations"""
     try:
         locations = await asyncio.to_thread(load_locations)
@@ -133,7 +133,7 @@ async def get_locations():
         return LocationResponse(locations=fallback_locations)
 
 @app.get("/api/history", response_model=HistoryResponse)
-async def get_history():
+async def get_history() -> HistoryResponse:
     """Get generation history"""
     try:
         history = await asyncio.to_thread(load_history)
@@ -146,7 +146,7 @@ async def get_history():
         return HistoryResponse(history=[])
 
 @app.post("/api/generate", response_model=CommentGenerationResponse)
-async def generate_comment(request: CommentGenerationRequest):
+async def generate_comment(request: CommentGenerationRequest) -> CommentGenerationResponse:
     """Generate weather comment for a location"""
     logger.info(f"Received request: {request}")
     logger.info(f"Generating comment for location: {request.location}, provider: {request.llm_provider}")
@@ -248,7 +248,7 @@ async def generate_comment(request: CommentGenerationRequest):
         )
 
 @app.get("/api/providers")
-async def get_llm_providers():
+async def get_llm_providers() -> Dict[str, List[Dict[str, str]]]:
     """Get available LLM providers"""
     return {
         "providers": [
@@ -259,7 +259,7 @@ async def get_llm_providers():
     }
 
 @app.post("/api/generate/bulk", response_model=BulkGenerationResponse)
-async def generate_comments_bulk(request: BulkGenerationRequest):
+async def generate_comments_bulk(request: BulkGenerationRequest) -> BulkGenerationResponse:
     """Generate weather comments for multiple locations"""
     try:
         # Import here to avoid circular dependency

@@ -2,7 +2,7 @@
 
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import streamlit as st
 
@@ -17,6 +17,7 @@ from src.ui.streamlit_components import (
     settings_panel,
 )
 from src.ui.streamlit_utils import format_timestamp
+from src.config.config import Config
 
 
 class CommentGenerationView(ICommentGenerationView):
@@ -34,7 +35,7 @@ class CommentGenerationView(ICommentGenerationView):
     """
 
     @staticmethod
-    def setup_page_config(config):
+    def setup_page_config(config: Config) -> None:
         """ページ設定"""
         st.set_page_config(
             page_title=config.ui_settings.page_title,
@@ -44,25 +45,25 @@ class CommentGenerationView(ICommentGenerationView):
         )
 
     @staticmethod
-    def display_header():
+    def display_header() -> None:
         """ヘッダー表示"""
         st.markdown('<h1 class="main-header">☀️ 天気コメント生成システム ☀️</h1>', unsafe_allow_html=True)
 
     @staticmethod
-    def display_api_key_warning(validation_results: dict[str, Any]):
+    def display_api_key_warning(validation_results: dict[str, Any]) -> None:
         """APIキーの警告表示"""
         if not validation_results["api_keys"]["wxtech"]:
             st.error("⚠️ WXTECH_API_KEYが設定されていません。天気予報データの取得ができません。")
 
     @staticmethod
-    def display_debug_info(config):
+    def display_debug_info(config: Config) -> None:
         """デバッグ情報表示"""
         if config.debug and config.ui_settings.show_debug_info:
             with st.expander("デバッグ情報", expanded=False):
                 st.json(config.to_dict())
 
     @staticmethod
-    def setup_sidebar(generation_history: list[dict[str, Any]]):
+    def setup_sidebar(generation_history: list[dict[str, Any]]) -> None:
         """サイドバーのセットアップ"""
         with st.sidebar:
             st.header("設定")
@@ -102,17 +103,17 @@ class CommentGenerationView(ICommentGenerationView):
         )
 
     @staticmethod
-    def display_location_warning(max_locations: int):
+    def display_location_warning(max_locations: int) -> None:
         """地点数超過の警告"""
         st.warning(f"⚠️ 選択された地点数が上限（{max_locations}地点）を超えています。")
 
     @staticmethod
-    def display_no_location_error():
+    def display_no_location_error() -> None:
         """地点未選択エラー"""
         st.error("地点が選択されていません")
 
     @staticmethod
-    def display_single_result(result: LocationResult, metadata: dict[str, Any]):
+    def display_single_result(result: LocationResult, metadata: dict[str, Any]) -> None:
         """個別の結果を表示"""
         location = result['location']
         success = result['success']
@@ -169,21 +170,21 @@ class CommentGenerationView(ICommentGenerationView):
             st.error(f"{UIConstants.ICON_ERROR} **{location}**: {error}")
 
     @staticmethod
-    def create_progress_ui():
+    def create_progress_ui() -> tuple[Any, Any]:
         """プログレスバーとステータステキストを作成"""
         progress_bar = st.progress(0)
         status_text = st.empty()
         return progress_bar, status_text
 
     @staticmethod
-    def update_progress(progress_bar, status_text, current: int, total: int, location: str):
+    def update_progress(progress_bar: Any, status_text: Any, current: int, total: int, location: str) -> None:
         """進捗状況を更新"""
         progress = current / total
         progress_bar.progress(progress)
         status_text.text(f"生成中... {location} ({current + 1}/{total})")
 
     @staticmethod
-    def complete_progress(progress_bar, status_text, success_count: int, total_count: int):
+    def complete_progress(progress_bar: Any, status_text: Any, success_count: int, total_count: int) -> None:
         """進捗完了時の表示"""
         progress_bar.progress(1.0)
 
@@ -197,7 +198,7 @@ class CommentGenerationView(ICommentGenerationView):
         status_text.empty()
 
     @staticmethod
-    def display_generation_complete(result: BatchGenerationResult):
+    def display_generation_complete(result: BatchGenerationResult) -> None:
         """生成完了時の表示"""
         if result and result['success']:
             st.success(f"{UIConstants.ICON_SUCCESS} コメント生成が完了しました！ ({result['success_count']}/{result['total_locations']}地点成功)")
@@ -216,7 +217,7 @@ class CommentGenerationView(ICommentGenerationView):
                     st.error(error)
 
     @staticmethod
-    def display_results_section(current_result: BatchGenerationResult | None, is_generating: bool):
+    def display_results_section(current_result: Optional[BatchGenerationResult], is_generating: bool) -> None:
         """結果セクションの表示"""
         st.header(f"{UIConstants.ICON_WEATHER} 生成結果")
 
@@ -237,7 +238,7 @@ class CommentGenerationView(ICommentGenerationView):
                 """)
 
     @staticmethod
-    def display_footer():
+    def display_footer() -> None:
         """フッター表示"""
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
@@ -249,7 +250,7 @@ class CommentGenerationView(ICommentGenerationView):
             st.markdown("**By**: WNI Team")
 
     @staticmethod
-    def display_error_with_hint(error_message: str, hint: str | None = None):
+    def display_error_with_hint(error_message: str, hint: Optional[str] = None) -> None:
         """エラーメッセージとヒントの表示"""
         st.error(error_message)
         if hint:
