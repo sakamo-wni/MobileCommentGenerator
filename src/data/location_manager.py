@@ -30,6 +30,37 @@ warnings.warn(
 )
 
 
+# レーベンシュタイン距離計算のキャッシュ
+@lru_cache(maxsize=2048)
+def _cached_levenshtein_distance(s1: str, s2: str) -> int:
+    """キャッシュ付きレーベンシュタイン距離計算
+    
+    Args:
+        s1: 文字列1
+        s2: 文字列2
+        
+    Returns:
+        レーベンシュタイン距離
+    """
+    if len(s1) < len(s2):
+        return _cached_levenshtein_distance(s2, s1)
+    
+    if len(s2) == 0:
+        return len(s1)
+    
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    
+    return previous_row[-1]
+
+
 @dataclass
 class Location:
     """地点データクラス
@@ -334,23 +365,7 @@ class Location:
         Returns:
             レーベンシュタイン距離
         """
-        if len(s1) < len(s2):
-            return self._levenshtein_distance(s2, s1)
-
-        if len(s2) == 0:
-            return len(s1)
-
-        previous_row = list(range(len(s2) + 1))
-        for i, c1 in enumerate(s1):
-            current_row = [i + 1]
-            for j, c2 in enumerate(s2):
-                insertions = previous_row[j + 1] + 1
-                deletions = current_row[j] + 1
-                substitutions = previous_row[j] + (c1 != c2)
-                current_row.append(min(insertions, deletions, substitutions))
-            previous_row = current_row
-
-        return previous_row[-1]
+        return _cached_levenshtein_distance(s1, s2)
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換
@@ -673,16 +688,19 @@ class LocationManager:
         if query_normalized in self.location_index:
             results.extend(self.location_index[query_normalized])
 
-        # 2. 部分一致検索
+        # 2. 部分一致検索（セットを使用した高速化）
+        result_set = set(results)
         for location in self.locations:
-            if location not in results and location.matches_query(query, fuzzy=False):
+            if location not in result_set and location.matches_query(query, fuzzy=False):
                 results.append(location)
+                result_set.add(location)
 
         # 3. あいまい検索（必要に応じて）
         if fuzzy and len(results) < max_results:
             for location in self.locations:
-                if location not in results and location.matches_query(query, fuzzy=True):
+                if location not in result_set and location.matches_query(query, fuzzy=True):
                     results.append(location)
+                    result_set.add(location)
 
         return results[:max_results]
 
