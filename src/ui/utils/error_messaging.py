@@ -13,6 +13,9 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# エラーメッセージ設定ファイルのパス（将来的な拡張用）
+ERROR_MESSAGES_CONFIG_PATH = os.environ.get("ERROR_MESSAGES_CONFIG_PATH", None)
+
 
 class ErrorType(Enum):
     """エラータイプの定義"""
