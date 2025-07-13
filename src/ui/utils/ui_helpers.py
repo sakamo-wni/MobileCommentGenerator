@@ -5,7 +5,7 @@ UI関連のヘルパー関数
 """
 
 import base64
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Callable
 from datetime import datetime
 import streamlit as st
 
@@ -86,30 +86,15 @@ def reset_session_state():
         st.session_state[key] = value
 
 
-def handle_error(error: Exception, context: str = ""):
+def handle_error(error: Exception, context: Optional[str] = None, callback: Optional[Callable] = None) -> None:
     """
-    エラーを適切に処理して表示
+    エラーを適切に処理してユーザーフレンドリーなメッセージを表示
 
     Args:
         error: 発生した例外
-        context: エラーコンテキスト（オプション）
+        context: エラーが発生したコンテキスト
+        callback: 再試行用のコールバック関数
     """
-    error_message = str(error)
-    
-    # コンテキストがある場合は追加
-    if context:
-        error_message = f"{context}: {error_message}"
-    
-    # エラーの種類に応じて表示方法を変える
-    if isinstance(error, ValueError):
-        st.warning(f"⚠️ 入力エラー: {error_message}")
-    elif isinstance(error, FileNotFoundError):
-        st.error(f"📁 ファイルが見つかりません: {error_message}")
-    elif isinstance(error, PermissionError):
-        st.error(f"🔒 アクセス権限エラー: {error_message}")
-    else:
-        st.error(f"❌ エラー: {error_message}")
-    
-    # デバッグモードの場合は詳細情報を表示
-    if st.session_state.get('debug_mode', False):
-        st.exception(error)
+    # 新しいエラーメッセージングシステムを使用
+    from .error_messaging import handle_exception
+    handle_exception(error, context=context, callback=callback)
