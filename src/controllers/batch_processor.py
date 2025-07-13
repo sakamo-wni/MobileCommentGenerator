@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.types import LocationResult, BatchGenerationResult
 from src.utils.error_handler import ErrorHandler
 from src.controllers.progress_handler import ProgressHandler
+from src.utils.cpu_optimizer import CPUOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class BatchProcessor:
         llm_provider: str,
         generate_func: Callable[[str, str], LocationResult],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
-        max_workers: int = 3
+        max_workers: Optional[int] = None
     ) -> BatchGenerationResult:
         """非同期バッチ処理（asyncio版）"""
         if not locations:
@@ -46,6 +47,14 @@ class BatchProcessor:
         
         all_results = []
         total_locations = len(locations)
+        
+        # 最適なワーカー数を決定（I/Oバウンドタスクなので多めに設定）
+        if max_workers is None:
+            max_workers = CPUOptimizer.get_io_bound_workers(
+                task_count=total_locations,
+                max_workers=16  # API呼び出しなので多めに設定
+            )
+            logger.info(f"Optimized max_workers for async batch: {max_workers}")
         
         try:
             # セマフォで同時実行数を制限
@@ -106,7 +115,7 @@ class BatchProcessor:
         llm_provider: str,
         generate_func: Callable[[str, str], LocationResult],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
-        max_workers: int = 3
+        max_workers: Optional[int] = None
     ) -> BatchGenerationResult:
         """同期バッチ処理（ThreadPoolExecutor版）- 後方互換性のため"""
         if not locations:
@@ -115,6 +124,14 @@ class BatchProcessor:
         all_results = []
         total_locations = len(locations)
         completed_count = 0
+        
+        # 最適なワーカー数を決定
+        if max_workers is None:
+            max_workers = CPUOptimizer.get_io_bound_workers(
+                task_count=total_locations,
+                max_workers=16
+            )
+            logger.info(f"Optimized max_workers for sync batch: {max_workers}")
         
         try:
             # 並列処理で複数地点を処理

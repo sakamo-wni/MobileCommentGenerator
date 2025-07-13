@@ -115,49 +115,12 @@ def timed_node(node_func):
     return wrapper
 
 
-def create_comment_generation_workflow_async() -> StateGraph:
-    """非同期版: コメント生成ワークフローのグラフを作成"""
-    workflow = StateGraph(CommentGenerationState)
-
-    # ノードの追加（非同期版を使用）
-    workflow.add_node("input", get_messages_node)
-    workflow.add_node("fetch_weather", fetch_weather_forecast_node_async)  # 非同期版
-    workflow.add_node("retrieve_comments", retrieve_past_comments_node)
-    workflow.add_node("select_pair", select_comment_pair_node)
-    workflow.add_node("evaluate", evaluate_candidate_node)
-    workflow.add_node("generate", generate_comment_with_constraints_node)
-    workflow.add_node("output", output_result_node)
-
-    # 条件付きエッジの追加
-    workflow.add_edge("input", "fetch_weather")
-    workflow.add_edge("fetch_weather", "retrieve_comments")
-    workflow.add_edge("retrieve_comments", "select_pair")
-
-    workflow.add_conditional_edges(
-        "select_pair",
-        should_evaluate,
-        {
-            "evaluate": "evaluate",
-            "generate": "generate",
-        },
-    )
-
-    workflow.add_conditional_edges(
-        "evaluate",
-        should_retry,
-        {
-            "retry": "select_pair",
-            "continue": "generate",
-        },
-    )
-
-    workflow.add_edge("generate", "output")
-    workflow.add_edge("output", END)
-
-    # エントリーポイントの設定
-    workflow.set_entry_point("input")
-
-    return workflow.compile()
+# NOTE: 非同期版ワークフローは現在未使用のため削除
+# 将来必要になった場合は、以下の未定義関数を実装する必要があります：
+# - get_messages_node
+# - generate_comment_with_constraints_node  
+# - output_result_node
+# また、fetch_weather_forecast_node_asyncも現在未使用です。
 
 
 def create_comment_generation_workflow() -> StateGraph:
