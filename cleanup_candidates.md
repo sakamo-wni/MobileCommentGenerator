@@ -10,9 +10,15 @@
     - `generate_comment_with_constraints_node`
     - `output_result_node`
 
-### 2. バックアップファイル
-- `/shared/src/composables/useLocationSelection.ts.bak`
-- `/src/data/location_manager.py.bak`
+### 2. バックアップファイル（手動削除が必要）
+- `/shared/src/composables/useLocationSelection.ts.bak` - 古いバージョンのバックアップ
+- `/src/data/location_manager.py.bak` - 古いバージョンのバックアップ
+
+※ これらのファイルはGitに追跡されていないため、手動で削除する必要があります。
+```bash
+rm /Users/sakamo/Desktop/sandbox/MobileCommentGenerator/shared/src/composables/useLocationSelection.ts.bak
+rm /Users/sakamo/Desktop/sandbox/MobileCommentGenerator/src/data/location_manager.py.bak
+```
 
 ### 3. 非推奨ファイル（ただし、まだ使用中のため削除不可）
 これらのファイルは非推奨とマークされていますが、まだ多くの場所で使用されているため、削除できません：
@@ -25,7 +31,7 @@
 - `/src/config/app_settings.py` - 互換性のため維持
 
 ### 4. 未実装のTODO
-- `/src/ui/pages/statistics.py` - `today_count = 0  # TODO: 実装`
+- `/src/ui/pages/statistics.py` - `today_count = 0  # TODO: 実装` **✓ 完了**
 
 ## リファクタリングの成果
 

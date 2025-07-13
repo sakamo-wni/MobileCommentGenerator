@@ -5,7 +5,7 @@
 """
 
 from typing import List, Dict, Any
-from datetime import datetime
+from datetime import datetime, date
 from collections import Counter
 import pandas as pd
 
@@ -23,6 +23,7 @@ def get_statistics(history: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not history:
         return {
             "total_generations": 0,
+            "successful_generations": 0,
             "success_rate": 0,
             "average_execution_time": 0,
             "locations_count": 0,
@@ -31,6 +32,8 @@ def get_statistics(history: List[Dict[str, Any]]) -> Dict[str, Any]:
             "weather_conditions": {},
             "time_periods": {},
             "daily_generations": {},
+            "today_count": 0,
+            "latest_generation": None,
         }
 
     # 基本統計
@@ -84,16 +87,40 @@ def get_statistics(history: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # 日別生成数
     daily_counts = {}
+    today = date.today()
+    today_str = today.strftime("%Y-%m-%d")
+    today_count = 0
+    
     for item in history:
         try:
             timestamp = datetime.fromisoformat(item.get("timestamp", ""))
             date_str = timestamp.strftime("%Y-%m-%d")
             daily_counts[date_str] = daily_counts.get(date_str, 0) + 1
+            
+            # 今日のカウント
+            if date_str == today_str:
+                today_count += 1
+        except:
+            pass
+    
+    # 最新生成日時
+    latest_generation = None
+    if history:
+        try:
+            # タイムスタンプでソートして最新を取得
+            sorted_history = sorted(
+                history,
+                key=lambda x: datetime.fromisoformat(x.get("timestamp", "")),
+                reverse=True
+            )
+            if sorted_history:
+                latest_generation = sorted_history[0].get("timestamp")
         except:
             pass
 
     return {
         "total_generations": total,
+        "successful_generations": successful,
         "success_rate": round(success_rate, 1),
         "average_execution_time": round(avg_execution_time, 0),
         "locations_count": len(location_counter),
@@ -102,4 +129,6 @@ def get_statistics(history: List[Dict[str, Any]]) -> Dict[str, Any]:
         "weather_conditions": dict(weather_counter),
         "time_periods": dict(time_counter),
         "daily_generations": daily_counts,
+        "today_count": today_count,
+        "latest_generation": latest_generation,
     }
