@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import logging
 from pathlib import Path
 import warnings
+from functools import lru_cache
 
 # ログ設定
 logger = logging.getLogger(__name__)
