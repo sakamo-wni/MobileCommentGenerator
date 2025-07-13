@@ -3,6 +3,13 @@
 from datetime import datetime
 from typing import Dict
 
+from src.constants import (
+    MORNING_START_HOUR, MORNING_END_HOUR,
+    NOON_START_HOUR, NOON_END_HOUR,
+    EVENING_START_HOUR, EVENING_END_HOUR,
+    SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+)
+
 
 def get_season_from_month(month: int) -> str:
     """月から季節を判定する共通関数
@@ -57,17 +64,14 @@ def get_time_period_from_hour(hour: int) -> str:
     Returns:
         時間帯（朝、昼、夕方、夜）
     """
-    if 5 <= hour < 10:
+    if MORNING_START_HOUR <= hour < MORNING_END_HOUR:
         return "朝"
-    elif 10 <= hour < 16:
+    elif NOON_START_HOUR <= hour < NOON_END_HOUR:
         return "昼"
-    elif 16 <= hour < 19:
+    elif EVENING_START_HOUR <= hour < EVENING_END_HOUR:
         return "夕方"
     else:
         return "夜"
 
 
-# 共通定数
-SEVERE_WEATHER_PATTERNS = ["大雨", "豪雨", "暴風", "台風", "雷", "嵐", "大雪", "吹雪"]
-FORBIDDEN_PHRASES = ["ニワカ雨が心配", "にわか雨が心配", "スッキリしない空", "変わりやすい空", 
-                    "蒸し暑い", "厳しい暑さ", "過ごしやすい体感", "過ごしやすい", "快適"]
+# 共通定数は constants モジュールからインポートされたものを使用

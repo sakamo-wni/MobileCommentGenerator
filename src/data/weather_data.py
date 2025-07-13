@@ -9,6 +9,24 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
 
+from src.constants import (
+    TEMPERATURE_MIN, TEMPERATURE_MAX,
+    HUMIDITY_MIN, HUMIDITY_MAX,
+    WIND_SPEED_MIN, WIND_SPEED_MAX,
+    PRECIPITATION_THRESHOLD_LIGHT,
+    PRECIPITATION_THRESHOLD_NONE,
+    PRECIPITATION_THRESHOLD_LIGHT_RAIN,
+    PRECIPITATION_THRESHOLD_MODERATE,
+    PRECIPITATION_THRESHOLD_HEAVY,
+    PRECIPITATION_THRESHOLD_VERY_HEAVY,
+    WIND_SPEED_THRESHOLD_STRONG,
+    TEMPERATURE_COMFORTABLE_MIN,
+    TEMPERATURE_COMFORTABLE_MAX,
+    WIND_DIRECTION_MIN_DEGREES,
+    WIND_DIRECTION_MAX_DEGREES,
+    SPECIAL_WEATHER_PRIORITY_THRESHOLD,
+)
+
 
 class WeatherCondition(Enum):
     """天気状況の列挙型"""
@@ -53,7 +71,7 @@ class WeatherCondition(Enum):
     @property
     def is_special_condition(self) -> bool:
         """特殊な気象状況かどうかを判定"""
-        return self.priority >= 4  # 雨、大雨、霧、嵐、雷、猫暮、大雨・嵐を特殊気象とする
+        return self.priority >= SPECIAL_WEATHER_PRIORITY_THRESHOLD  # 雨、大雨、霧、嵐、雷、猫暮、大雨・嵐を特殊気象とする
 
 
 class WindDirection(Enum):
@@ -113,24 +131,24 @@ class WeatherForecast:
 
     def __post_init__(self):
         """データクラス初期化後の検証処理"""
-        # 気温の妥当性チェック（-50℃〜60℃）
-        if not -50 <= self.temperature <= 60:
+        # 気温の妥当性チェック
+        if not TEMPERATURE_MIN <= self.temperature <= TEMPERATURE_MAX:
             raise ValueError(f"異常な気温値: {self.temperature}℃")
 
-        # 湿度の妥当性チェック（0-100%）
-        if not 0 <= self.humidity <= 100:
+        # 湿度の妥当性チェック
+        if not HUMIDITY_MIN <= self.humidity <= HUMIDITY_MAX:
             raise ValueError(f"異常な湿度値: {self.humidity}%")
 
-        # 風速の妥当性チェック（0-200 m/s）
-        if not 0 <= self.wind_speed <= 200:
+        # 風速の妥当性チェック
+        if not WIND_SPEED_MIN <= self.wind_speed <= WIND_SPEED_MAX:
             raise ValueError(f"異常な風速値: {self.wind_speed} m/s")
 
         # 降水量の妥当性チェック（0以上）
         if self.precipitation < 0:
             raise ValueError(f"異常な降水量値: {self.precipitation} mm")
 
-        # 風向き度数の妥当性チェック（0-360度）
-        if not 0 <= self.wind_direction_degrees <= 360:
+        # 風向き度数の妥当性チェック
+        if not WIND_DIRECTION_MIN_DEGREES <= self.wind_direction_degrees <= WIND_DIRECTION_MAX_DEGREES:
             raise ValueError(f"異常な風向き度数: {self.wind_direction_degrees}度")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -189,8 +207,8 @@ class WeatherForecast:
         good_conditions = {WeatherCondition.CLEAR, WeatherCondition.PARTLY_CLOUDY}
         return (
             self.weather_condition in good_conditions
-            and self.precipitation <= 0.1  # ほぼ降水なし
-            and 10 <= self.temperature <= 30  # 適度な気温
+            and self.precipitation <= PRECIPITATION_THRESHOLD_LIGHT  # ほぼ降水なし
+            and TEMPERATURE_COMFORTABLE_MIN <= self.temperature <= TEMPERATURE_COMFORTABLE_MAX  # 適度な気温
         )
 
     def is_severe_weather(self) -> bool:
@@ -209,14 +227,14 @@ class WeatherForecast:
         # 雷は降水量が5mm以上の場合のみ悪天候とする
         thunder_with_rain = (
             self.weather_condition == WeatherCondition.THUNDER and 
-            self.precipitation >= 5.0
+            self.precipitation >= PRECIPITATION_THRESHOLD_MODERATE
         )
         
         return (
             self.weather_condition in severe_conditions
             or thunder_with_rain  # 雷+降水量5mm以上
-            or self.precipitation >= 10.0  # 強い降水
-            or self.wind_speed >= 15.0  # 強風
+            or self.precipitation >= PRECIPITATION_THRESHOLD_HEAVY  # 強い降水
+            or self.wind_speed >= WIND_SPEED_THRESHOLD_STRONG  # 強風
         )
     
     def get_precipitation_severity(self) -> str:
@@ -225,13 +243,13 @@ class WeatherForecast:
         Returns:
             降水量レベル（'none', 'light', 'moderate', 'heavy', 'very_heavy'）
         """
-        if self.precipitation <= 0.5:
+        if self.precipitation <= PRECIPITATION_THRESHOLD_NONE:
             return "none"
-        elif self.precipitation <= 2.0:
+        elif self.precipitation <= PRECIPITATION_THRESHOLD_LIGHT_RAIN:
             return "light"  # 軽い雨
-        elif self.precipitation <= 10.0:
+        elif self.precipitation <= PRECIPITATION_THRESHOLD_HEAVY:
             return "moderate"  # 中程度の雨
-        elif self.precipitation <= 30.0:
+        elif self.precipitation <= PRECIPITATION_THRESHOLD_VERY_HEAVY:
             return "heavy"  # 大雨
         else:
             return "very_heavy"  # 激しい雨
