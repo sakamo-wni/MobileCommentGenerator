@@ -54,7 +54,7 @@ def show_key_metrics(stats: Dict[str, Any]):
 
     with col3:
         # 今日の生成回数
-        today_count = 0  # TODO: 実装
+        today_count = stats.get("today_count", 0)
         st.metric("今日の生成回数", today_count)
 
     with col4:
