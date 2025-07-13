@@ -1,9 +1,11 @@
 """LRU (Least Recently Used) キャッシュの実装
 
 メモリ使用量を制限しながら、複数のクエリ結果をキャッシュする高性能なキャッシュシステム。
+スレッドセーフ実装により、並列処理環境でも安全に使用可能。
 """
 
 import logging
+import threading
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from collections import OrderedDict
@@ -31,6 +33,9 @@ class LRUCommentCache:
             cache_ttl_minutes: キャッシュの有効期限（分）
             max_memory_mb: 最大メモリ使用量（MB）
         """
+        # スレッドセーフティのためのロック
+        self._lock = threading.RLock()
+        
         self._cache: OrderedDict[str, Tuple[List[PastComment], datetime]] = OrderedDict()
         self._max_size = max_size
         self._cache_ttl = timedelta(minutes=cache_ttl_minutes)
@@ -85,89 +90,96 @@ class LRUCommentCache:
     
     def get(self, key: str) -> Optional[List[PastComment]]:
         """キャッシュからコメントを取得"""
-        self._total_requests += 1
-        
-        if key in self._cache:
-            comments, timestamp = self._cache[key]
+        with self._lock:
+            self._total_requests += 1
             
-            if self._is_entry_valid(timestamp):
-                # LRU: 最近使用されたものを最後に移動
-                self._cache.move_to_end(key)
-                self._cache_hits += 1
-                logger.debug(f"Cache hit for key: {key} (hit rate: {self.get_hit_rate():.1%})")
-                return comments
-            else:
-                # 期限切れのエントリを削除
-                del self._cache[key]
-                logger.debug(f"Cache entry expired for key: {key}")
-        
-        self._cache_misses += 1
-        logger.debug(f"Cache miss for key: {key} (hit rate: {self.get_hit_rate():.1%})")
-        return None
+            if key in self._cache:
+                comments, timestamp = self._cache[key]
+                
+                if self._is_entry_valid(timestamp):
+                    # LRU: 最近使用されたものを最後に移動
+                    self._cache.move_to_end(key)
+                    self._cache_hits += 1
+                    logger.debug(f"Cache hit for key: {key} (hit rate: {self.get_hit_rate():.1%})")
+                    return comments
+                else:
+                    # 期限切れのエントリを削除
+                    del self._cache[key]
+                    logger.debug(f"Cache entry expired for key: {key}")
+            
+            self._cache_misses += 1
+            logger.debug(f"Cache miss for key: {key} (hit rate: {self.get_hit_rate():.1%})")
+            return None
     
     def set(self, key: str, comments: List[PastComment]) -> None:
         """キャッシュにコメントを設定"""
         new_size = self._estimate_memory_usage(comments)
         
-        # 既存のエントリがある場合は削除
-        if key in self._cache:
-            del self._cache[key]
-        
-        # 必要に応じて古いエントリを削除
-        self._evict_if_needed(new_size)
-        
-        # 新しいエントリを追加
-        self._cache[key] = (comments, datetime.now())
-        logger.info(f"Cache updated for key: {key} with {len(comments)} comments")
+        with self._lock:
+            # 既存のエントリがある場合は削除
+            if key in self._cache:
+                del self._cache[key]
+            
+            # 必要に応じて古いエントリを削除
+            self._evict_if_needed(new_size)
+            
+            # 新しいエントリを追加
+            self._cache[key] = (comments, datetime.now())
+            logger.info(f"Cache updated for key: {key} with {len(comments)} comments")
     
     def clear(self) -> None:
         """キャッシュを完全にクリア"""
-        self._cache.clear()
-        logger.info("Cache cleared")
+        with self._lock:
+            self._cache.clear()
+            logger.info("Cache cleared")
     
     def invalidate(self, key: str) -> bool:
         """特定のキーのキャッシュを無効化"""
-        if key in self._cache:
-            del self._cache[key]
-            logger.debug(f"Invalidated cache for key: {key}")
-            return True
-        return False
+        with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+                logger.debug(f"Invalidated cache for key: {key}")
+                return True
+            return False
     
     def get_hit_rate(self) -> float:
         """キャッシュヒット率を計算"""
-        if self._total_requests == 0:
-            return 0.0
-        return self._cache_hits / self._total_requests
+        with self._lock:
+            if self._total_requests == 0:
+                return 0.0
+            return self._cache_hits / self._total_requests
     
     def get_stats(self) -> Dict[str, Any]:
         """詳細なキャッシュ統計を取得"""
-        memory_usage_mb = self._get_total_memory_usage() / (1024 * 1024)
-        
-        return {
-            'size': len(self._cache),
-            'max_size': self._max_size,
-            'memory_usage_mb': round(memory_usage_mb, 2),
-            'max_memory_mb': self._max_memory_bytes / (1024 * 1024),
-            'ttl_minutes': self._cache_ttl.total_seconds() / 60,
-            'hits': self._cache_hits,
-            'misses': self._cache_misses,
-            'total_requests': self._total_requests,
-            'hit_rate': self.get_hit_rate(),
-            'eviction_count': self._eviction_count,
-            'keys': list(self._cache.keys())
-        }
+        with self._lock:
+            memory_usage_mb = self._get_total_memory_usage() / (1024 * 1024)
+            
+            return {
+                'size': len(self._cache),
+                'max_size': self._max_size,
+                'memory_usage_mb': round(memory_usage_mb, 2),
+                'max_memory_mb': self._max_memory_bytes / (1024 * 1024),
+                'ttl_minutes': self._cache_ttl.total_seconds() / 60,
+                'hits': self._cache_hits,
+                'misses': self._cache_misses,
+                'total_requests': self._total_requests,
+                'hit_rate': self._cache_hits / self._total_requests if self._total_requests > 0 else 0.0,
+                'eviction_count': self._eviction_count,
+                'keys': list(self._cache.keys())
+            }
     
     def cleanup_expired(self) -> int:
         """期限切れのエントリをクリーンアップ"""
-        expired_keys = []
-        for key, (_, timestamp) in self._cache.items():
-            if not self._is_entry_valid(timestamp):
-                expired_keys.append(key)
-        
-        for key in expired_keys:
-            del self._cache[key]
-        
-        if expired_keys:
-            logger.info(f"Cleaned up {len(expired_keys)} expired cache entries")
-        
-        return len(expired_keys)
+        with self._lock:
+            expired_keys = []
+            for key, (_, timestamp) in self._cache.items():
+                if not self._is_entry_valid(timestamp):
+                    expired_keys.append(key)
+            
+            for key in expired_keys:
+                del self._cache[key]
+            
+            if expired_keys:
+                logger.info(f"Cleaned up {len(expired_keys)} expired cache entries")
+            
+            return len(expired_keys)
