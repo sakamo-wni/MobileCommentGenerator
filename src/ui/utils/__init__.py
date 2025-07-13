@@ -53,6 +53,15 @@ from .feedback_components import (
     show_help_tooltip,
     create_onboarding_tour,
 )
+from .security_utils import (
+    sanitize_html,
+    sanitize_id,
+    sanitize_css_value,
+    generate_safe_id,
+    validate_input,
+    escape_json_string,
+    create_csp_meta_tag,
+)
 
 __all__ = [
     # Location utilities
@@ -96,4 +105,12 @@ __all__ = [
     "create_feedback_form",
     "show_help_tooltip",
     "create_onboarding_tour",
+    # Security utilities
+    "sanitize_html",
+    "sanitize_id",
+    "sanitize_css_value",
+    "generate_safe_id",
+    "validate_input",
+    "escape_json_string",
+    "create_csp_meta_tag",
 ]

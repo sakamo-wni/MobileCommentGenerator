@@ -8,6 +8,8 @@ import streamlit as st
 from typing import Optional, Dict, Any, Callable
 from enum import Enum
 import logging
+import os
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +29,16 @@ class ErrorType(Enum):
 
 class ErrorMessage:
     """エラーメッセージとその対処法"""
-    def __init__(self, title: str, description: str, solution: Optional[str] = None):
+    def __init__(self, title: str, description: str, solution: Optional[str] = None,
+                 title_key: Optional[str] = None, description_key: Optional[str] = None,
+                 solution_key: Optional[str] = None):
         self.title = title
         self.description = description
         self.solution = solution
+        # i18n対応用のキー（将来的な拡張のため）
+        self.title_key = title_key
+        self.description_key = description_key
+        self.solution_key = solution_key
 
 
 # エラータイプごとのメッセージ定義
@@ -81,6 +89,52 @@ ERROR_MESSAGES: Dict[ErrorType, ErrorMessage] = {
         solution="アプリケーションを再読み込みしてから、もう一度お試しください。"
     )
 }
+
+
+def load_error_messages_from_config(config_path: Optional[str] = None) -> Optional[Dict[ErrorType, ErrorMessage]]:
+    """
+    設定ファイルからエラーメッセージを読み込む（将来的な拡張用）
+    
+    Args:
+        config_path: 設定ファイルのパス
+        
+    Returns:
+        エラーメッセージの辞書またはNone
+    """
+    if config_path is None:
+        config_path = ERROR_MESSAGES_CONFIG_PATH
+    
+    if config_path and os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            messages = {}
+            for error_type_str, msg_data in config.items():
+                try:
+                    error_type = ErrorType(error_type_str)
+                    messages[error_type] = ErrorMessage(
+                        title=msg_data.get('title', ''),
+                        description=msg_data.get('description', ''),
+                        solution=msg_data.get('solution'),
+                        title_key=msg_data.get('title_key'),
+                        description_key=msg_data.get('description_key'),
+                        solution_key=msg_data.get('solution_key')
+                    )
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"エラーメッセージ設定の読み込みエラー: {e}")
+            
+            return messages
+        except Exception as e:
+            logger.error(f"エラーメッセージ設定ファイルの読み込みエラー: {e}")
+    
+    return None
+
+
+# 設定ファイルからメッセージを読み込み、デフォルトを上書き
+custom_messages = load_error_messages_from_config()
+if custom_messages:
+    ERROR_MESSAGES.update(custom_messages)
 
 
 def show_error(

@@ -10,27 +10,65 @@ from datetime import datetime
 import streamlit as st
 
 
-def copy_to_clipboard(text: str) -> bool:
+def copy_to_clipboard(text: str, fallback_display: bool = True) -> bool:
     """
     テキストをクリップボードにコピー
 
     Args:
         text: コピーするテキスト
+        fallback_display: フォールバック表示を行うか
 
     Returns:
         成功した場合True
     """
-    # StreamlitでのJavaScript実行
+    # テキストをエスケープ
+    from .security_utils import escape_json_string
+    escaped_text = escape_json_string(text)
+    
+    # StreamlitでのJavaScript実行（HTTPS環境でのみ動作）
     js_code = f"""
     <script>
-    navigator.clipboard.writeText(`{text}`).then(function() {{
-        console.log('Copying to clipboard was successful!');
-    }}, function(err) {{
-        console.error('Could not copy text: ', err);
-    }});
+    (function() {{
+        const textToCopy = `{escaped_text}`;
+        
+        // Clipboard APIが利用可能か確認
+        if (navigator.clipboard && window.isSecureContext) {{
+            navigator.clipboard.writeText(textToCopy).then(function() {{
+                console.log('Copying to clipboard was successful!');
+            }}, function(err) {{
+                console.error('Could not copy text: ', err);
+                // フォールバック処理
+                showFallback();
+            }});
+        }} else {{
+            // Clipboard APIが利用できない場合
+            showFallback();
+        }}
+        
+        function showFallback() {{
+            // フォールバック：選択可能なテキストエリアを表示
+            const elem = document.getElementById('clipboard-fallback');
+            if (elem) {{
+                elem.style.display = 'block';
+            }}
+        }}
+    }})();
     </script>
     """
     st.markdown(js_code, unsafe_allow_html=True)
+    
+    # フォールバック表示（HTTPSでない場合のため）
+    if fallback_display:
+        from .security_utils import sanitize_html
+        st.markdown(
+            f'<div id="clipboard-fallback" style="display:none; margin-top:10px;">' +
+            f'<p style="color:#666; font-size:0.9em;">✋ クリップボードへのコピーが失敗しました。' +
+            f'以下のテキストを手動で選択してコピーしてください：</p>' +
+            f'<textarea readonly style="width:100%; height:100px; padding:8px; border:1px solid #ddd;">{sanitize_html(text)}</textarea>' +
+            f'</div>',
+            unsafe_allow_html=True
+        )
+    
     return True
 
 

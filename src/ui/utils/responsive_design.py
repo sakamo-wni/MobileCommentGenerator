@@ -168,13 +168,19 @@ def create_card(
         icon: アイコン（絵文字）
         color: 背景色
     """
-    icon_html = f"{icon} " if icon else ""
-    color_style = f"background-color: {color};" if color else ""
+    # サニタイズ
+    safe_title = sanitize_html(title)
+    safe_content = sanitize_html(content)
+    safe_icon = sanitize_html(icon) if icon else ""
+    safe_color = sanitize_css_value(color) if color else ""
+    
+    icon_html = f"{safe_icon} " if safe_icon else ""
+    color_style = f"background-color: {safe_color};" if safe_color else ""
     
     st.markdown(f"""
-    <div class="card-container" style="{color_style}">
-        <h3>{icon_html}{title}</h3>
-        <p>{content}</p>
+    <div class="mcg-card-container" style="{color_style}">
+        <h3>{icon_html}{safe_title}</h3>
+        <p>{safe_content}</p>
     </div>
     """, unsafe_allow_html=True)
 

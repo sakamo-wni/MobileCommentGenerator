@@ -5,14 +5,15 @@
 """
 
 import streamlit as st
-from typing import Optional, Dict, Any, List, Callable
+from typing import Optional, Dict, Any, List, Callable, Literal
 from datetime import datetime
 import time
+from .security_utils import sanitize_html, sanitize_id, generate_safe_id
 
 
 def show_operation_status(
     operation_name: str,
-    status: str = "processing",
+    status: Literal["processing", "success", "error", "warning"] = "processing",
     message: Optional[str] = None,
     progress: Optional[float] = None,
     details: Optional[Dict[str, Any]] = None
@@ -41,10 +42,10 @@ def show_operation_status(
         col1, col2 = st.columns([1, 9])
         
         with col1:
-            st.markdown(f"<h2 style='text-align: center;'>{config['icon']}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center;'>{sanitize_html(config['icon'])}</h2>", unsafe_allow_html=True)
         
         with col2:
-            st.markdown(f"<h4 style='color: {config['color']};'>{operation_name}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color: {config['color']};'>{sanitize_html(operation_name)}</h4>", unsafe_allow_html=True)
             
             if message:
                 st.write(message)
@@ -55,7 +56,7 @@ def show_operation_status(
             if details:
                 with st.expander("詳細情報"):
                     for key, value in details.items():
-                        st.write(f"**{key}:** {value}")
+                        st.write(f"**{sanitize_html(str(key))}:** {sanitize_html(str(value))}")
 
 
 def show_step_progress(
@@ -125,8 +126,8 @@ def show_step_progress(
         <div class="step-container">
             <div class="step-circle {status_class}">{icon}</div>
             <div style="flex: 1;">
-                <strong>{step['name']}</strong>
-                {f"<br><small>{step.get('description', '')}</small>" if step.get('description') else ""}
+                <strong>{sanitize_html(step['name'])}</strong>
+                {f"<br><small>{sanitize_html(step.get('description', ''))}</small>" if step.get('description') else ""}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -158,8 +159,8 @@ def show_confirmation_dialog(
         確認された場合True、キャンセルされた場合False、未選択の場合None
     """
     with st.container():
-        st.markdown(f"### {title}")
-        st.write(message)
+        st.markdown(f"### {sanitize_html(title)}")
+        st.write(sanitize_html(message))
         
         col1, col2, col3 = st.columns([1, 1, 3])
         
@@ -177,9 +178,9 @@ def show_confirmation_dialog(
 
 def show_notification(
     message: str,
-    type: str = "info",
+    type: Literal["info", "success", "warning", "error"] = "info",
     duration: int = 3,
-    position: str = "top-right"
+    position: Literal["top-right", "top-left", "bottom-right", "bottom-left"] = "top-right"
 ):
     """
     一時的な通知を表示（トースト風）
@@ -190,7 +191,7 @@ def show_notification(
         duration: 表示時間（秒）
         position: 表示位置
     """
-    notification_id = f"notification_{int(time.time() * 1000)}"
+    notification_id = generate_safe_id("notification")
     
     type_styles = {
         "info": {"bg": "#e3f2fd", "color": "#1976d2", "icon": "ℹ️"},
@@ -226,8 +227,8 @@ def show_notification(
         gap: 0.5rem;
         max-width: 300px;
     ">
-        <span style="font-size: 1.2em;">{style['icon']}</span>
-        <span>{message}</span>
+        <span style="font-size: 1.2em;">{sanitize_html(style['icon'])}</span>
+        <span>{sanitize_html(message)}</span>
     </div>
     <script>
         setTimeout(function() {{
@@ -257,7 +258,7 @@ def create_feedback_form(
     form_id: str = "feedback_form",
     include_rating: bool = True,
     include_comment: bool = True,
-    callback: Optional[Callable] = None
+    callback: Optional[Callable[[Dict[str, Any]], None]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     フィードバックフォームを作成
@@ -336,7 +337,7 @@ def show_help_tooltip(
             st.write(text)
         with col2:
             st.markdown(
-                f'<span title="{help_text}" style="cursor: help; font-size: 1.2em;">{icon}</span>',
+                f'<span title="{sanitize_html(help_text)}" style="cursor: help; font-size: 1.2em;">{sanitize_html(icon)}</span>',
                 unsafe_allow_html=True
             )
 
@@ -363,9 +364,9 @@ def create_onboarding_tour(
             
             with st.container():
                 st.info(f"""
-                **👋 {step['title']}** ({current_step + 1}/{len(steps)})
+                **👋 {sanitize_html(step['title'])}** ({current_step + 1}/{len(steps)})
                 
-                {step['content']}
+                {sanitize_html(step['content'])}
                 """)
                 
                 col1, col2, col3 = st.columns([1, 1, 3])
