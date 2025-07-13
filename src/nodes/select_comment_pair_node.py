@@ -82,14 +82,24 @@ def select_comment_pair_node(state: CommentGenerationState) -> CommentGeneration
                 logger.warning(f"🔄 履歴の読み込みに失敗しましたが、処理を続行します: {e}")
         
         # 最適なコメントペアを選択
-        pair = selector.select_optimal_comment_pair(
-            weather_comments, advice_comments, weather_data, 
-            location_name, target_datetime, state,
-            exclude_weather_comment=previous_weather_comment,
-            exclude_advice_comment=previous_advice_comment
-        )
+        try:
+            pair = selector.select_optimal_comment_pair(
+                weather_comments, advice_comments, weather_data, 
+                location_name, target_datetime, state,
+                exclude_weather_comment=previous_weather_comment,
+                exclude_advice_comment=previous_advice_comment
+            )
+        except Exception as selection_error:
+            logger.error(f"コメントペア選択中に例外が発生: {selection_error}")
+            logger.error(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
+            logger.error(f"天気データ: {weather_data.weather_description}, 気温: {weather_data.temperature}°C, 降水量: {weather_data.precipitation}mm")
+            raise ValueError(f"LLMによるコメントペアの選択に失敗しました: {selection_error}")
 
         if not pair:
+            logger.error("select_optimal_comment_pairがNoneを返しました")
+            logger.error(f"フィルタリング前 - 天気: {len(weather_comments)}件, アドバイス: {len(advice_comments)}件")
+            logger.error(f"天気データ: {weather_data.weather_description}, 気温: {weather_data.temperature}°C, 降水量: {weather_data.precipitation}mm")
+            logger.error(f"除外対象 - 天気: '{previous_weather_comment}', アドバイス: '{previous_advice_comment}'")
             raise ValueError("LLMによるコメントペアの選択に失敗しました")
             
         state.selected_pair = pair

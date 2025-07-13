@@ -80,6 +80,12 @@ class CommentSelector:
         )
         
         if not best_weather or not best_advice:
+            logger.error(f"best_weather: {best_weather}, best_advice: {best_advice}")
+            logger.error(f"フィルタリング後 - 天気: {len(filtered_weather)}件, アドバイス: {len(filtered_advice)}件")
+            if not best_weather:
+                logger.error("天気コメントの選択が失敗しました")
+            if not best_advice:
+                logger.error("アドバイスコメントの選択が失敗しました")
             return None
             
         # ペア作成前の最終バリデーション
@@ -164,6 +170,7 @@ class CommentSelector:
     ) -> Optional[CommentPair]:
         """フォールバック選択処理"""
         logger.warning("フォールバック選択を実行")
+        logger.info(f"フォールバック入力 - 天気: {len(weather_comments)}件, アドバイス: {len(advice_comments)}件")
         
         # 雨の場合の特別処理
         if weather_data.precipitation > 0:
@@ -230,7 +237,8 @@ class CommentSelector:
                 similarity_score=0.1,
                 selection_reason="最終フォールバック（検証なし）"
             )
-            
+        
+        logger.error("フォールバック選択も失敗しました。コメントリストが空の可能性があります。")
         return None
     
     def _find_rain_appropriate_weather_comment(
