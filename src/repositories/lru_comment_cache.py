@@ -48,7 +48,7 @@ class LRUCommentCache:
         total_size = 0
         for comment in comments:
             # テキストサイズ + 属性のオーバーヘッド（推定）
-            total_size += len(comment.text.encode('utf-8')) + 200
+            total_size += len(comment.comment_text.encode('utf-8')) + 200
             # raw_dataの推定サイズ
             total_size += sys.getsizeof(comment.raw_data)
         return total_size
