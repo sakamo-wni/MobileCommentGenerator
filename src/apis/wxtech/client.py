@@ -19,7 +19,7 @@ except ImportError:
     AIOHTTP_AVAILABLE = False
 
 from src.data.weather_data import WeatherForecastCollection
-from src.data.location_manager import Location
+from src.data.location.models import Location
 from src.apis.wxtech.api import WxTechAPI
 from src.apis.wxtech.parser import parse_forecast_response, analyze_response_patterns
 from src.apis.wxtech.errors import WxTechAPIError

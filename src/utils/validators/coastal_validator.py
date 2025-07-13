@@ -5,7 +5,7 @@ from typing import Tuple, Set, Optional
 
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
-from src.data.location_manager import LocationManager
+from src.data.location.manager import LocationManagerRefactored
 from src.utils.geography import CoastalDetector
 from .base_validator import BaseValidator
 
@@ -48,7 +48,7 @@ class CoastalValidator(BaseValidator):
     
     def __init__(self):
         super().__init__()
-        self.location_manager = LocationManager()
+        self.location_manager = LocationManagerRefactored()
         logger.info("海岸地域バリデータを初期化しました（緯度経度ベース）")
     
     def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:

@@ -132,9 +132,9 @@ def load_locations() -> List[str]:
     
     try:
         # S3からの地点データがある場合は優先的に使用
-        from src.data.location_manager import get_location_manager
+        from src.data.location.manager import LocationManagerRefactored
         
-        location_manager = get_location_manager()
+        location_manager = LocationManagerRefactored()
         locations = [loc.name for loc in location_manager.get_all_locations()]
         
         if locations:
