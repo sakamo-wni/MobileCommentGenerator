@@ -5,7 +5,7 @@
 """
 
 from typing import List
-import os
+from pathlib import Path
 import pandas as pd
 import streamlit as st
 
@@ -127,8 +127,8 @@ def load_locations() -> List[str]:
         return st.session_state.locations
     
     # CSVファイルパスを構築
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
-    csv_path = os.path.join(data_dir, "locations.csv")
+    data_dir = Path(__file__).parent.parent.parent.parent / "data"
+    csv_path = data_dir / "locations.csv"
     
     try:
         # S3からの地点データがある場合は優先的に使用

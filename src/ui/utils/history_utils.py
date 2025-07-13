@@ -5,7 +5,7 @@
 """
 
 import json
-import os
+from pathlib import Path
 from typing import List, Dict, Any
 from datetime import datetime
 import pandas as pd
@@ -52,7 +52,7 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
             history = history[-1000:]
 
         # ディレクトリが存在しない場合は作成
-        os.makedirs(os.path.dirname(history_file), exist_ok=True)
+        Path(history_file).parent.mkdir(parents=True, exist_ok=True)
 
         # ファイルに保存
         with open(history_file, "w", encoding="utf-8") as f:
