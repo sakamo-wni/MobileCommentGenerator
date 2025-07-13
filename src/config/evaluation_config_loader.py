@@ -1,7 +1,6 @@
 """評価設定ローダー"""
 
 import yaml
-import os
 from typing import Dict, Any, List
 from pathlib import Path
 import logging
@@ -20,11 +19,8 @@ class EvaluationConfigLoader:
             config_path: 設定ファイルのパス（Noneの場合はデフォルトパスを使用）
         """
         if config_path is None:
-            config_path = os.path.join(
-                os.path.dirname(__file__), 
-                "evaluation_config.yaml"
-            )
-        self.config_path = config_path
+            config_path = Path(__file__).parent / "evaluation_config.yaml"
+        self.config_path = Path(config_path)
         self._config = None
     
     def load_config(self) -> Dict[str, Any]:

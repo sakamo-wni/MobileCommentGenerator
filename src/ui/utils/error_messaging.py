@@ -8,13 +8,14 @@ import streamlit as st
 from typing import Optional, Dict, Any, Callable
 from enum import Enum
 import logging
-import os
 import json
+from pathlib import Path
 from .i18n import t
 
 logger = logging.getLogger(__name__)
 
 # エラーメッセージ設定ファイルのパス（将来的な拡張用）
+import os
 ERROR_MESSAGES_CONFIG_PATH = os.environ.get("ERROR_MESSAGES_CONFIG_PATH", None)
 
 
@@ -128,7 +129,7 @@ def load_error_messages_from_config(config_path: Optional[str] = None) -> Option
     if config_path is None:
         config_path = ERROR_MESSAGES_CONFIG_PATH
     
-    if config_path and os.path.exists(config_path):
+    if config_path and Path(config_path).exists():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)

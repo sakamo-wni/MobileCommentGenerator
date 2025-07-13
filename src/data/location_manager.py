@@ -9,7 +9,6 @@ Issue #2の実装: 地点データ管理システム
 """
 
 import csv
-import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -393,7 +392,7 @@ class LocationManager:
         self.location_order = self._get_location_order()
 
         # 自動読み込み
-        if os.path.exists(self.csv_path):
+        if Path(self.csv_path).exists():
             self.load_locations()
         else:
             logger.warning(f"CSVファイルが見つかりません: {self.csv_path}")

@@ -148,7 +148,7 @@ def load_locations() -> List[str]:
         st.warning(f"地点管理システムからの読み込みに失敗: {str(e)}")
     
     # フォールバック: CSVファイルから読み込み
-    if os.path.exists(csv_path):
+    if csv_path.exists():
         try:
             df = pd.read_csv(csv_path, header=None, names=['location'])
             locations = df['location'].unique().tolist()
