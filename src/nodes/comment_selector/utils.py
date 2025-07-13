@@ -216,6 +216,15 @@ class CommentUtils:
         """アドバイスコメント候補を準備"""
         candidates = []
         
+        # 設定ファイルから制限を取得（ループ前に定義）
+        from src.config.config_loader import load_config
+        try:
+            config = load_config('weather_thresholds', validate=False)
+            limit = config.get('generation', {}).get('advice_candidates_limit', 100)
+        except (FileNotFoundError, KeyError, Exception) as e:
+            logger.debug(f"設定ファイル読み込みエラー（アドバイス）: {e}")
+            limit = 100  # デフォルト値
+        
         for i, comment in enumerate(comments):
             # バリデーターによる除外チェック
             is_valid, reason = weather_validator.validate_comment(comment, weather_data)
@@ -250,15 +259,6 @@ class CommentUtils:
                 
             candidate = self._create_candidate_dict(len(candidates), comment, original_index=i)
             candidates.append(candidate)
-            
-            # 設定ファイルから制限を取得
-            from src.config.config_loader import load_config
-            try:
-                config = load_config('weather_thresholds', validate=False)
-                limit = config.get('generation', {}).get('advice_candidates_limit', 100)
-            except (FileNotFoundError, KeyError, Exception) as e:
-                logger.debug(f"設定ファイル読み込みエラー（アドバイス）: {e}")
-                limit = 100  # デフォルト値
             
             if len(candidates) >= limit:
                 break
