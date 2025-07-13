@@ -5,77 +5,83 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 
 from src.data.past_comment import PastComment
+from src.repositories.lru_comment_cache import LRUCommentCache
 
 logger = logging.getLogger(__name__)
 
 
 class CommentCache:
-    """コメントのキャッシュを管理"""
+    """コメントのキャッシュを管理
     
-    def __init__(self, cache_ttl_minutes: int = 60):
+    互換性のため既存のインターフェースを維持しながら、
+    内部でLRUキャッシュを使用して効率を改善。
+    """
+    
+    DEFAULT_CACHE_KEY = "__all_comments__"
+    
+    def __init__(self, cache_ttl_minutes: int = 60, max_size: int = 1000, max_memory_mb: float = 100):
         """
         Args:
             cache_ttl_minutes: キャッシュの有効期限（分）
+            max_size: キャッシュに保持する最大エントリ数
+            max_memory_mb: 最大メモリ使用量（MB）
         """
-        self._cache: Optional[List[PastComment]] = None
-        self._cache_loaded_at: Optional[datetime] = None
-        self._cache_ttl = timedelta(minutes=cache_ttl_minutes)
-        # キャッシュ統計の追加
+        # 内部でLRUキャッシュを使用
+        self._lru_cache = LRUCommentCache(
+            max_size=max_size,
+            cache_ttl_minutes=cache_ttl_minutes,
+            max_memory_mb=max_memory_mb
+        )
+        
+        # 互換性のため統計情報を転送
         self._cache_hits = 0
         self._cache_misses = 0
         self._total_requests = 0
     
     def is_cache_valid(self) -> bool:
-        """キャッシュが有効かどうかを確認"""
-        if self._cache is None or self._cache_loaded_at is None:
-            return False
-        
-        elapsed = datetime.now() - self._cache_loaded_at
-        return elapsed < self._cache_ttl
+        """キャッシュが有効かどうかを確認（互換性のため維持）"""
+        return self._lru_cache.get(self.DEFAULT_CACHE_KEY) is not None
     
-    def get(self) -> Optional[List[PastComment]]:
+    def get(self, key: Optional[str] = None) -> Optional[List[PastComment]]:
         """キャッシュを取得（有効な場合のみ）"""
-        self._total_requests += 1
-        if self.is_cache_valid():
-            self._cache_hits += 1
-            logger.debug(f"Cache hit (hit rate: {self.get_hit_rate():.1%})")
-            return self._cache
-        self._cache_misses += 1
-        logger.debug(f"Cache miss (hit rate: {self.get_hit_rate():.1%})")
-        return None
+        # 互換性のため、keyが指定されない場合はデフォルトキーを使用
+        cache_key = key or self.DEFAULT_CACHE_KEY
+        result = self._lru_cache.get(cache_key)
+        
+        # 統計情報を同期
+        stats = self._lru_cache.get_stats()
+        self._cache_hits = stats['hits']
+        self._cache_misses = stats['misses']
+        self._total_requests = stats['total_requests']
+        
+        return result
     
-    def set(self, comments: List[PastComment]) -> None:
+    def set(self, comments: List[PastComment], key: Optional[str] = None) -> None:
         """キャッシュを設定"""
-        self._cache = comments
-        self._cache_loaded_at = datetime.now()
-        logger.info(f"Cache updated with {len(comments)} comments")
+        # 互換性のため、keyが指定されない場合はデフォルトキーを使用
+        cache_key = key or self.DEFAULT_CACHE_KEY
+        self._lru_cache.set(cache_key, comments)
     
     def clear(self) -> None:
         """キャッシュをクリア"""
-        self._cache = None
-        self._cache_loaded_at = None
-        # 統計はリセットしない（累積値として保持）
-        logger.info("Cache cleared")
+        self._lru_cache.clear()
     
     def get_hit_rate(self) -> float:
         """キャッシュヒット率を計算"""
-        if self._total_requests == 0:
-            return 0.0
-        return self._cache_hits / self._total_requests
+        return self._lru_cache.get_hit_rate()
     
     def get_stats(self) -> Dict[str, Any]:
         """キャッシュの統計情報を取得"""
-        return {
-            'is_valid': self.is_cache_valid(),
-            'size': len(self._cache) if self._cache else 0,
-            'loaded_at': self._cache_loaded_at.isoformat() if self._cache_loaded_at else None,
-            'ttl_minutes': self._cache_ttl.total_seconds() / 60,
-            # 新しい統計情報
-            'hits': self._cache_hits,
-            'misses': self._cache_misses,
-            'total_requests': self._total_requests,
-            'hit_rate': self.get_hit_rate()
-        }
+        return self._lru_cache.get_stats()
+    
+    # LRUキャッシュの追加機能を公開
+    def invalidate(self, key: str) -> bool:
+        """特定のキーのキャッシュを無効化"""
+        return self._lru_cache.invalidate(key)
+    
+    def cleanup_expired(self) -> int:
+        """期限切れのエントリをクリーンアップ"""
+        return self._lru_cache.cleanup_expired()
 
 
 class SeasonalCommentFilter:

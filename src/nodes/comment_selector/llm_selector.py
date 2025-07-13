@@ -114,11 +114,14 @@ class LLMCommentSelector:
             if selected_index is not None and 0 <= selected_index < len(candidates):
                 return candidates[selected_index]
             else:
-                logger.warning(f"無効な選択インデックス: {selected_index}")
+                logger.warning(f"無効な選択インデックス: {selected_index} (候補数: {len(candidates)})")
+                logger.warning(f"LLMレスポンス全文: '{response}'")
                 return None
                 
         except Exception as e:
             logger.error(f"LLM API呼び出しエラー: {e}")
+            logger.error(f"プロンプト長: {len(prompt)}文字")
+            logger.error(f"候補数: {len(candidates)}")
             return None
     
     def _format_candidates_for_llm(self, candidates: List[Dict[str, Any]]) -> str:
@@ -360,4 +363,6 @@ class LLMCommentSelector:
                 continue
         
         logger.error(f"数値抽出失敗: '{response_clean}' (範囲: 0-{max_index-1})")
+        logger.error(f"元のレスポンス: '{response}'")
+        logger.error(f"response_clean: '{response_clean}'")
         return None

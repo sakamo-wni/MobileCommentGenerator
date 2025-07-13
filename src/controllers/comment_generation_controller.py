@@ -10,6 +10,7 @@ from src.config.app_config import AppConfig, get_config
 from src.types import LocationResult, BatchGenerationResult
 from src.ui.streamlit_utils import load_history, load_locations, save_to_history
 from src.utils.error_handler import ErrorHandler
+from src.utils.cpu_optimizer import CPUOptimizer
 from src.workflows.comment_generation_workflow import run_comment_generation
 from src.controllers.metadata_extractor import MetadataExtractor
 from src.controllers.validators import ValidationManager
@@ -129,10 +130,13 @@ class CommentGenerationController(ICommentGenerationController):
         max_workers: Optional[int] = None
     ) -> BatchGenerationResult:
         """複数地点のコメント生成（並列処理版）"""
-        # 設定から並列度を取得
+        # 最適な並列度を決定
         if max_workers is None:
-            max_workers = self.config.app.max_llm_workers
-            logger.info(f"Using max_llm_workers from config: {max_workers}")
+            max_workers = CPUOptimizer.get_io_bound_workers(
+                task_count=len(locations),
+                max_workers=16  # API呼び出しが含まれるため多めに設定
+            )
+            logger.info(f"Optimized max_workers: {max_workers} (locations: {len(locations)})")
         
         # 非同期版の天気予報取得を使用
         use_async_weather = self.config.app.use_async_weather
@@ -204,8 +208,13 @@ class CommentGenerationController(ICommentGenerationController):
                     results_container, all_results, view
                 )
             
-            # 設定から並列度を取得
-            max_workers_env = self.config.app.max_llm_workers
+            # 最適な並列度を決定
+            total_locations = len(locations)
+            max_workers_env = CPUOptimizer.get_io_bound_workers(
+                task_count=total_locations,
+                max_workers=16  # API呼び出しが含まれるため多めに設定
+            )
+            logger.info(f"Optimized max_workers for batch generation: {max_workers_env} (locations: {total_locations})")
             
             # 並列処理で複数地点を処理
             with ThreadPoolExecutor(max_workers=max_workers_env) as executor:

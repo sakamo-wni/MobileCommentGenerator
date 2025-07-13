@@ -195,6 +195,14 @@ class CommentUtils:
         
         candidates = (severe_matched[:severe_limit] + weather_matched[:weather_limit] + others[:others_limit])
         
+        logger.info(f"天気コメント候補: severe={len(severe_matched)}件, weather={len(weather_matched)}件, others={len(others)}件")
+        logger.info(f"選択された候補数: {len(candidates)}件 (制限: {limit}件)")
+        
+        if not candidates:
+            logger.error("天気コメント候補が0件です")
+            logger.error(f"元のコメント数: {len(comments)}件")
+            logger.error(f"天気情報: {weather_data.weather_description}, 気温: {weather_data.temperature}°C, 降水量: {weather_data.precipitation}mm")
+        
         return candidates
     
     def prepare_advice_candidates(
@@ -207,6 +215,15 @@ class CommentUtils:
     ) -> List[Dict[str, Any]]:
         """アドバイスコメント候補を準備"""
         candidates = []
+        
+        # 設定ファイルから制限を取得（ループ前に定義）
+        from src.config.config_loader import load_config
+        try:
+            config = load_config('weather_thresholds', validate=False)
+            limit = config.get('generation', {}).get('advice_candidates_limit', 100)
+        except (FileNotFoundError, KeyError, Exception) as e:
+            logger.debug(f"設定ファイル読み込みエラー（アドバイス）: {e}")
+            limit = 100  # デフォルト値
         
         for i, comment in enumerate(comments):
             # バリデーターによる除外チェック
@@ -243,17 +260,15 @@ class CommentUtils:
             candidate = self._create_candidate_dict(len(candidates), comment, original_index=i)
             candidates.append(candidate)
             
-            # 設定ファイルから制限を取得
-            from src.config.config_loader import load_config
-            try:
-                config = load_config('weather_thresholds', validate=False)
-                limit = config.get('generation', {}).get('advice_candidates_limit', 100)
-            except (FileNotFoundError, KeyError, Exception) as e:
-                logger.debug(f"設定ファイル読み込みエラー（アドバイス）: {e}")
-                limit = 100  # デフォルト値
-            
             if len(candidates) >= limit:
                 break
+        
+        logger.info(f"アドバイスコメント候補: {len(candidates)}件 (制限: {limit}件)")
+        
+        if not candidates:
+            logger.error("アドバイスコメント候補が0件です")
+            logger.error(f"元のコメント数: {len(comments)}件")
+            logger.error(f"天気情報: {weather_data.weather_description}, 気温: {weather_data.temperature}°C, 降気量: {weather_data.precipitation}mm")
         
         return candidates
     
