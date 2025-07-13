@@ -12,21 +12,8 @@ from pydantic import BaseModel
 
 from src.config.app_config import get_config
 from src.config.config_loader import load_config
-from src.utils.error_handler import ErrorHandler, AppError
-from src.types import (
-    HistoryItem,
-    LLMProvider,
-    GenerationMetadata
-)
-from src.types.api_response import (
-    ApiResponse,
-    ApiError,
-    CommentGenerationData,
-    LocationData,
-    HistoryData,
-    ProvidersData,
-    ProviderData
-)
+from src.utils.error_handler import ErrorHandler
+from src.types import LLMProvider
 
 # Setup logging
 config = get_config()
