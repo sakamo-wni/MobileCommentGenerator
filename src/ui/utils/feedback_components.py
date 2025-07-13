@@ -11,13 +11,29 @@ import time
 from .security_utils import sanitize_html, sanitize_id, generate_safe_id
 
 
+def _inject_css_once(css_id: str, css_content: str) -> None:
+    """
+    CSSを一度だけ挿入する（重複防止）
+    
+    Args:
+        css_id: CSS識別子
+        css_content: CSSコンテンツ
+    """
+    if "injected_css" not in st.session_state:
+        st.session_state.injected_css = set()
+    
+    if css_id not in st.session_state.injected_css:
+        st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
+        st.session_state.injected_css.add(css_id)
+
+
 def show_operation_status(
     operation_name: str,
     status: Literal["processing", "success", "error", "warning"] = "processing",
     message: Optional[str] = None,
     progress: Optional[float] = None,
     details: Optional[Dict[str, Any]] = None
-):
+) -> None:
     """
     操作の状態を視覚的に表示
     
@@ -62,7 +78,7 @@ def show_operation_status(
 def show_step_progress(
     steps: List[Dict[str, Any]],
     current_step: int
-):
+) -> None:
     """
     ステップごとの進行状況を表示
     
@@ -70,8 +86,8 @@ def show_step_progress(
         steps: ステップのリスト [{"name": "ステップ名", "status": "complete|current|pending"}]
         current_step: 現在のステップ番号
     """
-    st.markdown("""
-    <style>
+    # CSSを一度だけ挿入
+    _inject_css_once("step_progress", """
     .step-container {
         display: flex;
         align-items: center;
@@ -114,8 +130,7 @@ def show_step_progress(
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
     }
-    </style>
-    """, unsafe_allow_html=True)
+    """)
     
     for i, step in enumerate(steps):
         status = step.get("status", "pending")
@@ -181,7 +196,7 @@ def show_notification(
     type: Literal["info", "success", "warning", "error"] = "info",
     duration: int = 3,
     position: Literal["top-right", "top-left", "bottom-right", "bottom-left"] = "top-right"
-):
+) -> None:
     """
     一時的な通知を表示（トースト風）
     
@@ -191,7 +206,19 @@ def show_notification(
         duration: 表示時間（秒）
         position: 表示位置
     """
-    notification_id = generate_safe_id("notification")
+    notification_id = sanitize_id(generate_safe_id("notification"))
+    
+    # アニメーションCSSを一度だけ挿入
+    _inject_css_once("notification_animations", """
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+    """)
     
     type_styles = {
         "info": {"bg": "#e3f2fd", "color": "#1976d2", "icon": "ℹ️"},
@@ -232,25 +259,15 @@ def show_notification(
     </div>
     <script>
         setTimeout(function() {{
-            var elem = document.getElementById("{notification_id}");
+            var elem = document.getElementById("{sanitize_id(notification_id)}");
             if (elem) {{
                 elem.style.animation = "slideOut 0.3s ease-in";
                 setTimeout(function() {{
                     elem.remove();
                 }}, 300);
             }}
-        }}, {duration * 1000});
+        }}, {int(duration) * 1000});
     </script>
-    <style>
-    @keyframes slideIn {{
-        from {{ transform: translateX(100%); opacity: 0; }}
-        to {{ transform: translateX(0); opacity: 1; }}
-    }}
-    @keyframes slideOut {{
-        from {{ transform: translateX(0); opacity: 1; }}
-        to {{ transform: translateX(100%); opacity: 0; }}
-    }}
-    </style>
     """, unsafe_allow_html=True)
 
 
@@ -322,7 +339,7 @@ def show_help_tooltip(
     text: str,
     help_text: str,
     icon: str = "❓"
-):
+) -> None:
     """
     ヘルプツールチップを表示
     
@@ -345,7 +362,7 @@ def show_help_tooltip(
 def create_onboarding_tour(
     steps: List[Dict[str, str]],
     tour_id: str = "onboarding_tour"
-):
+) -> None:
     """
     新規ユーザー向けのオンボーディングツアーを作成
     

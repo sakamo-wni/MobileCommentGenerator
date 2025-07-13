@@ -10,6 +10,7 @@ from enum import Enum
 import logging
 import os
 import json
+from .i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -44,54 +45,74 @@ class ErrorMessage:
         self.solution_key = solution_key
 
 
-# エラータイプごとのメッセージ定義
-ERROR_MESSAGES: Dict[ErrorType, ErrorMessage] = {
-    ErrorType.API_KEY_MISSING: ErrorMessage(
-        title="APIキーが設定されていません",
-        description="選択されたLLMプロバイダーのAPIキーが設定されていません。",
-        solution="左側のサイドバーから「⚙️ 設定」を開き、APIキーを入力してください。"
-    ),
-    ErrorType.API_ERROR: ErrorMessage(
-        title="API接続エラー",
-        description="LLMプロバイダーとの通信中にエラーが発生しました。",
-        solution="しばらく待ってから再度お試しください。問題が続く場合は、APIキーが正しいか確認してください。"
-    ),
-    ErrorType.NETWORK_ERROR: ErrorMessage(
-        title="ネットワークエラー",
-        description="インターネット接続に問題がある可能性があります。",
-        solution="ネットワーク接続を確認してから再度お試しください。"
-    ),
-    ErrorType.VALIDATION_ERROR: ErrorMessage(
-        title="入力エラー",
-        description="入力された内容に問題があります。",
-        solution="入力内容を確認して、正しい形式で入力してください。"
-    ),
-    ErrorType.FILE_NOT_FOUND: ErrorMessage(
-        title="ファイルが見つかりません",
-        description="必要なファイルが見つかりませんでした。",
-        solution="ファイルパスを確認するか、管理者にお問い合わせください。"
-    ),
-    ErrorType.PERMISSION_ERROR: ErrorMessage(
-        title="アクセス権限エラー",
-        description="ファイルやディレクトリへのアクセス権限がありません。",
-        solution="ファイルの権限設定を確認するか、管理者にお問い合わせください。"
-    ),
-    ErrorType.GENERATION_FAILED: ErrorMessage(
-        title="コメント生成に失敗しました",
-        description="コメントの生成処理中にエラーが発生しました。",
-        solution="もう一度お試しください。問題が続く場合は、異なるLLMプロバイダーをお試しください。"
-    ),
-    ErrorType.PARTIAL_SUCCESS: ErrorMessage(
-        title="一部の地点で生成に成功しました",
-        description="すべての地点でコメントを生成できませんでした。",
-        solution="失敗した地点を個別に再生成するか、異なるLLMプロバイダーをお試しください。"
-    ),
-    ErrorType.UNKNOWN: ErrorMessage(
-        title="予期しないエラー",
-        description="予期しないエラーが発生しました。",
-        solution="アプリケーションを再読み込みしてから、もう一度お試しください。"
-    )
-}
+# エラータイプごとのメッセージ定義（i18n対応）
+def _get_error_messages() -> Dict[ErrorType, ErrorMessage]:
+    """i18n対応のエラーメッセージを取得"""
+    return {
+        ErrorType.API_KEY_MISSING: ErrorMessage(
+            title=t("error.api_key_missing.title"),
+            description=t("error.api_key_missing.description"),
+            solution=t("error.api_key_missing.solution"),
+            title_key="error.api_key_missing.title",
+            description_key="error.api_key_missing.description",
+            solution_key="error.api_key_missing.solution"
+        ),
+        ErrorType.API_ERROR: ErrorMessage(
+            title=t("error.api_error.title"),
+            description=t("error.api_error.description"),
+            solution=t("error.api_error.solution"),
+            title_key="error.api_error.title",
+            description_key="error.api_error.description",
+            solution_key="error.api_error.solution"
+        ),
+        ErrorType.NETWORK_ERROR: ErrorMessage(
+            title=t("error.network_error.title"),
+            description=t("error.network_error.description"),
+            solution=t("error.network_error.solution"),
+            title_key="error.network_error.title",
+            description_key="error.network_error.description",
+            solution_key="error.network_error.solution"
+        ),
+        ErrorType.VALIDATION_ERROR: ErrorMessage(
+            title=t("error.validation_error.title"),
+            description=t("error.validation_error.description"),
+            solution=t("error.validation_error.solution"),
+            title_key="error.validation_error.title",
+            description_key="error.validation_error.description",
+            solution_key="error.validation_error.solution"
+        ),
+        ErrorType.FILE_NOT_FOUND: ErrorMessage(
+            title="ファイルが見つかりません",
+            description="必要なファイルが見つかりませんでした。",
+            solution="ファイルパスを確認するか、管理者にお問い合わせください。"
+        ),
+        ErrorType.PERMISSION_ERROR: ErrorMessage(
+            title="アクセス権限エラー",
+            description="ファイルやディレクトリへのアクセス権限がありません。",
+            solution="ファイルの権限設定を確認するか、管理者にお問い合わせください。"
+        ),
+        ErrorType.GENERATION_FAILED: ErrorMessage(
+            title=t("error.generation_failed.title"),
+            description=t("error.generation_failed.description"),
+            solution=t("error.generation_failed.solution"),
+            title_key="error.generation_failed.title",
+            description_key="error.generation_failed.description",
+            solution_key="error.generation_failed.solution"
+        ),
+        ErrorType.PARTIAL_SUCCESS: ErrorMessage(
+            title="一部の地点で生成に成功しました",
+            description="すべての地点でコメントを生成できませんでした。",
+            solution="失敗した地点を個別に再生成するか、異なるLLMプロバイダーをお試しください。"
+        ),
+        ErrorType.UNKNOWN: ErrorMessage(
+            title="予期しないエラー",
+            description="予期しないエラーが発生しました。",
+            solution="アプリケーションを再読み込みしてから、もう一度お試しください。"
+        )
+    }
+
+# グローバル変数として初期化
+ERROR_MESSAGES = _get_error_messages()
 
 
 def load_error_messages_from_config(config_path: Optional[str] = None) -> Optional[Dict[ErrorType, ErrorMessage]]:
@@ -135,9 +156,16 @@ def load_error_messages_from_config(config_path: Optional[str] = None) -> Option
 
 
 # 設定ファイルからメッセージを読み込み、デフォルトを上書き
-custom_messages = load_error_messages_from_config()
-if custom_messages:
-    ERROR_MESSAGES.update(custom_messages)
+def update_error_messages():
+    """エラーメッセージを更新（言語変更時に呼び出す）"""
+    global ERROR_MESSAGES
+    ERROR_MESSAGES = _get_error_messages()
+    custom_messages = load_error_messages_from_config()
+    if custom_messages:
+        ERROR_MESSAGES.update(custom_messages)
+
+# 初期化時に一度実行
+update_error_messages()
 
 
 def show_error(
@@ -166,16 +194,16 @@ def show_error(
         
         # 対処法
         if error_msg.solution:
-            st.info(f"💡 **対処法:** {error_msg.solution}")
+            st.info(f"{t('ui.solution')} {error_msg.solution}")
         
         # 詳細情報（開発者向け）
         if show_details and details:
-            with st.expander("🔍 詳細情報"):
+            with st.expander(t("ui.details")):
                 st.code(details, language="text")
         
         # 再試行ボタン
         if callback:
-            if st.button("🔄 再試行", key=f"retry_{error_type.value}"):
+            if st.button(t("ui.retry_button"), key=f"retry_{error_type.value}"):
                 callback()
 
 
@@ -197,7 +225,7 @@ def show_warning(
         st.write(description)
         
         if suggestion:
-            st.info(f"💡 **推奨:** {suggestion}")
+            st.info(f"{t('ui.recommendation')} {suggestion}")
 
 
 def show_success(
