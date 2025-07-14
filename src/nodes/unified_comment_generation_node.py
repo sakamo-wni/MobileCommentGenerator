@@ -16,6 +16,7 @@ from src.llm.llm_manager import LLMManager
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.nodes.helpers.comment_safety import check_and_fix_weather_comment_safety
 from src.nodes.helpers.ng_words import check_ng_words
+from src.constants.content_constants import FORBIDDEN_PHRASES
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
         advice_comments = [c for c in past_comments if c.comment_type == CommentType.ADVICE]
         
+        # 禁止フレーズを含むコメントをフィルタリング
+        weather_comments = _filter_forbidden_phrases(weather_comments)
+        advice_comments = _filter_forbidden_phrases(advice_comments)
+        
         if not weather_comments or not advice_comments:
             raise ValueError("適切なコメントタイプが見つかりません")
             
@@ -60,8 +65,27 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         # 連続雨の場合、「にわか雨」を含むコメントをフィルタリング
         if is_continuous_rain:
             logger.info("連続雨を検出 - にわか雨表現を含むコメントをフィルタリング")
+            
+            # フィルタリング前のログ
+            logger.info(f"フィルタリング前 - 天気コメント数: {len(weather_comments)}")
+            logger.info(f"フィルタリング前 - アドバイスコメント数: {len(advice_comments)}")
+            
+            # アドバイスコメントの内容を確認
+            logger.debug("フィルタリング前のアドバイスコメント:")
+            for i, comment in enumerate(advice_comments[:10]):
+                logger.debug(f"  {i}: {comment.comment_text}")
+            
             weather_comments = _filter_shower_comments(weather_comments)
             advice_comments = _filter_mild_umbrella_comments(advice_comments)
+            
+            # フィルタリング後のログ
+            logger.info(f"フィルタリング後 - 天気コメント数: {len(weather_comments)}")
+            logger.info(f"フィルタリング後 - アドバイスコメント数: {len(advice_comments)}")
+            
+            # フィルタリング後のアドバイスコメントの内容を確認
+            logger.debug("フィルタリング後のアドバイスコメント:")
+            for i, comment in enumerate(advice_comments[:10]):
+                logger.debug(f"  {i}: {comment.comment_text}")
         
         # 天気情報のフォーマット
         weather_info = _format_weather_info(weather_data, location_name, target_datetime)
@@ -327,8 +351,9 @@ def _filter_shower_comments(comments: List[PastComment]) -> List[PastComment]:
 
 
 def _filter_mild_umbrella_comments(comments: List[PastComment]) -> List[PastComment]:
-    """控えめな傘表現を含むコメントをフィルタリング"""
-    mild_umbrella_expressions = ["傘があると安心", "傘がお守り", "念のため傘", "折りたたみ傘", "傘をお忘れなく"]
+    """控えめな傘表現とにわか雨表現を含むコメントをフィルタリング"""
+    # にわか雨が心配も含める
+    mild_umbrella_expressions = ["傘があると安心", "傘がお守り", "念のため傘", "折りたたみ傘", "傘をお忘れなく", "にわか雨が心配", "にわか雨", "急な雨"]
     
     filtered = []
     for comment in comments:
@@ -340,6 +365,23 @@ def _filter_mild_umbrella_comments(comments: List[PastComment]) -> List[PastComm
     # フィルタリング後にコメントがなくなった場合は元のリストを返す
     if not filtered:
         logger.warning("すべてのアドバイスがフィルタリングされました。元のリストを使用します。")
+        return comments
+    
+    return filtered
+
+
+def _filter_forbidden_phrases(comments: List[PastComment]) -> List[PastComment]:
+    """禁止フレーズを含むコメントをフィルタリング"""
+    filtered = []
+    for comment in comments:
+        if not any(phrase in comment.comment_text for phrase in FORBIDDEN_PHRASES):
+            filtered.append(comment)
+        else:
+            logger.debug(f"禁止フレーズのためフィルタリング: {comment.comment_text}")
+    
+    # フィルタリング後にコメントがなくなった場合は元のリストを返す
+    if not filtered:
+        logger.warning("すべてのコメントが禁止フレーズでフィルタリングされました。元のリストを使用します。")
         return comments
     
     return filtered
