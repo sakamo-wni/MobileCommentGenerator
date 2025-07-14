@@ -106,9 +106,17 @@ POST /api/generate
   },
   "llmProvider": "openai",
   "temperature": 0.7,
-  "targetDateTime": "2024-01-01T09:00:00+09:00"
+  "targetDateTime": "2024-01-01T09:00:00+09:00",
+  "use_unified_mode": true
 }
 ```
+
+**パラメータ説明:**
+- `location`: 地点情報（必須）
+- `llmProvider`: 使用するLLMプロバイダー（openai/gemini/anthropic）
+- `temperature`: 生成の創造性（0.0-1.0）
+- `targetDateTime`: 対象日時（ISO 8601形式）
+- `use_unified_mode`: 統一モードの使用（デフォルト: true）- 1回のLLM呼び出しで高速化
 
 **レスポンス例:**
 ```json
