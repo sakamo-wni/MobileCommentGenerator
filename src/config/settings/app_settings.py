@@ -52,8 +52,8 @@ class AppSettings:
         self.max_weather_workers = int(os.getenv("MAX_WEATHER_WORKERS", str(self.max_weather_workers)))
         self.use_async_weather = os.getenv("USE_ASYNC_WEATHER", "true" if self.use_async_weather else "false").lower() == "true"
         
-        # CSV読み込み設定
-        self.use_lazy_csv_loading = os.getenv("USE_LAZY_CSV_LOADING", "true" if self.use_lazy_csv_loading else "false").lower() == "true"
+        # CSV読み込み設定 - 常にLazyCommentRepositoryを使用
+        self.use_lazy_csv_loading = True
         
         # ディレクトリ作成は行わない - Config.ensure_directories()で必要時に作成
 

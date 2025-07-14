@@ -6,7 +6,6 @@ from typing import Dict, Any
 
 from src.data.past_comment import CommentType
 from src.data.weather_data import WeatherForecast
-from src.repositories.local_comment_repository import LocalCommentRepository
 from src.repositories.lazy_comment_repository import LazyCommentRepository
 
 logger = logging.getLogger(__name__)
@@ -30,18 +29,9 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
         if not location_name:
             raise ValueError("location_name が指定されていません")
             
-        # リポジトリ初期化（最適化フラグに基づいて選択）
-        use_optimized = state.get('use_optimized_repository', False)
-        use_lazy_loading = state.get('use_lazy_loading', True)  # デフォルトで遅延読み込みを使用
-        
-        if use_lazy_loading:
-            logger.info("Using lazy-loading CSV repository")
-            repository = LazyCommentRepository()
-        elif use_optimized:
-            logger.info("Using optimized CSV repository with indexing")
-            repository = LocalCommentRepository(use_index=True)
-        else:
-            repository = LocalCommentRepository(use_index=False)
+        # リポジトリ初期化（LazyCommentRepositoryのみを使用）
+        logger.info("Using lazy-loading CSV repository")
+        repository = LazyCommentRepository()
         
         # WeatherForecastチェック（並列実行対応）
         if weather_data is not None and not isinstance(weather_data, WeatherForecast):

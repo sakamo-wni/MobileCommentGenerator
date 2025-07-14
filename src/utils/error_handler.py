@@ -29,7 +29,7 @@ class ErrorResponse:
     
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換"""
-        result = {
+        result: Dict[str, Any] = {
             "success": self.success,
             "error": self.error_message
         }
@@ -84,14 +84,14 @@ class ErrorHandler:
                 hint=getattr(error, "hint", None)
             )
         
-        # Legacy AppError の場合
-        if isinstance(error, AppError) and not isinstance(error, AppException):
-            return ErrorResponse(
-                error_type=error.error_type,
-                error_message=str(error),
-                user_message=str(error),
-                hint=error.hint
-            )
+        # Legacy AppError の場合（AppExceptionを継承しているため、実際にはこのコードには到達しない）
+        # if isinstance(error, AppError):
+        #     return ErrorResponse(
+        #         error_type=error.error_type,
+        #         error_message=str(error),
+        #         user_message=str(error),
+        #         hint=error.hint
+        #     )
         
         # 特定のエラータイプの処理
         error_message = str(error)
