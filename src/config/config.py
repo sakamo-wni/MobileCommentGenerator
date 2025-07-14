@@ -215,3 +215,34 @@ def get_config() -> Config:
     return Config()
 
 
+# 互換性のためのヘルパー関数（app_config.pyで使用されている）
+def get_api_config() -> APIConfig:
+    """API設定を取得"""
+    return get_config().api
+
+
+def get_weather_config() -> WeatherConfig:
+    """天気設定を取得"""
+    return get_config().weather
+
+
+def get_app_settings() -> AppSettings:
+    """アプリケーション設定を取得"""
+    return get_config().app
+
+
+def get_ui_settings() -> UISettings:
+    """UI設定を取得"""
+    return get_config().ui
+
+
+def get_generation_settings() -> GenerationSettings:
+    """生成設定を取得"""
+    return get_config().generation
+
+
+def get_data_settings() -> DataSettings:
+    """データ設定を取得"""
+    return get_config().data
+
+
