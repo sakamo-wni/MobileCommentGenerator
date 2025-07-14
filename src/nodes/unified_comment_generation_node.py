@@ -36,9 +36,14 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         target_datetime = state.target_datetime or datetime.now()
         llm_provider = state.llm_provider or "openai"
         
+        logger.debug(f"入力データ確認 - weather_data: {weather_data is not None}, past_comments: {past_comments is not None}")
+        if past_comments:
+            logger.debug(f"past_comments count: {len(past_comments)}")
+        
         if not weather_data:
             raise ValueError("天気データが利用できません")
         if not past_comments:
+            logger.error("過去コメントが空です。CSVファイルの読み込みに問題がある可能性があります。")
             raise ValueError("過去コメントが存在しません")
             
         # コメントをタイプ別に分離
