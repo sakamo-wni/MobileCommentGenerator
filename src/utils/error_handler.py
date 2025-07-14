@@ -122,6 +122,19 @@ class ErrorHandler:
             user_message=unknown_error.message
         )
     
-
-
-# Unused functions removed - use ErrorHandler class methods instead
+    @staticmethod
+    def create_error_result(location: str, error: Union[str, Exception]) -> Dict[str, Any]:
+        """エラー結果の統一フォーマットを作成"""
+        if isinstance(error, Exception):
+            error_response = ErrorHandler.handle_error(error)
+            error_message = error_response.error_message
+        else:
+            error_message = error
+        
+        return {
+            'location': location,
+            'result': None,
+            'success': False,
+            'comment': '',
+            'error': error_message
+        }
