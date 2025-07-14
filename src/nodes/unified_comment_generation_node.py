@@ -220,12 +220,12 @@ def _build_unified_prompt(weather_comments: List[PastComment],
     
     # 候補のフォーマット
     weather_candidates = "\n".join([
-        f"{i}. {c.comment_text} (天気条件: {c.weather_condition or c.weather_description or '不明'}, 使用回数: {c.usage_count})"
+        f"{i}. {c.comment_text} (天気条件: {c.weather_condition or '不明'}, 使用回数: {getattr(c, 'usage_count', c.raw_data.get('count', 0))})"
         for i, c in enumerate(weather_comments)
     ])
     
     advice_candidates = "\n".join([
-        f"{i}. {c.comment_text} (使用回数: {c.usage_count})"
+        f"{i}. {c.comment_text} (使用回数: {getattr(c, 'usage_count', c.raw_data.get('count', 0))})"
         for i, c in enumerate(advice_comments)
     ])
     

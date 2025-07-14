@@ -98,7 +98,6 @@ class CommentParser:
                 location="全国",  # CSVには地点情報がない
                 datetime=datetime.now(),
                 weather_condition=weather_condition,
-                weather_description=weather_condition,  # 同じ値を設定
                 comment_text=comment_text.strip(),
                 comment_type=CommentType.WEATHER_COMMENT if comment_type == "weather_comment" else CommentType.ADVICE,
                 raw_data={
@@ -106,7 +105,8 @@ class CommentParser:
                     'source': 'local_csv',
                     'file': Path(row.get('_file_path', '')).name,
                     'line': row.get('_line_number', 0),
-                    'season': season
+                    'season': season,
+                    'inferred_weather': weather_condition  # 推定した天気条件を記録
                 }
             )
             
