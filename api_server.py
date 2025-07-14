@@ -22,18 +22,12 @@ logger = logging.getLogger(__name__)
 
 try:
     from src.workflows.comment_generation_workflow import run_comment_generation
-    from src.workflows.unified_comment_generation_workflow import run_unified_comment_generation
-    from src.workflows.parallel_comment_generation_workflow import run_parallel_comment_generation
     from src.ui.streamlit_utils import load_locations, load_history, save_to_history
     logger.info("Successfully imported backend modules")
 except ImportError as e:
     logger.error(f"Failed to import backend modules: {e}")
     # Fallback imports for testing
     def run_comment_generation(*args, **kwargs):
-        return {"success": False, "error": "Backend not available"}
-    def run_unified_comment_generation(*args, **kwargs):
-        return {"success": False, "error": "Backend not available"}
-    def run_parallel_comment_generation(*args, **kwargs):
         return {"success": False, "error": "Backend not available"}
     def load_locations():
         return ["東京", "神戸", "大阪", "名古屋", "福岡"]
@@ -69,9 +63,6 @@ class CommentGenerationRequest(BaseModel):
     llm_provider: LLMProvider = "gemini"
     target_datetime: Optional[str] = None
     exclude_previous: Optional[bool] = False
-    use_unified_mode: Optional[bool] = False  # 統合モード（選択と生成を1回で）
-    use_parallel_mode: Optional[bool] = False  # 並列処理モード
-    use_indexed_csv: Optional[bool] = False  # インデックス化されたCSVを使用
 
 class CommentGenerationResponse(BaseModel):
     success: bool
@@ -153,48 +144,17 @@ async def generate_comment(request: CommentGenerationRequest) -> CommentGenerati
         
         logger.info(f"Target datetime: {target_dt} (current time for forecast calculation)")
         
-        # Select appropriate workflow based on flags
-        logger.info(f"Request flags - unified: {request.use_unified_mode}, parallel: {request.use_parallel_mode}, indexed_csv: {request.use_indexed_csv}")
+        # 並列処理ワークフローを実行
+        logger.info("Using parallel comment generation workflow")
         
-        # 追加のキーワード引数（将来の拡張用）
-        extra_kwargs = {}
-        
-        # デフォルトで並列処理を有効化
-        use_parallel = request.use_parallel_mode if request.use_parallel_mode is not None else True
-        
-        # 適切なワークフローを選択
-        if request.use_unified_mode:
-            logger.info("Using unified generation mode for better performance")
-            result = await asyncio.to_thread(
-                run_unified_comment_generation,
-                location_name=request.location,
-                target_datetime=target_dt,
-                llm_provider=request.llm_provider,
-                exclude_previous=request.exclude_previous,
-                **extra_kwargs
-            )
-        elif use_parallel:  # デフォルトでTrueになる
-            logger.info("Using parallel mode with optimized performance (default)")
-            result = await asyncio.to_thread(
-                run_parallel_comment_generation,
-                location_name=request.location,
-                target_datetime=target_dt,
-                llm_provider=request.llm_provider,
-                exclude_previous=request.exclude_previous,
-                use_unified_mode=request.use_unified_mode,
-                **extra_kwargs
-            )
-        else:
-            # デフォルト: 従来のワークフロー
-            logger.info("Using traditional workflow")
-            result = await asyncio.to_thread(
-                run_comment_generation,
-                location_name=request.location,
-                target_datetime=target_dt,
-                llm_provider=request.llm_provider,
-                exclude_previous=request.exclude_previous,
-                **extra_kwargs
-            )
+        result = await asyncio.to_thread(
+            run_comment_generation,
+            location_name=request.location,
+            target_datetime=target_dt,
+            llm_provider=request.llm_provider,
+            exclude_previous=request.exclude_previous,
+            use_unified_mode=False  # 統一モードは無効化（エラーが発生するため）
+        )
         
         logger.info(f"Generation result: success={result.get('success', False)}")
         
