@@ -16,7 +16,7 @@
 
 ```python
 # 使用例
-lazy_repo = LazyLocalCommentRepository()
+lazy_repo = LazyCommentRepository()
 
 # ページネーション付き取得
 comments = lazy_repo.get_comments_paginated(
