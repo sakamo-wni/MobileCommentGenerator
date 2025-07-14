@@ -64,6 +64,14 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
         
+        # 温度に応じたコメントのフィルタリング
+        temperature = getattr(weather_data, 'temperature', 0)
+        if temperature < 35.0:
+            # 35度未満では熱中症関連のコメントを除外
+            logger.info(f"温度が{temperature}°C（35°C未満）のため、熱中症関連コメントを除外")
+            weather_comments = [c for c in weather_comments if "熱中症" not in c.comment_text]
+            advice_comments = [c for c in advice_comments if "熱中症" not in c.comment_text]
+        
         # 天気に応じたコメントのフィルタリング
         if hasattr(weather_data, 'weather_description') and '雨' in weather_data.weather_description:
             precipitation = getattr(weather_data, 'precipitation', 0)

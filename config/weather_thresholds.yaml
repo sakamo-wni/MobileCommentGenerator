@@ -14,7 +14,7 @@ temperature:
   moderate_hourly_difference: 5.0  # 中程度の12時間差
   
   # 熱中症警告
-  heatstroke_warning_temp: 30.0  # 熱中症注意温度
+  heatstroke_warning_temp: 35.0  # 熱中症注意温度
 
 precipitation:
   # 降水量レベル（mm/h）
