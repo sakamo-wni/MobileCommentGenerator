@@ -2,16 +2,13 @@
 
 # 基本設定
 repository:
-  # 使用する実装 (standard または lazy)
-  implementation: standard
-  
   # CSVファイルのディレクトリ
   output_dir: output
   
-  # キャッシュ設定（standard実装のみ）
+  # キャッシュ設定
   cache:
-    # 初期化時にキャッシュを読み込むか
-    preload: true
+    # キャッシュの有効期限（分）
+    ttl_minutes: 60
     # キャッシュの最大サイズ（MB）
     max_size_mb: 100
 
@@ -38,7 +35,7 @@ validation:
 
 # パフォーマンス設定
 performance:
-  # ページネーションのデフォルトサイズ（lazy実装）
+  # ページネーションのデフォルトサイズ
   default_page_size: 50
   
   # 検索結果の最大数

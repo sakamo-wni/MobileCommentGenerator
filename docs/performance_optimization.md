@@ -99,10 +99,10 @@ PARALLEL_TIMEOUT = 30  # タイムアウト（秒）
 ### インデックスの再構築
 
 ```python
-from src.repositories.optimized_local_comment_repository import OptimizedLocalCommentRepository
+from src.repositories.lazy_comment_repository import LazyCommentRepository
 
-repo = OptimizedLocalCommentRepository()
-repo.refresh_cache()  # キャッシュをクリアして再構築
+repo = LazyCommentRepository()
+repo.clear_cache()  # キャッシュをクリアして再読み込み
 ```
 
 ### パフォーマンスメトリクス
