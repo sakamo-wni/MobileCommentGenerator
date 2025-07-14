@@ -29,18 +29,41 @@ def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
         if not location_name:
             raise ValueError("location_name が指定されていません")
             
-        # リポジトリ初期化（LazyCommentRepositoryのみを使用）
-        logger.info("Using lazy-loading CSV repository")
-        repository = LazyCommentRepository()
+        # 現在の月から関連する季節を決定
+        target_datetime = state.target_datetime or datetime.now()
+        month = target_datetime.month
+        
+        # 月ごとの関連季節マッピング
+        season_mapping = {
+            1: ["冬"],  # 1月
+            2: ["冬"],  # 2月
+            3: ["冬", "春"],  # 3月（季節の変わり目）
+            4: ["春"],  # 4月
+            5: ["春", "梅雨"],  # 5月（梅雨の始まり）
+            6: ["梅雨", "夏"],  # 6月
+            7: ["夏", "梅雨", "台風"],  # 7月
+            8: ["夏", "台風"],  # 8月
+            9: ["夏", "台風", "秋"],  # 9月
+            10: ["秋", "台風"],  # 10月
+            11: ["秋"],  # 11月
+            12: ["冬"],  # 12月
+        }
+        
+        relevant_seasons = season_mapping.get(month, ["春", "夏", "秋", "冬"])
+        logger.info(f"{month}月のため、関連季節: {relevant_seasons}")
+        
+        # リポジトリ初期化（関連季節のみを読み込む）
+        logger.info("Using lazy-loading CSV repository with seasonal filtering")
+        repository = LazyCommentRepository(seasons=relevant_seasons)
         
         # WeatherForecastチェック（並列実行対応）
         if weather_data is not None and not isinstance(weather_data, WeatherForecast):
             logger.warning("weather_data is not a WeatherForecast object")
             # 並列実行時はweather_dataがまだ設定されていない可能性があるため、処理を続行
             
-        # コメント取得
+        # コメント取得（関連季節のみから取得）
         past_comments = repository.get_recent_comments(
-            limit=180  # 各季節から最大15個ずつ取得 (15 * 2 types * 6 seasons = 180)
+            limit=100  # 季節を絞ったので件数を減らす
         )
         
         # メタデータ生成
