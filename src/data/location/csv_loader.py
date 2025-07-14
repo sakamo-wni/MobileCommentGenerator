@@ -13,13 +13,16 @@ logger = logging.getLogger(__name__)
 class LocationCSVLoader:
     """地点データCSVローダー"""
     
-    def __init__(self, csv_path: Optional[str] = None):
+    def __init__(self, csv_path: Optional[str] = None, coordinates_csv_path: Optional[str] = None):
         """初期化
         
         Args:
             csv_path: CSVファイルのパス。Noneの場合はデフォルトパスを使用
+            coordinates_csv_path: 緯度経度CSVファイルのパス。Noneの場合はデフォルトパスを使用
         """
         self.csv_path = csv_path or self._get_default_csv_path()
+        self.coordinates_csv_path = coordinates_csv_path or self._get_default_coordinates_csv_path()
+        self._coordinates_cache = None
     
     def _get_default_csv_path(self) -> str:
         """デフォルトのCSVファイルパスを取得"""
@@ -47,6 +50,32 @@ class LocationCSVLoader:
         logger.warning(f"Chiten.csvが見つかりません。デフォルトパスを使用: {default_path}")
         return default_path
     
+    def _get_default_coordinates_csv_path(self) -> str:
+        """デフォルトの緯度経度CSVファイルパスを取得"""
+        current_file_path = Path(__file__).resolve()
+        
+        # 現在のファイルから相対的にlocation_coordinates.csvを探す
+        possible_paths = [
+            # src/data/location/csv_loader.py から src/data/location_coordinates.csv
+            current_file_path.parent.parent / "location_coordinates.csv",
+            # プロジェクトルートから
+            current_file_path.parent.parent.parent.parent / "data" / "location_coordinates.csv",
+            # 現在のディレクトリ
+            Path("location_coordinates.csv"),
+            Path("data/location_coordinates.csv"),
+            Path("src/data/location_coordinates.csv"),
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                logger.info(f"location_coordinates.csvを検出: {path}")
+                return str(path)
+        
+        # 見つからない場合はデフォルトパスを返す（エラーは後で発生）
+        default_path = "src/data/location_coordinates.csv"
+        logger.warning(f"location_coordinates.csvが見つかりません。デフォルトパスを使用: {default_path}")
+        return default_path
+    
     def load_locations(self) -> List[Location]:
         """CSVファイルから地点データを読み込む
         
@@ -54,29 +83,35 @@ class LocationCSVLoader:
             読み込まれた地点データのリスト
         """
         locations = []
+        missing_coordinates = []
         
         try:
             with open(self.csv_path, "r", encoding="utf-8-sig") as f:
-                reader = csv.DictReader(f)
-                
-                # ヘッダーの確認
-                if not reader.fieldnames:
-                    logger.error(f"CSVファイルにヘッダーがありません: {self.csv_path}")
-                    return self._load_default_locations()
-                
-                logger.info(f"CSVヘッダー: {reader.fieldnames}")
-                
-                # 各行を読み込み
-                for row_num, row in enumerate(reader, start=2):  # ヘッダーを含めて2行目から
-                    try:
-                        location = self._parse_location_row(row)
-                        if location:
+                # Chiten.csvは地点名のみの単純なリストなので、単純に行ごとに読み込む
+                for line_num, line in enumerate(f, start=1):
+                    location_name = line.strip()
+                    if location_name:  # 空行をスキップ
+                        # 地点名から緯度経度情報を取得
+                        location_data = self._get_location_coordinates(location_name)
+                        if location_data:
+                            location = Location(
+                                name=location_name,
+                                normalized_name=location_name,
+                                latitude=location_data.get("latitude"),
+                                longitude=location_data.get("longitude"),
+                                prefecture=location_data.get("prefecture")
+                            )
                             locations.append(location)
-                    except Exception as e:
-                        logger.warning(f"行 {row_num} の解析に失敗: {e}")
-                        continue
+                        else:
+                            missing_coordinates.append(location_name)
                 
-                logger.info(f"{len(locations)}件の地点データを読み込みました")
+                # エラーサマリーを表示
+                if missing_coordinates:
+                    logger.warning(f"座標情報が見つからない地点: {len(missing_coordinates)}件")
+                    logger.warning(f"対象地点: {', '.join(missing_coordinates[:10])}" + 
+                                 ("..." if len(missing_coordinates) > 10 else ""))
+                
+                logger.info(f"{len(locations)}件の地点データを読み込みました（全{len(locations) + len(missing_coordinates)}件中）")
                 
                 # データが読み込めなかった場合はデフォルトデータを使用
                 if not locations:
@@ -136,6 +171,62 @@ class LocationCSVLoader:
         
         return location
     
+    def _load_coordinates_from_csv(self) -> Dict[str, Dict[str, Any]]:
+        """CSVファイルから緯度経度情報を読み込む"""
+        coordinates_data = {}
+        
+        try:
+            with open(self.coordinates_csv_path, "r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    location_name = row.get("location_name", "").strip()
+                    if location_name:
+                        try:
+                            coordinates_data[location_name] = {
+                                "prefecture": row.get("prefecture", "").strip(),
+                                "latitude": float(row.get("latitude", 0)),
+                                "longitude": float(row.get("longitude", 0))
+                            }
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"緯度経度の解析エラー ({location_name}): {e}")
+                            continue
+                
+                logger.info(f"{len(coordinates_data)}件の緯度経度情報を読み込みました")
+                
+        except FileNotFoundError:
+            logger.error(f"緯度経度CSVファイルが見つかりません: {self.coordinates_csv_path}")
+        except Exception as e:
+            logger.error(f"緯度経度CSV読み込みエラー: {e}")
+        
+        return coordinates_data
+    
+    def _get_location_coordinates(self, location_name: str) -> Optional[Dict[str, Any]]:
+        """地点名から緯度経度情報を取得
+        
+        Args:
+            location_name: 地点名
+            
+        Returns:
+            緯度経度情報を含む辞書、見つからない場合はNone
+        """
+        # キャッシュされていない場合は読み込む
+        if self._coordinates_cache is None:
+            self._coordinates_cache = self._load_coordinates_from_csv()
+            
+            # CSVファイルが見つからない場合のフォールバック
+            if not self._coordinates_cache:
+                logger.warning("緯度経度CSVファイルが読み込めません。ハードコードされたデータを使用します")
+                # 最小限のデータのみハードコード（フォールバック用）
+                self._coordinates_cache = {
+                    "東京": {"prefecture": "東京", "latitude": 35.6762, "longitude": 139.6503},
+                    "大阪": {"prefecture": "大阪", "latitude": 34.6937, "longitude": 135.5023},
+                    "名古屋": {"prefecture": "愛知", "latitude": 35.1815, "longitude": 136.9066},
+                    "札幌": {"prefecture": "北海道", "latitude": 43.0642, "longitude": 141.3469},
+                    "福岡": {"prefecture": "福岡", "latitude": 33.5904, "longitude": 130.4017},
+                }
+        
+        return self._coordinates_cache.get(location_name)
+    
     def _load_default_locations(self) -> List[Location]:
         """デフォルトの地点データを返す"""
         logger.info("デフォルトの地点データをロードしています...")
@@ -166,6 +257,7 @@ class LocationCSVLoader:
             {"name": "宇都宮", "prefecture": "栃木", "latitude": 36.5551, "longitude": 139.8828},
             {"name": "前橋", "prefecture": "群馬", "latitude": 36.3895, "longitude": 139.0634},
             {"name": "甲府", "prefecture": "山梨", "latitude": 35.6640, "longitude": 138.5685},
+            {"name": "河口湖", "prefecture": "山梨", "latitude": 35.5103, "longitude": 138.7728},
             {"name": "長野", "prefecture": "長野", "latitude": 36.6485, "longitude": 138.1811},
             {"name": "岐阜", "prefecture": "岐阜", "latitude": 35.3912, "longitude": 136.7223},
             {"name": "津", "prefecture": "三重", "latitude": 34.7185, "longitude": 136.5056},

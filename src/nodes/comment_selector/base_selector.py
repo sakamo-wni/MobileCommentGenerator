@@ -18,6 +18,9 @@ from .utils import CommentUtils
 
 logger = logging.getLogger(__name__)
 
+# 連続雨判定の閾値（時間）
+CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
+
 
 class CommentSelector:
     """コメント選択クラス"""
@@ -259,9 +262,27 @@ class CommentSelector:
         # 連続雨かどうかを判定
         is_continuous_rain = False
         rain_hours = 0
-        if state and hasattr(state, 'period_forecasts') and state.period_forecasts:
-            rain_hours = sum(1 for f in state.period_forecasts if f.weather == "雨")
-            is_continuous_rain = rain_hours >= 4  # 4時間すべて雨
+        period_forecasts = None
+        
+        # metadataからperiod_forecastsを取得
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+        
+        if period_forecasts:
+            # 天気が「雨」または降水量が0.1mm以上の時間をカウント
+            rain_hours = sum(1 for f in period_forecasts 
+                           if (hasattr(f, 'weather') and f.weather == "雨") or 
+                              (hasattr(f, 'precipitation') and f.precipitation >= 0.1))
+            is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+            
+            if is_continuous_rain:
+                logger.info(f"連続雨を検出: {rain_hours}時間の雨（9,12,15,18時）")
+                # デバッグ用：各時間の天気情報をログ出力
+                for f in period_forecasts:
+                    time_str = f.datetime.strftime('%H時') if hasattr(f, 'datetime') else '不明'
+                    weather = f.weather if hasattr(f, 'weather') else '不明'
+                    precip = f.precipitation if hasattr(f, 'precipitation') else 0
+                    logger.debug(f"  {time_str}: {weather}, 降水量{precip}mm")
         
         # 降水量に基づく不適切な表現のチェック
         for comment in comments:
@@ -303,9 +324,27 @@ class CommentSelector:
         # 連続雨かどうかを判定
         is_continuous_rain = False
         rain_hours = 0
-        if state and hasattr(state, 'period_forecasts') and state.period_forecasts:
-            rain_hours = sum(1 for f in state.period_forecasts if f.weather == "雨")
-            is_continuous_rain = rain_hours >= 4  # 4時間すべて雨
+        period_forecasts = None
+        
+        # metadataからperiod_forecastsを取得
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+        
+        if period_forecasts:
+            # 天気が「雨」または降水量が0.1mm以上の時間をカウント
+            rain_hours = sum(1 for f in period_forecasts 
+                           if (hasattr(f, 'weather') and f.weather == "雨") or 
+                              (hasattr(f, 'precipitation') and f.precipitation >= 0.1))
+            is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+            
+            if is_continuous_rain:
+                logger.info(f"連続雨を検出: {rain_hours}時間の雨（9,12,15,18時）")
+                # デバッグ用：各時間の天気情報をログ出力
+                for f in period_forecasts:
+                    time_str = f.datetime.strftime('%H時') if hasattr(f, 'datetime') else '不明'
+                    weather = f.weather if hasattr(f, 'weather') else '不明'
+                    precip = f.precipitation if hasattr(f, 'precipitation') else 0
+                    logger.debug(f"  {time_str}: {weather}, 降水量{precip}mm")
         
         for comment in comments:
             if any(keyword in comment.comment_text for keyword in rain_advice_keywords):
@@ -382,7 +421,7 @@ class CommentSelector:
         
         # 雨の場合
         if weather_data.precipitation > 0 or "雨" in weather_data.weather_description:
-            rain_keywords = ["雨", "降水", "僘"]
+            rain_keywords = ["雨", "降水", "傘"]
             for comment in comments:
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     logger.info(f"雨関連コメントを選択: '{comment.comment_text}'")
@@ -420,7 +459,7 @@ class CommentSelector:
         
         # 雨の場合
         if weather_data.precipitation > 0 or "雨" in weather_data.weather_description:
-            rain_advice_keywords = ["僘", "雨具", "濡れ", "雨対策"]
+            rain_advice_keywords = ["傘", "雨具", "濡れ", "雨対策"]
             for comment in comments:
                 if any(keyword in comment.comment_text for keyword in rain_advice_keywords):
                     logger.info(f"雨関連アドバイスを選択: '{comment.comment_text}'")
