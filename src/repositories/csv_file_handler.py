@@ -93,6 +93,10 @@ class CommentParser:
             # コメントテキストから天気条件を推定
             weather_condition = CommentParser._infer_weather_condition(comment_text, comment_type)
             
+            # デバッグ: 特定のコメントの推定結果を確認
+            if "段々と雲増量" in comment_text or "傘" in comment_text:
+                logger.debug(f"天気推定: '{comment_text}' -> '{weather_condition}'")
+            
             # PastCommentオブジェクトの作成
             return PastComment(
                 location="全国",  # CSVには地点情報がない
@@ -176,7 +180,7 @@ class CommentParser:
             (["快晴", "青空", "日差し", "太陽", "陽射し", "晴天"], "晴れ"),
             (["晴", "晴れ"], "晴れ"),
             # 曇り関連
-            (["曇り空", "曇天", "雲が優勢", "雲が多", "どんより"], "曇り"),
+            (["曇り空", "曇天", "雲が優勢", "雲が多", "どんより", "雲増量"], "曇り"),
             (["曇", "くもり"], "曇り"),
             # 嵐・雷関連
             (["台風", "暴風", "嵐"], "嵐"),

@@ -64,6 +64,16 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
         
+        # 天気に応じたコメントのフィルタリング
+        if hasattr(weather_data, 'weather_description') and '雨' in weather_data.weather_description:
+            logger.info("雨の天気のため、雨関連のコメントのみを選択")
+            # 雨関連のコメントのみを残す
+            weather_comments = [c for c in weather_comments if c.weather_condition in ['雨', '大雨', '雷', '嵐']]
+            if not weather_comments:
+                logger.warning("雨関連のコメントが見つかりません。全コメントを使用します。")
+                weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
+                weather_comments = _filter_forbidden_phrases(weather_comments)
+        
         # 連続雨判定
         is_continuous_rain = _check_continuous_rain(state)
         
