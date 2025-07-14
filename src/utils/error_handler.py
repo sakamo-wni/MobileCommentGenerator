@@ -138,6 +138,3 @@ class ErrorHandler:
             'comment': '',
             'error': error_message
         }
-
-
-# Unused functions removed - use ErrorHandler class methods instead
