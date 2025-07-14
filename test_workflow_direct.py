@@ -16,7 +16,8 @@ def test_direct():
             location_name="東京",
             target_datetime=datetime.now(),
             llm_provider="gemini",
-            exclude_previous=False
+            exclude_previous=False,
+            use_unified_mode=False  # 従来モードでテスト
         )
         
         elapsed_time = time.time() - start_time

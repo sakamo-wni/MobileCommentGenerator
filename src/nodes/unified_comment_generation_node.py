@@ -63,11 +63,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         )
         
         # 1回のLLM呼び出しで選択と生成を実行
-        response = llm_manager.generate_text(
-            unified_prompt,
-            temperature=0.7,
-            max_tokens=500
-        )
+        response = llm_manager.generate(unified_prompt)
         
         # レスポンスの解析
         result = _parse_unified_response(response)
@@ -82,7 +78,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         # CommentPairの作成
         selected_pair = CommentPair(
             weather_comment=selected_weather,
-            advice_comment=selected_advice
+            advice_comment=selected_advice,
+            similarity_score=1.0,  # 統一モードでは常に最適として扱う
+            selection_reason="統一モードによる自動選択"
         )
         
         # 生成されたコメントを取得（フォールバック: 選択されたコメントの結合）
@@ -139,14 +137,23 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         return state
 
 
-def _format_weather_info(weather_data: Dict[str, Any], 
+def _format_weather_info(weather_data: Any, 
                         location_name: str, 
                         target_datetime: datetime) -> str:
     """天気情報を文字列にフォーマット"""
-    weather_desc = weather_data.get('weather_description', '不明')
-    temp = weather_data.get('temperature', 0)
-    humidity = weather_data.get('humidity', 0)
-    wind_speed = weather_data.get('wind_speed', 0)
+    # WeatherForecastオブジェクトとdictの両方に対応
+    if hasattr(weather_data, 'weather_description'):
+        # WeatherForecastオブジェクトの場合
+        weather_desc = weather_data.weather_description or '不明'
+        temp = weather_data.temperature or 0
+        humidity = weather_data.humidity or 0
+        wind_speed = weather_data.wind_speed or 0
+    else:
+        # dictの場合
+        weather_desc = weather_data.get('weather_description', '不明')
+        temp = weather_data.get('temperature', 0)
+        humidity = weather_data.get('humidity', 0)
+        wind_speed = weather_data.get('wind_speed', 0)
     
     return (f"{location_name}の{target_datetime.strftime('%Y-%m-%d %H:%M')}の天気: "
             f"{weather_desc}、気温: {temp}°C、湿度: {humidity}%、風速: {wind_speed}m/s")
@@ -155,7 +162,7 @@ def _format_weather_info(weather_data: Dict[str, Any],
 def _build_unified_prompt(weather_comments: List[PastComment],
                          advice_comments: List[PastComment],
                          weather_info: str,
-                         weather_data: Dict[str, Any]) -> str:
+                         weather_data: Any) -> str:
     """統合プロンプトの構築"""
     
     # 候補のフォーマット

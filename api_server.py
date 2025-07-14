@@ -63,6 +63,7 @@ class CommentGenerationRequest(BaseModel):
     llm_provider: LLMProvider = "gemini"
     target_datetime: Optional[str] = None
     exclude_previous: Optional[bool] = False
+    use_unified_mode: Optional[bool] = True
 
 class CommentGenerationResponse(BaseModel):
     success: bool
@@ -85,6 +86,7 @@ class HealthResponse(BaseModel):
 class BulkGenerationRequest(BaseModel):
     locations: List[str]
     llm_provider: LLMProvider = "gemini"
+    use_unified_mode: Optional[bool] = True
 
 class BulkGenerationResponse(BaseModel):
     results: List[CommentGenerationResponse]
@@ -153,6 +155,7 @@ async def generate_comment(request: CommentGenerationRequest) -> CommentGenerati
             target_datetime=target_dt,
             llm_provider=request.llm_provider,
             exclude_previous=request.exclude_previous,
+            use_unified_mode=request.use_unified_mode,
         )
         
         logger.info(f"Generation result: success={result.get('success', False)}")
