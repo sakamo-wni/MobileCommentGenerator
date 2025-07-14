@@ -187,15 +187,23 @@ def _format_weather_info(weather_data: Any,
         temp = weather_data.temperature or 0
         humidity = weather_data.humidity or 0
         wind_speed = weather_data.wind_speed or 0
+        precipitation = weather_data.precipitation if hasattr(weather_data, 'precipitation') else 0
     else:
         # dictの場合
         weather_desc = weather_data.get('weather_description', '不明')
         temp = weather_data.get('temperature', 0)
         humidity = weather_data.get('humidity', 0)
         wind_speed = weather_data.get('wind_speed', 0)
+        precipitation = weather_data.get('precipitation', 0)
     
-    return (f"{location_name}の{target_datetime.strftime('%Y-%m-%d %H:%M')}の天気: "
-            f"{weather_desc}、気温: {temp}°C、湿度: {humidity}%、風速: {wind_speed}m/s")
+    result = (f"{location_name}の{target_datetime.strftime('%Y-%m-%d %H:%M')}の天気: "
+              f"{weather_desc}、気温: {temp}°C、湿度: {humidity}%、風速: {wind_speed}m/s")
+    
+    # 降水量情報を追加（雨の場合のみ）
+    if precipitation > 0:
+        result += f"、降水量: {precipitation}mm"
+    
+    return result
 
 
 def _build_unified_prompt(weather_comments: List[PastComment],
@@ -242,8 +250,12 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 
 【選択基準】
 1. 天気条件との一致度（最優先）- 実際の天気と異なる内容のコメントは選択禁止
-2. 使用回数が少ないものを優先
-3. 組み合わせの自然さ
+2. 降水量に応じた選択:
+   - 降水量10mm以上: 「傘が必須」「傘は必須」など強い表現を優先
+   - 降水量1-10mm: 「傘が活躍」「傘の用意」など通常の雨表現
+   - 降水量0.1-1mm: 「にわか雨」「軽い雨」など（連続雨でない場合のみ）
+3. 使用回数が少ないものを優先
+4. 組み合わせの自然さ
 
 【制約】
 - 最終コメントは15文字以内
