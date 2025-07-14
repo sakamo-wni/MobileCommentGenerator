@@ -33,7 +33,7 @@ class TestWorkflowEdgeCases:
     @pytest.fixture
     def mock_comment_repository(self):
         """Mock comment repository"""
-        with patch("src.repositories.local_comment_repository.LocalCommentRepository") as mock:
+        with patch("src.repositories.lazy_comment_repository.LazyCommentRepository") as mock:
             yield mock
     
     def test_network_timeout_handling(self, mock_weather_api):

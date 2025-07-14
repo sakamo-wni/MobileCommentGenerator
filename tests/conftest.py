@@ -74,7 +74,7 @@ def mock_llm_manager():
 @pytest.fixture
 def mock_comment_repository():
     """Mock comment repository"""
-    with patch("src.repositories.local_comment_repository.LocalCommentRepository") as mock:
+    with patch("src.repositories.lazy_comment_repository.LazyCommentRepository") as mock:
         instance = Mock()
         mock.return_value = instance
         

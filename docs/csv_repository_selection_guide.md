@@ -1,248 +1,144 @@
-# CSVリポジトリ実装の選択ガイド
+# CSVリポジトリ実装ガイド
 
 ## 概要
 
-MobileCommentGeneratorでは、2種類のCSVリポジトリ実装を提供しています。このガイドでは、それぞれの特徴と適切な選択基準について説明します。
+MobileCommentGeneratorでは、LazyCommentRepository（遅延読み込み実装）を使用してCSVファイルからコメントデータを管理しています。この実装により、メモリ効率的かつ高速な起動を実現しています。
 
-## 実装の比較
+## LazyCommentRepositoryの特徴
 
-### 標準実装（LocalCommentRepository）
+### メリット
+- ✅ **メモリ効率的**: 必要なファイルのみを読み込み
+- ✅ **高速な起動**: 初期化時にファイルを読み込まない
+- ✅ **大規模データセット対応**: メモリ制限のある環境でも動作
+- ✅ **キャッシュ機能**: 一度読み込んだデータは高速アクセス可能
+- ✅ **並列読み込み対応**: 複数ファイルの同時読み込みが可能
 
-**メリット**:
-- ✅ 高速なレスポンス（キャッシュ済み）
-- ✅ 複数回のアクセスで効率的
-- ✅ シンプルな実装
+### 動作原理
+1. 初期化時はファイルの存在確認のみ
+2. データアクセス時に必要なファイルを読み込み
+3. 読み込んだデータはメモリにキャッシュ
+4. TTL（Time To Live）によりキャッシュを自動管理
 
-**デメリット**:
-- ❌ 初期化時にメモリを消費
-- ❌ 大規模データセットでメモリ不足の可能性
-- ❌ 起動時間が遅い（全ファイル読み込み）
+## 使用方法
 
-### 遅延読み込み実装（LazyLocalCommentRepository）
-
-**メリット**:
-- ✅ メモリ効率的
-- ✅ 高速な起動
-- ✅ 大規模データセット対応
-- ✅ ページネーション機能
-
-**デメリット**:
-- ❌ 初回アクセス時は遅い
-- ❌ ファイルI/Oが頻繁
-- ❌ 実装がやや複雑
-
-## 選択基準
-
-### データサイズによる選択
+### 基本的な使用例
 
 ```python
-import os
-from pathlib import Path
+from src.repositories.lazy_comment_repository import LazyCommentRepository
 
-def check_csv_size(output_dir="output"):
-    """CSVファイルの合計サイズを確認"""
-    total_size = 0
-    output_path = Path(output_dir)
-    
-    for csv_file in output_path.glob("*.csv"):
-        total_size += csv_file.stat().st_size
-    
-    size_mb = total_size / (1024 * 1024)
-    print(f"CSVファイル合計サイズ: {size_mb:.2f} MB")
-    
-    if size_mb < 50:
-        print("推奨: 標準実装（LocalCommentRepository）")
-    elif size_mb < 200:
-        print("推奨: どちらでも可（使用パターンに依存）")
-    else:
-        print("推奨: 遅延読み込み実装（LazyLocalCommentRepository）")
-    
-    return size_mb
+# リポジトリの初期化
+repository = LazyCommentRepository()
 
-# 使用例
-check_csv_size()
+# 季節ごとのコメント取得
+spring_comments = repository.get_comments_by_season("春")
+
+# 天気コメントのみ取得
+weather_comments = repository.get_weather_comments_by_season("夏")
+
+# アドバイスコメントのみ取得
+advice_comments = repository.get_advice_by_season("秋")
+
+# キーワード検索
+search_results = repository.search_comments(
+    keyword="晴れ",
+    season="春",
+    comment_type=CommentType.WEATHER_COMMENT
+)
 ```
 
-### 使用パターンによる選択
-
-#### 標準実装を選ぶべきケース
-
-1. **Webアプリケーション**
-   - 複数のリクエストで同じデータを使用
-   - レスポンス速度が重要
-   - メモリに余裕がある
-
-2. **バッチ処理**
-   - 全地点・全季節のデータを処理
-   - 起動時間よりも処理速度が重要
-
-3. **開発・テスト環境**
-   - データサイズが小さい
-   - デバッグが容易
-
-#### 遅延読み込み実装を選ぶべきケース
-
-1. **メモリ制限環境**
-   - コンテナ環境（メモリ上限あり）
-   - 小規模サーバー
-   - エッジデバイス
-
-2. **特定データのみ使用**
-   - 特定の季節のみ
-   - 特定の地点のみ
-   - キーワード検索中心
-
-3. **大規模データセット**
-   - CSVファイルが200MB超
-   - コメント数が数十万件
-   - 将来的な拡張を想定
-
-## 実装の切り替え方法
-
-### 環境変数による切り替え
+### 高度な使用方法
 
 ```python
-import os
-from src.repositories.local_comment_repository import LocalCommentRepository
-from src.repositories.local_comment_repository_lazy import LazyLocalCommentRepository
+# 事前読み込み（パフォーマンス最適化）
+repository.preload_season("春")  # 春のデータを事前に読み込む
 
-def get_comment_repository():
-    """環境に応じたリポジトリを取得"""
-    use_lazy = os.getenv("USE_LAZY_CSV_REPO", "false").lower() == "true"
-    
-    if use_lazy:
-        return LazyLocalCommentRepository()
-    else:
-        return LocalCommentRepository()
+# キャッシュのクリア
+repository.clear_cache()
 
-# 使用例
-repo = get_comment_repository()
+# 統計情報の取得
+stats = repository.get_statistics()
+print(f"読み込まれたファイル数: {stats['loaded_files']}")
+print(f"キャッシュヒット率: {stats['cache_stats']['hit_rate']:.1%}")
 ```
 
-### 設定ファイルによる切り替え
+## パフォーマンス特性
+
+### メモリ使用量
+- 初期化時: 最小限（ファイルリストのみ）
+- データアクセス後: アクセスしたファイルのみメモリに保持
+
+### レスポンス時間
+- 初回アクセス: ファイル読み込みのため若干遅い
+- 2回目以降: キャッシュから高速アクセス
+
+## 設定オプション
+
+### 環境変数
+環境変数による設定は不要です。LazyCommentRepositoryが常に使用されます。
+
+### 初期化パラメータ
 
 ```python
-import yaml
-from pathlib import Path
-
-def get_repository_from_config(config_path="config/local_csv_config.yaml"):
-    """設定ファイルからリポジトリを取得"""
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    
-    implementation = config.get("repository", {}).get("implementation", "standard")
-    
-    if implementation == "lazy":
-        from src.repositories.local_comment_repository_lazy import LazyLocalCommentRepository
-        return LazyLocalCommentRepository(
-            output_dir=config["repository"]["output_dir"]
-        )
-    else:
-        from src.repositories.local_comment_repository import LocalCommentRepository
-        return LocalCommentRepository(
-            output_dir=config["repository"]["output_dir"]
-        )
+repository = LazyCommentRepository(
+    output_dir="output",           # CSVファイルのディレクトリ
+    cache_ttl_minutes=60,         # キャッシュの有効期限（分）
+    enable_parallel_loading=True   # 並列読み込みの有効化
+)
 ```
 
-## パフォーマンス測定
+## ベストプラクティス
 
-### ベンチマークスクリプト
-
+### 1. 効率的なデータアクセス
 ```python
-import time
-import psutil
-import os
-from contextlib import contextmanager
+# 良い例: 必要な季節のみアクセス
+spring_weather = repository.get_weather_comments_by_season("春")
 
-@contextmanager
-def measure_performance(name):
-    """パフォーマンス測定コンテキストマネージャー"""
-    process = psutil.Process(os.getpid())
-    mem_before = process.memory_info().rss / 1024 / 1024
-    start_time = time.time()
-    
-    yield
-    
-    elapsed_time = time.time() - start_time
-    mem_after = process.memory_info().rss / 1024 / 1024
-    mem_increase = mem_after - mem_before
-    
-    print(f"\n{name}:")
-    print(f"  実行時間: {elapsed_time:.3f}秒")
-    print(f"  メモリ増加: {mem_increase:.1f}MB")
-    print(f"  最終メモリ: {mem_after:.1f}MB")
-
-# 標準実装のテスト
-with measure_performance("標準実装"):
-    from src.repositories.local_comment_repository import LocalCommentRepository
-    repo = LocalCommentRepository()
-    comments = repo.get_recent_comments(limit=100)
-    print(f"  取得件数: {len(comments)}")
-
-# 遅延読み込み実装のテスト
-with measure_performance("遅延読み込み実装"):
-    from src.repositories.local_comment_repository_lazy import LazyLocalCommentRepository
-    lazy_repo = LazyLocalCommentRepository()
-    comments = lazy_repo.get_top_comments_by_season("春", top_n=50)
-    print(f"  取得件数: {len(comments)}")
-```
-
-## 移行ガイド
-
-### 標準実装から遅延読み込みへの移行
-
-```python
-# Before (標準実装)
-repo = LocalCommentRepository()
-comments = repo.get_recent_comments(limit=100)
-
-# After (遅延読み込み)
-lazy_repo = LazyLocalCommentRepository()
-# get_recent_commentsは実装されていないため、代替方法を使用
-comments = []
+# 避けるべき例: 全季節を順番にアクセス（必要ない場合）
+all_comments = []
 for season in ["春", "夏", "秋", "冬"]:
-    season_comments = lazy_repo.get_top_comments_by_season(season, top_n=20)
-    comments.extend(season_comments)
+    all_comments.extend(repository.get_comments_by_season(season))
 ```
 
-### APIの違い
+### 2. 事前読み込みの活用
+```python
+# バッチ処理の場合は事前読み込みが有効
+seasons_to_process = ["春", "夏"]
+for season in seasons_to_process:
+    repository.preload_season(season)
 
-| メソッド | 標準実装 | 遅延読み込み実装 |
-|---------|---------|----------------|
-| get_recent_comments() | ✅ | ❌ |
-| get_all_available_comments() | ✅ | ❌ |
-| get_comments_paginated() | ❌ | ✅ |
-| search_comments() | ❌ | ✅ |
-| get_top_comments_by_season() | ❌ | ✅ |
+# その後の処理は高速
+for season in seasons_to_process:
+    comments = repository.get_comments_by_season(season)
+    # 処理...
+```
+
+### 3. エラーハンドリング
+```python
+try:
+    comments = repository.get_comments_by_season("春")
+except FileNotFoundError:
+    print("CSVファイルが見つかりません。output/ディレクトリを確認してください。")
+except Exception as e:
+    print(f"エラーが発生しました: {e}")
+```
 
 ## トラブルシューティング
 
-### Q: メモリ不足エラーが発生する
-
+### Q: CSVファイルが見つからないエラー
 **解決策**:
-1. 遅延読み込み実装に切り替える
-2. 不要な季節のCSVファイルを別ディレクトリに移動
-3. CSVファイルのサイズを削減（使用頻度の低いコメントを削除）
+1. `output/`ディレクトリにCSVファイルが存在することを確認
+2. ファイル名の形式が正しいことを確認（例: `春_weather_comment_enhanced100.csv`）
 
-### Q: レスポンスが遅い
-
+### Q: メモリ使用量が増加する
 **解決策**:
-1. 標準実装に切り替える（メモリに余裕がある場合）
-2. SSDにCSVファイルを配置
-3. 必要なデータのみを読み込むようにクエリを最適化
+1. 定期的に`clear_cache()`を呼び出す
+2. `cache_ttl_minutes`を短く設定する
 
-### Q: どちらを選ぶべきか分からない
-
-**推奨アプローチ**:
-1. まず標準実装で開始
-2. メモリ使用量を監視
-3. 問題が発生したら遅延読み込みに切り替え
+### Q: 初回アクセスが遅い
+**解決策**:
+1. 頻繁に使用するデータは`preload_season()`で事前読み込み
+2. アプリケーション起動時に必要なデータを読み込んでおく
 
 ## まとめ
 
-- **小〜中規模データ（〜100MB）**: 標準実装を推奨
-- **大規模データ（200MB〜）**: 遅延読み込み実装を推奨
-- **メモリ制限環境**: 遅延読み込み実装を推奨
-- **高速レスポンス重視**: 標準実装を推奨
-
-適切な実装を選択することで、効率的なコメント管理が可能になります。
+LazyCommentRepositoryは、メモリ効率と起動速度を重視した実装です。適切に使用することで、大規模なデータセットでも効率的にコメント管理が可能になります。

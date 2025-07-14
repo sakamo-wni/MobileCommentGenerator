@@ -156,10 +156,8 @@ async def generate_comment(request: CommentGenerationRequest) -> CommentGenerati
         # Select appropriate workflow based on flags
         logger.info(f"Request flags - unified: {request.use_unified_mode}, parallel: {request.use_parallel_mode}, indexed_csv: {request.use_indexed_csv}")
         
-        # インデックス化されたCSVを使用する場合の設定
+        # 追加のキーワード引数（将来の拡張用）
         extra_kwargs = {}
-        if request.use_indexed_csv:
-            extra_kwargs["use_optimized_repository"] = True
         
         # デフォルトで並列処理を有効化
         use_parallel = request.use_parallel_mode if request.use_parallel_mode is not None else True

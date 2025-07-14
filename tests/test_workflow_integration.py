@@ -35,7 +35,7 @@ class TestWorkflowIntegration:
             yield
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
+    @patch('src.repositories.lazy_comment_repository.LazyCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_complete_workflow_success(
         self,
@@ -132,7 +132,7 @@ class TestWorkflowIntegration:
         assert should_retry(state) == "continue"
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
+    @patch('src.repositories.lazy_comment_repository.LazyCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_workflow_with_retry(
         self,

@@ -8,7 +8,6 @@ import tempfile
 import csv
 
 from src.repositories.lazy_comment_repository import LazyCommentRepository
-from src.repositories.local_comment_repository import LocalCommentRepository
 from src.data.past_comment import PastComment, CommentType
 
 
@@ -137,39 +136,33 @@ class TestLazyCommentRepository:
         assert len(repo._loaded_files) == 1
         assert "春_weather_comment" in repo._loaded_files
     
-    def test_performance_comparison(self, temp_output_dir, create_test_csv):
-        """通常のリポジトリと遅延読み込みリポジトリのパフォーマンス比較"""
+    def test_lazy_loading_performance(self, temp_output_dir, create_test_csv):
+        """遅延読み込みリポジトリのパフォーマンステスト"""
         # 大量のCSVファイルを作成
         for season in ["春", "夏", "秋", "冬", "梅雨", "台風"]:
             create_test_csv(season, "weather_comment", 100)
             create_test_csv(season, "advice", 50)
         
-        # 通常のリポジトリ（全ファイル読み込み）
-        start_time = time.time()
-        normal_repo = LocalCommentRepository(
-            output_dir=str(temp_output_dir),
-            use_index=False
-        )
-        normal_init_time = time.time() - start_time
-        
-        # 遅延読み込みリポジトリ
+        # 遅延読み込みリポジトリの初期化時間を測定
         start_time = time.time()
         lazy_repo = LazyCommentRepository(output_dir=str(temp_output_dir))
-        lazy_init_time = time.time() - start_time
+        init_time = time.time() - start_time
         
-        # 遅延読み込みの方が初期化が高速
-        assert lazy_init_time < normal_init_time
+        # 初期化が高速であることを確認（0.1秒以内）
+        assert init_time < 0.1
         
-        # 特定の季節のデータ取得も測定
+        # 特定の季節のデータ取得時間を測定
         start_time = time.time()
         spring_comments = lazy_repo.get_comments_by_season("春")
-        lazy_fetch_time = time.time() - start_time
+        fetch_time = time.time() - start_time
         
-        print(f"\n初期化時間:")
-        print(f"  通常: {normal_init_time:.3f}秒")
-        print(f"  遅延: {lazy_init_time:.3f}秒")
-        print(f"  改善率: {(normal_init_time - lazy_init_time) / normal_init_time * 100:.1f}%")
-        print(f"\n春データ取得時間（遅延）: {lazy_fetch_time:.3f}秒")
+        # 必要な分だけ読み込まれていることを確認
+        assert len(lazy_repo._loaded_files) == 2  # 春のweather_commentとadviceのみ
+        
+        print(f"\n遅延読み込みパフォーマンス:")
+        print(f"  初期化時間: {init_time:.3f}秒")
+        print(f"  春データ取得時間: {fetch_time:.3f}秒")
+        print(f"  読み込まれたファイル数: {len(lazy_repo._loaded_files)}/12")
     
     def test_preload_functionality(self, temp_output_dir, create_test_csv):
         """事前読み込み機能のテスト"""

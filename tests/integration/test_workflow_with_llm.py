@@ -30,7 +30,7 @@ class TestWorkflowWithLLMIntegration:
             yield
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
+    @patch('src.repositories.lazy_comment_repository.LazyCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_complete_workflow_with_openai(
         self,
@@ -152,7 +152,7 @@ class TestWorkflowWithLLMIntegration:
         mock_model.generate_content.assert_called_once()
     
     @patch('src.nodes.weather_forecast_node.requests.get')
-    @patch('src.repositories.local_comment_repository.LocalCommentRepository')
+    @patch('src.repositories.lazy_comment_repository.LazyCommentRepository')
     @patch('src.llm.providers.openai_provider.OpenAI')
     def test_workflow_with_retry_logic(
         self,

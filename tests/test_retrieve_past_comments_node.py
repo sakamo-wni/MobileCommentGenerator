@@ -31,7 +31,7 @@ class TestRetrievePastCommentsFunction:
             )
         ]
         
-        with patch("src.nodes.retrieve_past_comments_node.LocalCommentRepository") as mock_repo_class:
+        with patch("src.nodes.retrieve_past_comments_node.LazyCommentRepository") as mock_repo_class:
             mock_repo = Mock()
             mock_repo.search_similar_comments.return_value = mock_comments
             mock_repo_class.return_value = mock_repo
