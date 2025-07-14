@@ -48,7 +48,6 @@ class CommentGenerationState:
     max_retry_count: int = field(default_factory=lambda: int(os.environ.get("MAX_EVALUATION_RETRIES", "3")))
     validation_result: Any | None = None  # ValidationResult オブジェクト
     should_retry: bool = False
-    use_lazy_loading: bool = True  # LazyCommentRepositoryを常に使用
 
     # ===== 出力データ =====
     final_comment: str | None = None
