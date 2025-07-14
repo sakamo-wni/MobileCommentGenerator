@@ -96,19 +96,20 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             selection_reason="統一モードによる自動選択"
         )
         
-        # 生成されたコメントを取得（フォールバック: 選択されたコメントの結合）
+        # 生成されたコメントを取得
         generated_comment = result.get("generated_comment", "")
-        if not generated_comment:
-            # フォールバック: 選択されたコメントを結合
-            weather_text = selected_weather.comment_text
-            advice_text = selected_advice.comment_text
-            
-            # 安全性チェック
-            weather_text, advice_text = check_and_fix_weather_comment_safety(
-                weather_data, weather_text, advice_text, state
-            )
-            
-            generated_comment = f"{weather_text}　{advice_text}"
+        
+        # 常に選択されたコメントの結合を使用（LLMが創作しないように）
+        weather_text = selected_weather.comment_text
+        advice_text = selected_advice.comment_text
+        
+        # 安全性チェック
+        weather_text, advice_text = check_and_fix_weather_comment_safety(
+            weather_data, weather_text, advice_text, state
+        )
+        
+        # 最終的なコメントは必ず選択されたコメントの結合
+        generated_comment = f"{weather_text}　{advice_text}"
         
         # NGワードチェック
         ng_check = check_ng_words(generated_comment)
@@ -206,7 +207,12 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 【タスク】
 1. 天気情報に最も適した天気コメントを1つ選択（インデックス番号）
 2. 状況に最も適したアドバイスコメントを1つ選択（インデックス番号）
-3. 選択したコメントを自然に組み合わせて最終コメントを生成
+3. 選択した2つのコメントを「　」で結合して最終コメントを生成
+
+【重要】
+- 必ず上記の候補リストから選択してください
+- 新しいコメントを創作しないでください
+- generated_commentは選択したコメントを「　」で結合したものにしてください
 
 【選択基準】
 - 天気条件との一致度
@@ -221,8 +227,11 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 {{
     "weather_index": 選択した天気コメントのインデックス番号(0から始まる整数),
     "advice_index": 選択したアドバイスコメントのインデックス番号(0から始まる整数),
-    "generated_comment": "最終的に生成されたコメント"
-}}"""
+    "generated_comment": "選択したコメントを「　」で結合したもの（新規作成禁止）"
+}}
+
+例：weather_index=1, advice_index=2の場合
+generated_comment: "天気コメント候補の1番　アドバイスコメント候補の2番" """
     
     # 連続雨の場合の追加指示
     if is_continuous_rain:
