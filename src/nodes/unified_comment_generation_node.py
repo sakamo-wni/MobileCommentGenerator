@@ -207,7 +207,7 @@ def _build_unified_prompt(weather_comments: List[PastComment],
     
     # 候補のフォーマット
     weather_candidates = "\n".join([
-        f"{i}. {c.comment_text} (天気条件: {c.weather_condition}, 使用回数: {c.usage_count})"
+        f"{i}. {c.comment_text} (天気条件: {c.weather_condition or c.weather_description or '不明'}, 使用回数: {c.usage_count})"
         for i, c in enumerate(weather_comments)
     ])
     
@@ -237,11 +237,13 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 - 必ず上記の候補リストから選択してください
 - 新しいコメントを創作しないでください
 - generated_commentは選択したコメントを「　」で結合したものにしてください
+- 天気が「雨」の場合は、必ず雨に関するコメントを選択してください
+- 天気と関係ないコメントは絶対に選択しないでください
 
 【選択基準】
-- 天気条件との一致度
-- 使用回数が少ないものを優先
-- 組み合わせの自然さ
+1. 天気条件との一致度（最優先）- 実際の天気と異なる内容のコメントは選択禁止
+2. 使用回数が少ないものを優先
+3. 組み合わせの自然さ
 
 【制約】
 - 最終コメントは15文字以内
@@ -333,7 +335,8 @@ def _check_continuous_rain(state: CommentGenerationState) -> bool:
 
 def _filter_shower_comments(comments: List[PastComment]) -> List[PastComment]:
     """にわか雨表現を含むコメントをフィルタリング"""
-    temporary_rain_expressions = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨", "雨が心配"]
+    # 連続雨時に不適切な「一時的」「急な」「にわか」表現のみをフィルタリング
+    temporary_rain_expressions = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨"]
     
     filtered = []
     for comment in comments:

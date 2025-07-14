@@ -90,11 +90,15 @@ class CommentParser:
                 row.get('_line_number', 0)
             )
             
+            # コメントテキストから天気条件を推定
+            weather_condition = CommentParser._infer_weather_condition(comment_text, comment_type)
+            
             # PastCommentオブジェクトの作成
             return PastComment(
                 location="全国",  # CSVには地点情報がない
                 datetime=datetime.now(),
-                weather_condition="不明",
+                weather_condition=weather_condition,
+                weather_description=weather_condition,  # 同じ値を設定
                 comment_text=comment_text.strip(),
                 comment_type=CommentType.WEATHER_COMMENT if comment_type == "weather_comment" else CommentType.ADVICE,
                 raw_data={
@@ -143,3 +147,48 @@ class CommentParser:
             logger.warning(f"Comment too long ({len(comment_text)} chars) in {file_path} line {line_number}. Truncating.")
             return comment_text[:max_length]
         return comment_text
+    
+    @staticmethod
+    def _infer_weather_condition(comment_text: str, comment_type: str) -> str:
+        """コメントテキストから天気条件を推定
+        
+        Args:
+            comment_text: コメントテキスト
+            comment_type: コメントタイプ（weather_comment or advice）
+            
+        Returns:
+            推定された天気条件
+        """
+        # アドバイスコメントの場合は「不明」を返す
+        if comment_type != "weather_comment":
+            return "不明"
+        
+        # キーワードマッピング（優先度順）
+        weather_keywords = [
+            # 雨関連（最優先）
+            (["大雨", "豪雨", "激しい雨", "強い雨", "土砂降り"], "大雨"),
+            (["雨", "降水", "にわか雨", "雨脚", "雨音", "雨粒", "傘"], "雨"),
+            # 雪関連
+            (["大雪", "吹雪", "雪崩"], "大雪"),
+            (["雪", "積雪", "降雪"], "雪"),
+            # 晴れ関連
+            (["快晴", "青空", "日差し", "太陽", "陽射し", "晴天"], "晴れ"),
+            (["晴", "晴れ"], "晴れ"),
+            # 曇り関連
+            (["曇り空", "曇天", "雲が優勢", "雲が多", "どんより"], "曇り"),
+            (["曇", "くもり"], "曇り"),
+            # 嵐・雷関連
+            (["台風", "暴風", "嵐"], "嵐"),
+            (["雷", "稲妻", "雷鳴"], "雷"),
+            # その他
+            (["霧", "濃霧", "視界"], "霧"),
+            (["猛暑", "酷暑", "極暑"], "猛暑"),
+        ]
+        
+        # キーワードマッチング
+        for keywords, condition in weather_keywords:
+            if any(keyword in comment_text for keyword in keywords):
+                return condition
+        
+        # マッチしない場合は「不明」
+        return "不明"
