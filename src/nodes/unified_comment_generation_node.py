@@ -66,11 +66,26 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         
         # 天気に応じたコメントのフィルタリング
         if hasattr(weather_data, 'weather_description') and '雨' in weather_data.weather_description:
-            logger.info("雨の天気のため、雨関連のコメントのみを選択")
-            # 雨関連のコメントのみを残す
-            weather_comments = [c for c in weather_comments if c.weather_condition in ['雨', '大雨', '雷', '嵐']]
+            precipitation = getattr(weather_data, 'precipitation', 0)
+            logger.info(f"雨の天気（降水量: {precipitation}mm）のため、適切なコメントを選択")
+            
+            # 降水量に応じて適切なコメントを選択
+            original_weather_comments = weather_comments.copy()  # フィルタリング前のリストを保存
+            
+            if precipitation >= 10.0:  # 10mm以上は大雨
+                logger.info("大雨のため、大雨・豪雨関連のコメントを優先")
+                weather_comments = [c for c in original_weather_comments if c.weather_condition in ['大雨', '嵐', '雷']]
+                if not weather_comments:  # 大雨コメントがない場合は通常の雨コメントも含める
+                    weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '大雨', '嵐', '雷']]
+            elif precipitation >= 1.0:  # 1mm以上は通常の雨
+                logger.info("通常の雨のため、雨関連のコメントを選択")
+                weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '大雨', '雷']]
+            else:  # 1mm未満は小雨
+                logger.info("小雨のため、軽い雨のコメントも含めて選択")
+                weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '曇り']]  # 曇りも含める（小雨の可能性）
+            
             if not weather_comments:
-                logger.warning("雨関連のコメントが見つかりません。全コメントを使用します。")
+                logger.warning("適切な雨関連のコメントが見つかりません。全コメントを使用します。")
                 weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
                 weather_comments = _filter_forbidden_phrases(weather_comments)
         
