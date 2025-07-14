@@ -2,7 +2,7 @@
 
 import time
 from datetime import datetime
-from src.workflows.parallel_comment_generation_workflow import run_parallel_comment_generation
+from src.workflows.comment_generation_workflow import run_comment_generation
 
 def test_direct():
     """並列処理ワークフローを直接テスト"""
@@ -12,12 +12,11 @@ def test_direct():
     start_time = time.time()
     
     try:
-        result = run_parallel_comment_generation(
+        result = run_comment_generation(
             location_name="東京",
             target_datetime=datetime.now(),
             llm_provider="gemini",
-            exclude_previous=False,
-            use_unified_mode=False
+            exclude_previous=False
         )
         
         elapsed_time = time.time() - start_time
