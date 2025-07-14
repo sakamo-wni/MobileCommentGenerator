@@ -18,6 +18,9 @@ from .utils import CommentUtils
 
 logger = logging.getLogger(__name__)
 
+# 連続雨判定の閾値（時間）
+CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
+
 
 class CommentSelector:
     """コメント選択クラス"""
@@ -270,7 +273,7 @@ class CommentSelector:
             rain_hours = sum(1 for f in period_forecasts 
                            if (hasattr(f, 'weather') and f.weather == "雨") or 
                               (hasattr(f, 'precipitation') and f.precipitation >= 0.1))
-            is_continuous_rain = rain_hours >= 4  # 4時間すべて雨
+            is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
             
             if is_continuous_rain:
                 logger.info(f"連続雨を検出: {rain_hours}時間の雨（9,12,15,18時）")
@@ -332,7 +335,7 @@ class CommentSelector:
             rain_hours = sum(1 for f in period_forecasts 
                            if (hasattr(f, 'weather') and f.weather == "雨") or 
                               (hasattr(f, 'precipitation') and f.precipitation >= 0.1))
-            is_continuous_rain = rain_hours >= 4  # 4時間すべて雨
+            is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
             
             if is_continuous_rain:
                 logger.info(f"連続雨を検出: {rain_hours}時間の雨（9,12,15,18時）")
@@ -418,7 +421,7 @@ class CommentSelector:
         
         # 雨の場合
         if weather_data.precipitation > 0 or "雨" in weather_data.weather_description:
-            rain_keywords = ["雨", "降水", "僘"]
+            rain_keywords = ["雨", "降水", "傘"]
             for comment in comments:
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     logger.info(f"雨関連コメントを選択: '{comment.comment_text}'")
@@ -456,7 +459,7 @@ class CommentSelector:
         
         # 雨の場合
         if weather_data.precipitation > 0 or "雨" in weather_data.weather_description:
-            rain_advice_keywords = ["僘", "雨具", "濡れ", "雨対策"]
+            rain_advice_keywords = ["傘", "雨具", "濡れ", "雨対策"]
             for comment in comments:
                 if any(keyword in comment.comment_text for keyword in rain_advice_keywords):
                     logger.info(f"雨関連アドバイスを選択: '{comment.comment_text}'")
