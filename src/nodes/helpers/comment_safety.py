@@ -24,6 +24,12 @@ RAIN_ADVICE_PATTERNS = ["雨にご注意", "傘", "濡れ", "雨具", "足元", 
 # 悪天候を表すパターン
 STORM_WEATHER_PATTERNS = ["荒れた天気", "大雨", "激しい雨", "暴風", "警戒", "注意", "本格的な雨"]
 
+# 連続雨判定の閾値（時間）
+CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
+
+# にわか雨表現のパターン
+SHOWER_RAIN_PATTERNS = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨", "雨が心配"]
+
 
 def check_and_fix_weather_comment_safety(
     weather_data: WeatherForecast,
@@ -65,6 +71,19 @@ def check_and_fix_weather_comment_safety(
     if ("大雨" in weather_data.weather_description or "嵐" in weather_data.weather_description) and weather_comment and "ムシムシ" in weather_comment:
         logger.warning(f"🚨 緊急修正: 悪天候でムシムシコメントを除外 - 代替コメント検索")
         weather_comment = _find_storm_weather_comment(state.past_comments, weather_comment)
+    
+    # 連続雨判定
+    is_continuous_rain = _check_continuous_rain(state)
+    
+    # 連続雨時に「にわか雨」表現は絶対に不適切
+    if is_continuous_rain and weather_comment:
+        for pattern in SHOWER_RAIN_PATTERNS:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 連続雨時に「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_rain_weather_comment(
+                    state.past_comments, weather_comment, weather_data, avoid_shower=True
+                )
+                break
     
     # 雨天時に晴天表現は絶対に不適切 - 既存コメントから再選択
     if "雨" in weather_data.weather_description and weather_comment:
@@ -197,7 +216,8 @@ def _find_storm_weather_comment(past_comments: Optional[List[PastComment]], curr
 
 def _find_rain_weather_comment(past_comments: Optional[List[PastComment]], 
                               current_comment: str,
-                              weather_data: WeatherForecast) -> str:
+                              weather_data: WeatherForecast,
+                              avoid_shower: bool = False) -> str:
     """雨天時の代替天気コメントを検索"""
     if not past_comments:
         return current_comment
@@ -229,6 +249,11 @@ def _find_rain_weather_comment(past_comments: Optional[List[PastComment]],
     # 雨関連コメントを検索
     for past_comment in weather_comments:
         comment_text = past_comment.comment_text
+        
+        # avoid_showerがTrueの場合、にわか雨表現をスキップ
+        if avoid_shower and any(shower in comment_text for shower in SHOWER_RAIN_PATTERNS):
+            continue
+            
         # 優先パターンに一致するものを探す
         for pattern in rain_patterns:
             if pattern in comment_text:
@@ -239,6 +264,11 @@ def _find_rain_weather_comment(past_comments: Optional[List[PastComment]],
     general_rain_patterns = ["雨", "傘", "濡れ"]
     for past_comment in weather_comments:
         comment_text = past_comment.comment_text
+        
+        # avoid_showerがTrueの場合、にわか雨表現をスキップ
+        if avoid_shower and any(shower in comment_text for shower in SHOWER_RAIN_PATTERNS):
+            continue
+            
         if any(pattern in comment_text for pattern in general_rain_patterns):
             # 晴天表現を含まないことを確認
             if not any(sunny in comment_text for sunny in ["晴", "日差し", "太陽", "青空"]):
@@ -251,3 +281,35 @@ def _find_rain_weather_comment(past_comments: Optional[List[PastComment]],
         return weather_comments[0].comment_text
     
     return current_comment
+
+
+def _check_continuous_rain(state: CommentGenerationState) -> bool:
+    """連続雨かどうかを判定"""
+    if not state or not hasattr(state, 'generation_metadata') or not state.generation_metadata:
+        return False
+        
+    period_forecasts = state.generation_metadata.get('period_forecasts', [])
+    if not period_forecasts:
+        return False
+    
+    # 天気が「雨」または降水量が0.1mm以上の時間をカウント
+    rain_hours = 0
+    for f in period_forecasts:
+        if hasattr(f, 'weather') and '雨' in str(f.weather):
+            rain_hours += 1
+        elif hasattr(f, 'precipitation') and f.precipitation >= 0.1:
+            rain_hours += 1
+    
+    is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+    
+    if is_continuous_rain:
+        logger.info(f"🚨 連続雨を検出: {rain_hours}時間の雨（comment_safetyでの判定）")
+        # デバッグ情報
+        for f in period_forecasts:
+            if hasattr(f, 'datetime') and hasattr(f, 'weather'):
+                time_str = f.datetime.strftime('%H時')
+                weather = f.weather
+                precip = f.precipitation if hasattr(f, 'precipitation') else 0
+                logger.debug(f"  {time_str}: {weather}, 降水量{precip}mm")
+    
+    return is_continuous_rain
