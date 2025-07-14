@@ -15,7 +15,7 @@ from typing import List, Dict, Any
 # プロジェクトのルートディレクトリをPythonパスに追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.controllers.comment_generation_controller import CommentGenerationController
+from src.controllers.refactored_comment_generation_controller import RefactoredCommentGenerationController as CommentGenerationController
 from src.config import get_config
 
 

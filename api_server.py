@@ -161,6 +161,9 @@ async def generate_comment(request: CommentGenerationRequest) -> CommentGenerati
         if request.use_indexed_csv:
             extra_kwargs["use_optimized_repository"] = True
         
+        # デフォルトで並列処理を有効化
+        use_parallel = request.use_parallel_mode if request.use_parallel_mode is not None else True
+        
         # 適切なワークフローを選択
         if request.use_unified_mode:
             logger.info("Using unified generation mode for better performance")
@@ -172,8 +175,8 @@ async def generate_comment(request: CommentGenerationRequest) -> CommentGenerati
                 exclude_previous=request.exclude_previous,
                 **extra_kwargs
             )
-        elif request.use_parallel_mode:
-            logger.info("Using parallel mode with optimized performance")
+        elif use_parallel:  # デフォルトでTrueになる
+            logger.info("Using parallel mode with optimized performance (default)")
             result = await asyncio.to_thread(
                 run_parallel_comment_generation,
                 location_name=request.location,
