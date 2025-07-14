@@ -69,56 +69,37 @@ MobileCommentGenerator/
     └── 台風_advice_enhanced100.csv
 ```
 
-## 実装の選択
+## LazyCommentRepositoryの使用
 
-### 1. 標準実装 (LocalCommentRepository)
-
-**特徴**:
-- 初期化時に全CSVファイルをメモリにキャッシュ
-- 高速なアクセス
-- メモリ使用量は全データサイズに比例
-
-**推奨される使用場面**:
-- CSVファイルの合計サイズが100MB未満
-- 頻繁にコメントを取得する場合
-- レスポンス速度が重要な場合
-
-```python
-from src.repositories.local_comment_repository import LocalCommentRepository
-
-# 標準実装の使用
-repo = LocalCommentRepository()
-comments = repo.get_recent_comments(limit=100)
-```
-
-### 2. 遅延読み込み実装 (LazyLocalCommentRepository)
+MobileCommentGeneratorでは、LazyCommentRepository（遅延読み込み実装）を使用してCSVファイルを管理します。
 
 **特徴**:
 - 必要な時にのみファイルを読み込み
 - メモリ効率的
-- 初回アクセス時は若干遅い
-
-**推奨される使用場面**:
-- CSVファイルの合計サイズが100MB以上
-- メモリ使用量を抑えたい場合
-- 特定の季節のデータのみを使用する場合
+- 大規模データセット対応
+- キャッシュ機能により2回目以降は高速アクセス
 
 ```python
-from src.repositories.local_comment_repository_lazy import LazyLocalCommentRepository
+from src.repositories.lazy_comment_repository import LazyCommentRepository
 
-# 遅延読み込み実装の使用
-lazy_repo = LazyLocalCommentRepository()
+# リポジトリの初期化
+repo = LazyCommentRepository()
 
-# ページネーション付き取得
-comments = lazy_repo.get_comments_paginated(
-    season="春",
-    comment_type="weather_comment",
-    page=1,
-    page_size=50
-)
+# 季節ごとのコメント取得
+spring_comments = repo.get_comments_by_season("春")
+
+# 天気コメントのみ取得
+weather_comments = repo.get_weather_comments_by_season("夏")
+
+# アドバイスコメントのみ取得
+advice = repo.get_advice_by_season("秋")
 
 # キーワード検索
-results = lazy_repo.search_comments("桜", limit=100)
+results = repo.search_comments(
+    keyword="晴れ",
+    season="春",
+    comment_type=CommentType.WEATHER_COMMENT
+)
 ```
 
 ## エラーハンドリング
@@ -126,9 +107,9 @@ results = lazy_repo.search_comments("桜", limit=100)
 ### CSVファイルが見つからない場合
 
 ```python
-# LocalCommentRepositoryは自動的にディレクトリを作成
-repo = LocalCommentRepository("custom/output/path")
-# ログ: "Output directory not found: custom/output/path, creating it..."
+# LazyCommentRepositoryでカスタムディレクトリを指定
+repo = LazyCommentRepository(output_dir="custom/output/path")
+# 注意: ディレクトリが存在しない場合はFileNotFoundErrorが発生
 ```
 
 ### 不正なCSVフォーマット
@@ -158,7 +139,7 @@ def check_memory_usage():
 check_memory_usage()
 
 # リポジトリ初期化
-repo = LocalCommentRepository()
+repo = LazyCommentRepository()
 
 # リポジトリ初期化後
 check_memory_usage()
@@ -187,14 +168,14 @@ ls -lh output/*.csv
 ### Q: メモリ使用量が多い
 
 **対処法**:
-1. 遅延読み込み実装に切り替える
+1. キャッシュをクリアする（repo.clear_cache()）
 2. 不要な季節のCSVファイルを別ディレクトリに移動
 3. CSVファイルから使用頻度の低いコメントを削除
 
 ### Q: パフォーマンスが遅い
 
 **対処法**:
-1. 標準実装（キャッシュあり）を使用
+1. 事前読み込みを活用（repo.preload_season()）
 2. CSVファイルをSSDに配置
 3. より高性能なマシンで実行
 
