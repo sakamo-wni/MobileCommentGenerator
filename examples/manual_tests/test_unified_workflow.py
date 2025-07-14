@@ -1,5 +1,9 @@
 """統一されたワークフローの動作確認"""
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
 import time
 from datetime import datetime
 from src.workflows.comment_generation_workflow import run_comment_generation
