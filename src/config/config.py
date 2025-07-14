@@ -246,3 +246,38 @@ def get_data_settings() -> DataSettings:
     return get_config().data
 
 
+def get_comment_config() -> CommentConfig:
+    """コメント設定を取得"""
+    return get_config().comment
+
+
+def get_severe_weather_config() -> SevereWeatherConfig:
+    """悪天候設定を取得"""
+    return get_config().severe_weather
+
+
+def get_system_constants() -> SystemConstants:
+    """システム定数を取得"""
+    return get_config().system_constants
+
+
+def get_weather_constants() -> WeatherConstants:
+    """天気関連の定数を取得"""
+    return get_config().weather_constants
+
+
+def get_langgraph_config() -> LangGraphConfig:
+    """LangGraph設定を取得"""
+    return get_config().langgraph
+
+
+def get_server_config() -> ServerConfig:
+    """サーバー設定を取得"""
+    return get_config().server
+
+
+def get_llm_config() -> LLMConfig:
+    """LLM設定を取得"""
+    return get_config().llm
+
+
