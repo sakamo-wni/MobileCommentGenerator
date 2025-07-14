@@ -19,7 +19,6 @@ from src.nodes.retrieve_past_comments_node import retrieve_past_comments_node
 from src.nodes.generate_comment_node import generate_comment_node
 from src.nodes.select_comment_pair_node import select_comment_pair_node
 from src.nodes.evaluate_candidate_node import evaluate_candidate_node
-from src.nodes.unified_comment_generation_node import unified_comment_generation_node
 from src.nodes.input_node import input_node
 from src.nodes.output_node import output_node
 from src.config.weather_config import get_config
@@ -111,12 +110,6 @@ def _fetch_comments_wrapper(state: CommentGenerationState) -> Dict[str, Any]:
         return {"past_comments": None, "errors": [str(e)]}
 
 
-def should_use_unified_mode(state: CommentGenerationState) -> str:
-    """統合モードを使用するかどうかを判定"""
-    # use_unified_modeフラグがTrueの場合は統合モードを使用
-    if state.get("use_unified_mode", False):
-        return "unified"
-    return "traditional"
 
 
 def should_evaluate(state: CommentGenerationState) -> str:
@@ -148,8 +141,6 @@ def create_comment_generation_workflow() -> StateGraph:
     workflow.add_node("input", input_node)
     workflow.add_node("parallel_fetch", parallel_fetch_data_node)
     
-    # 統合モード用ノード
-    workflow.add_node("unified_generation", unified_comment_generation_node)
     
     # 従来モード用ノード
     workflow.add_node("select_pair", select_comment_pair_node)
@@ -161,20 +152,10 @@ def create_comment_generation_workflow() -> StateGraph:
     # エッジの追加
     workflow.add_edge("input", "parallel_fetch")
     
-    # 統合モードと従来モードの分岐
-    workflow.add_conditional_edges(
-        "parallel_fetch",
-        should_use_unified_mode,
-        {
-            "unified": "unified_generation",
-            "traditional": "select_pair"
-        }
-    )
+    # 並列データ取得後は選択ノードへ
+    workflow.add_edge("parallel_fetch", "select_pair")
     
-    # 統合モードのフロー
-    workflow.add_edge("unified_generation", "output")
-    
-    # 従来モードのフロー
+    # メインフロー
     workflow.add_conditional_edges(
         "select_pair",
         should_evaluate,
@@ -206,7 +187,6 @@ def run_comment_generation(
     target_datetime: Optional[datetime] = None,
     llm_provider: str = "openai",
     exclude_previous: bool = False,
-    use_unified_mode: bool = False,
     **kwargs,
 ) -> Dict[str, Any]:
     """並列処理対応のコメント生成ワークフローを実行
@@ -216,13 +196,12 @@ def run_comment_generation(
         target_datetime: 対象日時
         llm_provider: LLMプロバイダー
         exclude_previous: 前回生成と同じコメントを除外するか
-        use_unified_mode: 統合モードを使用するか
         **kwargs: その他のオプション
         
     Returns:
         生成結果を含む辞書
     """
-    logger.info(f"並列ワークフロー実行: unified_mode={use_unified_mode}")
+    logger.info("並列処理ワークフローを実行")
     
     workflow = create_comment_generation_workflow()
     
@@ -233,7 +212,6 @@ def run_comment_generation(
         "target_datetime": target_datetime or (datetime.now() + timedelta(hours=forecast_hours_ahead)),
         "llm_provider": llm_provider,
         "exclude_previous": exclude_previous,
-        "use_unified_mode": use_unified_mode,
         "retry_count": 0,
         "errors": [],
         "warnings": [],

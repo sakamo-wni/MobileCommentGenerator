@@ -153,7 +153,6 @@ async def generate_comment(request: CommentGenerationRequest) -> CommentGenerati
             target_datetime=target_dt,
             llm_provider=request.llm_provider,
             exclude_previous=request.exclude_previous,
-            use_unified_mode=False  # 統一モードは無効化（エラーが発生するため）
         )
         
         logger.info(f"Generation result: success={result.get('success', False)}")

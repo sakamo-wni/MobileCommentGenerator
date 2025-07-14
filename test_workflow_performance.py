@@ -1,16 +1,13 @@
 """ワークフローのパフォーマンステスト
 
-各ワークフローの動作確認と実行時間を測定します。
+統一されたワークフローの動作確認と実行時間を測定します。
 """
 
 import time
-import asyncio
 from datetime import datetime
 
 # ワークフローのインポート
 from src.workflows.comment_generation_workflow import run_comment_generation
-from src.workflows.parallel_comment_generation_workflow import run_parallel_comment_generation
-from src.workflows.unified_comment_generation_workflow import run_unified_comment_generation
 
 
 def test_workflow(workflow_func, name, **kwargs):
@@ -26,7 +23,7 @@ def test_workflow(workflow_func, name, **kwargs):
         
         if result.get("success"):
             print(f"✅ 成功: {elapsed_time:.2f}秒")
-            print(f"コメント: {result.get('comment', '')[:50]}...")
+            print(f"コメント: {result.get('final_comment', '')[:50]}...")
         else:
             print(f"❌ 失敗: {result.get('error', 'Unknown error')}")
     except Exception as e:
@@ -36,7 +33,7 @@ def test_workflow(workflow_func, name, **kwargs):
 
 
 def main():
-    """各ワークフローをテスト"""
+    """統一されたワークフローをテスト"""
     test_params = {
         "location_name": "東京",
         "target_datetime": datetime.now(),
@@ -44,28 +41,13 @@ def main():
         "exclude_previous": False
     }
     
-    print("ワークフローのパフォーマンステスト")
+    print("統一されたワークフローのパフォーマンステスト")
     print("=" * 50)
     
-    # 1. 通常のワークフロー
+    # 統一されたワークフロー（並列処理版）
     test_workflow(
         run_comment_generation,
-        "通常のワークフロー (comment_generation_workflow)",
-        **test_params
-    )
-    
-    # 2. 並列処理ワークフロー（デフォルト）
-    test_workflow(
-        run_parallel_comment_generation,
-        "並列処理ワークフロー (parallel_comment_generation_workflow)",
-        **test_params,
-        use_unified_mode=False
-    )
-    
-    # 3. 統一ワークフロー
-    test_workflow(
-        run_unified_comment_generation,
-        "統一ワークフロー (unified_comment_generation_workflow)",
+        "並列処理ワークフロー (comment_generation_workflow)",
         **test_params
     )
     
