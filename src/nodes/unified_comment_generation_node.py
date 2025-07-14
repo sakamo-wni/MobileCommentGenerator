@@ -19,6 +19,9 @@ from src.nodes.helpers.ng_words import check_ng_words
 
 logger = logging.getLogger(__name__)
 
+# 連続雨判定の閾値（時間）
+CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
+
 
 def unified_comment_generation_node(state: CommentGenerationState) -> CommentGenerationState:
     """選択と生成を1回のLLM呼び出しで実行する統合ノード"""
@@ -51,6 +54,15 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
         
+        # 連続雨判定
+        is_continuous_rain = _check_continuous_rain(state)
+        
+        # 連続雨の場合、「にわか雨」を含むコメントをフィルタリング
+        if is_continuous_rain:
+            logger.info("連続雨を検出 - にわか雨表現を含むコメントをフィルタリング")
+            weather_comments = _filter_shower_comments(weather_comments)
+            advice_comments = _filter_mild_umbrella_comments(advice_comments)
+        
         # 天気情報のフォーマット
         weather_info = _format_weather_info(weather_data, location_name, target_datetime)
         
@@ -59,7 +71,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             weather_comments[:10],  # 上位10件に制限
             advice_comments[:10],   # 上位10件に制限
             weather_info,
-            weather_data
+            weather_data,
+            is_continuous_rain
         )
         
         # 1回のLLM呼び出しで選択と生成を実行
@@ -120,7 +133,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             "llm_provider": llm_provider,
             "generation_method": "unified",
             "weather_comments_count": len(weather_comments),
-            "advice_comments_count": len(advice_comments)
+            "advice_comments_count": len(advice_comments),
+            "is_continuous_rain": is_continuous_rain
         })
         state.generation_metadata = generation_metadata
         
@@ -162,7 +176,8 @@ def _format_weather_info(weather_data: Any,
 def _build_unified_prompt(weather_comments: List[PastComment],
                          advice_comments: List[PastComment],
                          weather_info: str,
-                         weather_data: Any) -> str:
+                         weather_data: Any,
+                         is_continuous_rain: bool = False) -> str:
     """統合プロンプトの構築"""
     
     # 候補のフォーマット
@@ -209,6 +224,16 @@ def _build_unified_prompt(weather_comments: List[PastComment],
     "generated_comment": "最終的に生成されたコメント"
 }}"""
     
+    # 連続雨の場合の追加指示
+    if is_continuous_rain:
+        prompt += """
+
+【重要な追加指示】
+現在、4時間以上の連続した雨が予測されています。以下の点に特に注意してください：
+- 「にわか雨」「一時的な雨」「急な雨」などの表現は避けてください
+- 「傘があると安心」のような控えめな表現ではなく、「傘は必須」のような明確な表現を使用してください
+- 雨が長時間続くことを前提としたコメントを生成してください"""
+    
     return prompt
 
 
@@ -239,3 +264,73 @@ def _parse_unified_response(response: str) -> Dict[str, Any]:
         "advice_index": 0,
         "generated_comment": ""
     }
+
+
+def _check_continuous_rain(state: CommentGenerationState) -> bool:
+    """連続雨かどうかを判定"""
+    if not state or not hasattr(state, 'generation_metadata') or not state.generation_metadata:
+        return False
+        
+    period_forecasts = state.generation_metadata.get('period_forecasts', [])
+    if not period_forecasts:
+        return False
+    
+    # 天気が「雨」または降水量が0.1mm以上の時間をカウント
+    rain_hours = 0
+    for f in period_forecasts:
+        if hasattr(f, 'weather') and '雨' in f.weather:
+            rain_hours += 1
+        elif hasattr(f, 'precipitation') and f.precipitation >= 0.1:
+            rain_hours += 1
+    
+    is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+    
+    if is_continuous_rain:
+        logger.info(f"連続雨を検出: {rain_hours}時間の雨")
+        # デバッグ情報
+        for f in period_forecasts:
+            if hasattr(f, 'datetime') and hasattr(f, 'weather'):
+                time_str = f.datetime.strftime('%H時')
+                weather = f.weather
+                precip = f.precipitation if hasattr(f, 'precipitation') else 0
+                logger.debug(f"  {time_str}: {weather}, 降水量{precip}mm")
+    
+    return is_continuous_rain
+
+
+def _filter_shower_comments(comments: List[PastComment]) -> List[PastComment]:
+    """にわか雨表現を含むコメントをフィルタリング"""
+    temporary_rain_expressions = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨", "雨が心配"]
+    
+    filtered = []
+    for comment in comments:
+        if not any(expr in comment.comment_text for expr in temporary_rain_expressions):
+            filtered.append(comment)
+        else:
+            logger.debug(f"連続雨のためフィルタリング: {comment.comment_text}")
+    
+    # フィルタリング後にコメントがなくなった場合は元のリストを返す
+    if not filtered:
+        logger.warning("すべてのコメントがフィルタリングされました。元のリストを使用します。")
+        return comments
+    
+    return filtered
+
+
+def _filter_mild_umbrella_comments(comments: List[PastComment]) -> List[PastComment]:
+    """控えめな傘表現を含むコメントをフィルタリング"""
+    mild_umbrella_expressions = ["傘があると安心", "傘がお守り", "念のため傘", "折りたたみ傘", "傘をお忘れなく"]
+    
+    filtered = []
+    for comment in comments:
+        if not any(expr in comment.comment_text for expr in mild_umbrella_expressions):
+            filtered.append(comment)
+        else:
+            logger.debug(f"連続雨のためフィルタリング: {comment.comment_text}")
+    
+    # フィルタリング後にコメントがなくなった場合は元のリストを返す
+    if not filtered:
+        logger.warning("すべてのアドバイスがフィルタリングされました。元のリストを使用します。")
+        return comments
+    
+    return filtered
