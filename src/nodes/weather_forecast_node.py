@@ -191,8 +191,236 @@ async def fetch_weather_forecast_node_async(
         }
 
 
+def fetch_weather_forecast_node(
+    state,
+    service_factory: Optional[WeatherForecastServiceFactory] = None
+):
+    """ワークフロー用の天気予報取得ノード関数
+
+    巨大な関数を責務ごとのサービスに分割して実装
+
+    Args:
+        state: CommentGenerationState
+
+    Returns:
+        更新されたCommentGenerationState
+    """
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # === 1. 初期化フェーズ ===
+        
+        # 地点情報の取得
+        location_name_raw = state.location_name
+        if not location_name_raw:
+            raise ValueError("location_name is required")
+        
+        # APIキーの取得
+        api_key = os.getenv("WXTECH_API_KEY")
+        if not api_key:
+            error_msg = (
+                "WXTECH_API_KEY環境変数が設定されていません。\n"
+                "設定方法: export WXTECH_API_KEY='your-api-key' または .envファイルに記載"
+            )
+            logger.error(error_msg)
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
+        
+        # サービスファクトリーの初期化
+        if service_factory is None:
+            service_factory = WeatherForecastServiceFactory()
+            service_factory.set_api_key(api_key)
+        
+        # サービスの取得
+        location_service = service_factory.get_location_service()
+        weather_api_service = service_factory.get_weather_api_service()
+        forecast_processing_service = service_factory.get_forecast_processing_service()
+        temperature_analysis_service = service_factory.get_temperature_analysis_service()
+        
+        # === 2. 地点情報の処理 ===
+        
+        # 地点名と座標を分離
+        location_name, provided_lat, provided_lon = location_service.parse_location_string(
+            location_name_raw
+        )
+        
+        # 地点情報を取得
+        try:
+            location = location_service.get_location_with_coordinates(
+                location_name, 
+                provided_lat, 
+                provided_lon
+            )
+        except ValueError as e:
+            logger.error(str(e))
+            state.add_error(str(e), "weather_forecast")
+            raise
+        
+        lat, lon = location.latitude, location.longitude
+        
+        # === 3. 天気予報の取得 ===
+        
+        # 事前取得した天気データがある場合はそれを使用
+        if state.get("pre_fetched_weather"):
+            logger.info(f"事前取得した天気データを使用: {location_name}")
+            pre_fetched = state.get("pre_fetched_weather")
+            forecast_collection = pre_fetched.get("forecast_collection")
+            if not forecast_collection:
+                error_msg = "事前取得した天気データが不正です"
+                logger.error(error_msg)
+                state.add_error(error_msg, "weather_forecast")
+                raise ValueError(error_msg)
+        else:
+            # 通常の天気予報取得
+            try:
+                forecast_collection = weather_api_service.fetch_forecast_with_retry(
+                    lat, lon, location_name
+                )
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"天気予報取得エラー: {error_msg}")
+                state.add_error(error_msg, "weather_forecast")
+                raise
+        
+        # === 4. 予報データの処理 ===
+        
+        # 設定の読み込み
+        config = get_config()
+        forecast_hours_ahead = config.weather.forecast_hours_ahead
+        target_datetime = datetime.now() + timedelta(hours=forecast_hours_ahead)
+        
+        comment_config = get_comment_config()
+        trend_hours = comment_config.trend_hours_ahead
+        
+        # 対象日の計算
+        weather_config = load_config('weather_thresholds', validate=False)
+        date_boundary_hour = weather_config.get('generation', {}).get('date_boundary_hour', 6)
+        
+        jst = pytz.timezone("Asia/Tokyo")
+        now_jst = datetime.now(jst)
+        target_date = forecast_processing_service.get_target_date(now_jst, date_boundary_hour)
+        
+        logger.info(f"対象日: {target_date} (現在時刻: {now_jst.strftime('%Y-%m-%d %H:%M')})")
+        
+        # 指定時刻の予報を抽出
+        period_forecasts = forecast_processing_service.extract_period_forecasts(
+            forecast_collection,
+            target_date
+        )
+        
+        # period_forecastsが空でないことを確認
+        if not period_forecasts:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(f"{error_msg} - period_forecasts is empty")
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
+        
+        # 優先度に基づいて予報を選択（雨・猛暑日を優先）
+        logger.info("優先度ベースの予報選択を開始")
+        selected_forecast = forecast_processing_service.select_priority_forecast(
+            period_forecasts
+        )
+        if selected_forecast:
+            logger.info(
+                f"優先度選択結果: {selected_forecast.datetime.strftime('%H:%M')} - "
+                f"{selected_forecast.weather_description}, {selected_forecast.temperature}°C, "
+                f"降水量{selected_forecast.precipitation}mm"
+            )
+        
+        if not selected_forecast:
+            error_msg = "指定時刻の天気予報データが取得できませんでした"
+            logger.error(error_msg)
+            state.add_error(error_msg, "weather_forecast")
+            raise ValueError(error_msg)
+        
+        # デバッグ情報
+        logger.info(
+            f"fetch_weather_forecast_node - ターゲット時刻: {target_datetime}, "
+            f"選択された予報時刻: {selected_forecast.datetime}"
+        )
+        logger.info(
+            f"fetch_weather_forecast_node - 選択された天気データ: "
+            f"{selected_forecast.temperature}°C, {selected_forecast.weather_description}"
+        )
+        
+        if selected_forecast.weather_condition.is_special_condition:
+            logger.info(
+                f"特殊気象条件が選択されました: {selected_forecast.weather_condition.value} "
+                f"(優先度: {selected_forecast.weather_condition.priority})"
+            )
+        
+        # === 5. 追加処理 ===
+        
+        # 4時点の予報データをstateに保存（コメント選択時に使用）
+        state.update_metadata("period_forecasts", period_forecasts)
+        logger.info(f"4時点の予報データを保存: {len(period_forecasts)}件")
+        
+        # デバッグ: 保存した予報データの詳細をログ出力
+        for forecast in period_forecasts:
+            logger.info(
+                f"  - {forecast.datetime.strftime('%H:%M')}: {forecast.weather_description}, "
+                f"{forecast.temperature}°C, 降水量{forecast.precipitation}mm"
+            )
+        
+        # 気象変化傾向の分析
+        weather_trend = forecast_processing_service.analyze_weather_trend(period_forecasts)
+        if weather_trend:
+            state.update_metadata("weather_trend", weather_trend)
+        
+        
+        # 気温差の計算
+        temperature_differences = temperature_analysis_service.calculate_temperature_differences(
+            selected_forecast, 
+            location_name
+        )
+        
+        # === 6. 状態の更新 ===
+        
+        state.weather_data = selected_forecast
+        state.update_metadata("forecast_collection", forecast_collection)
+        state.location = location
+        state.update_metadata("location_coordinates", {"latitude": lat, "longitude": lon})
+        state.update_metadata("temperature_differences", temperature_differences)
+
+        logger.info(
+            f"Weather forecast fetched for {location_name}: {selected_forecast.weather_description}"
+        )
+
+        return state
+
+    except Exception as e:
+        logger.error(f"Failed to fetch weather forecast: {e!s}")
+        state.add_error(f"天気予報の取得に失敗しました: {e!s}", "weather_forecast")
+        # エラーをそのまま再発生させて処理を停止
+        raise
 
 
+def create_weather_forecast_graph(api_key: str) -> StateGraph:
+    """天気予報統合のLangGraphを作成
+
+    Args:
+        api_key: WxTech API キー
+
+    Returns:
+        天気予報統合のグラフ
+    """
+    # ノードインスタンス作成
+    weather_node = WeatherForecastNode(api_key)
+
+    # グラフ定義
+    graph = StateGraph(dict[str, Any])
+
+    # ノード追加
+    graph.add_node("get_weather", weather_node.get_weather_forecast)
+
+    # エッジ追加
+    graph.add_edge(START, "get_weather")
+    graph.add_edge("get_weather", END)
+
+    return graph
 
 
 # 単体でも使用可能な関数

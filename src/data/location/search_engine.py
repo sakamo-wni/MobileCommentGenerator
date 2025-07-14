@@ -20,6 +20,7 @@ class LocationSearchEngine:
             locations: 検索対象の地点データリスト
         """
         self.locations = locations
+        self._search_cache: Dict[str, Optional[Location]] = {}  # 検索結果のキャッシュ
         self._build_index()
     
     def _build_index(self):
@@ -72,31 +73,45 @@ class LocationSearchEngine:
         if not name:
             return None
         
+        # キャッシュをチェック
+        if name in self._search_cache:
+            return self._search_cache[name]
+        
         name_lower = name.lower().strip()
         
         # 完全一致検索（名前）
         if name_lower in self.name_index:
-            return self.name_index[name_lower]
+            result = self.name_index[name_lower]
+            self._search_cache[name] = result
+            return result
         
         # 完全一致検索（正規化名）
         if name_lower in self.normalized_index:
-            return self.normalized_index[name_lower]
+            result = self.normalized_index[name_lower]
+            self._search_cache[name] = result
+            return result
         
         # 前方一致検索（Trieを使用）
         candidates = self.prefix_trie.search_prefix(name_lower)
         if candidates:
             if len(candidates) == 1:
-                return candidates[0]
-            # 複数候補がある場合は最短のものを選択
-            candidates.sort(key=lambda loc: len(loc.name))
-            return candidates[0]
+                result = candidates[0]
+            else:
+                # 複数候補がある場合は最短のものを選択
+                candidates.sort(key=lambda loc: len(loc.name))
+                result = candidates[0]
+            self._search_cache[name] = result
+            return result
         
         # 部分一致検索（fallback）
         for location in self.locations:
             if location.matches_query(name, fuzzy=True):
+                self._search_cache[name] = location
                 return location
         
-        logger.warning(f"地点が見つかりません: {name}")
+        # 見つからない場合もキャッシュ
+        self._search_cache[name] = None
+        logger.debug(f"地点が見つかりません: {name}")
         return None
     
     def search_locations(
