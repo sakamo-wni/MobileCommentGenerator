@@ -7,7 +7,6 @@
 
 import ast
 import csv
-import os
 import re
 import logging
 from datetime import datetime, timedelta
@@ -15,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Iterator
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from functools import lru_cache
 
 from src.data.weather_data import WeatherForecast
 from src.config.weather_config import get_config
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 JST = ZoneInfo("Asia/Tokyo")
 
 
+@lru_cache(maxsize=1024)
 def ensure_jst(dt: datetime) -> datetime:
     """datetimeオブジェクトをJSTとして確実に扱う
     
@@ -355,11 +356,12 @@ class ForecastCache:
             # 日較差の計算（今回のキャッシュから当日の最高・最低気温を取得）
             daily_forecasts = self._get_daily_forecasts(location_name, current_forecast.datetime.date())
             if len(daily_forecasts) >= 2:
-                temperatures = [f.temperature for f in daily_forecasts]
-                max_temp = max(temperatures)
-                min_temp = min(temperatures)
-                result["daily_range"] = max_temp - min_temp
-                logger.info(f"日較差: {result['daily_range']:.1f}℃")
+                # ジェネレータを使用してメモリ効率を向上
+                max_temp = max((f.temperature for f in daily_forecasts), default=None)
+                min_temp = min((f.temperature for f in daily_forecasts), default=None)
+                if max_temp is not None and min_temp is not None:
+                    result["daily_range"] = max_temp - min_temp
+                    logger.info(f"日較差: {result['daily_range']:.1f}℃")
             
         except Exception as e:
             logger.error(f"気温差の計算に失敗: {e}")

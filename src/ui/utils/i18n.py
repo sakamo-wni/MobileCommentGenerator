@@ -8,6 +8,7 @@ import json
 import os
 from typing import Dict, Optional, Any
 from enum import Enum
+from pathlib import Path
 import streamlit as st
 import logging
 
@@ -137,10 +138,11 @@ class I18n:
     def _load_custom_translations(self):
         """カスタム翻訳ファイルを読み込む"""
         translations_dir = os.environ.get("I18N_TRANSLATIONS_DIR")
-        if translations_dir and os.path.exists(translations_dir):
+        translations_dir_path = Path(translations_dir) if translations_dir else None
+        if translations_dir_path and translations_dir_path.exists():
             for lang in Language:
-                lang_file = os.path.join(translations_dir, f"{lang.value}.json")
-                if os.path.exists(lang_file):
+                lang_file = translations_dir_path / f"{lang.value}.json"
+                if lang_file.exists():
                     try:
                         with open(lang_file, 'r', encoding='utf-8') as f:
                             custom_translations = json.load(f)

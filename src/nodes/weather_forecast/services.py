@@ -12,7 +12,8 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Tuple, Dict, Any
 import pytz
 
-from src.data.location_manager import Location, get_location_manager
+from src.data.location.models import Location
+from src.data.location.manager import LocationManagerRefactored
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
 from src.data.forecast_cache import get_temperature_differences
 from src.apis.wxtech import WxTechAPIError
@@ -39,7 +40,7 @@ class LocationService:
     """地点情報の取得と検証を担当するサービス"""
     
     def __init__(self):
-        self.location_manager = get_location_manager()
+        self.location_manager = LocationManagerRefactored()
     
     def parse_location_string(self, location_name_raw: str) -> Tuple[str, Optional[float], Optional[float]]:
         """地点名文字列から地点名と座標を抽出

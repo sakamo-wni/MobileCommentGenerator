@@ -12,7 +12,8 @@ import pytz
 
 from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
 from src.config.config import get_weather_config
-from src.data.location_manager import Location, LocationManager
+from src.data.location.models import Location
+from src.data.location.manager import LocationManagerRefactored
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class WeatherDataFetcher:
             api_key: WxTech API キー
         """
         self.api_key = api_key
-        self.location_manager = LocationManager()
+        self.location_manager = LocationManagerRefactored()
         self.weather_config = get_weather_config()
     
     async def fetch_weather_data(
@@ -109,9 +110,9 @@ class WeatherDataFetcher:
             WxTechAPIError: API接続エラー
         """
         # LocationManagerから地点データを取得
-        from src.data.location_manager import get_location_manager
+        from src.data.location.manager import LocationManagerRefactored
         
-        location_manager = get_location_manager()
+        location_manager = LocationManagerRefactored()
         location = location_manager.get_location(location_name)
         
         # LocationManagerで見つからない場合、提供された座標を使用

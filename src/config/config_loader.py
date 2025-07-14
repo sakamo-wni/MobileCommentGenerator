@@ -1,7 +1,7 @@
 """設定ファイルの読み込みユーティリティ"""
 
 import yaml
-import os
+from pathlib import Path
 from typing import Dict, Any, Optional
 import jsonschema
 import logging
@@ -41,10 +41,10 @@ def load_config(config_name: str, validate: bool = True) -> Dict[str, Any]:
     if config_name in _config_cache:
         return _config_cache[config_name]
     
-    config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config')
-    config_path = os.path.join(config_dir, f"{config_name}.yaml")
+    config_dir = Path(__file__).parent.parent.parent / 'config'
+    config_path = config_dir / f"{config_name}.yaml"
     
-    if not os.path.exists(config_path):
+    if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
     try:

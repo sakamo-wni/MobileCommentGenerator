@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 import pytz
 
 from src.data.comment_generation_state import CommentGenerationState
-from src.data.location_manager import Location, LocationManager
+from src.data.location.models import Location
+from src.data.location.manager import LocationManagerRefactored
 from src.config.weather_config import get_config
 
 logger = logging.getLogger(__name__)
@@ -103,7 +104,7 @@ def _create_location(location_name: str) -> Location:
         actual_location_name = location_name.strip()
 
     # LocationManagerインスタンスを作成
-    location_manager = LocationManager()
+    location_manager = LocationManagerRefactored()
 
     # 地点を検索
     location = location_manager.get_location(actual_location_name)

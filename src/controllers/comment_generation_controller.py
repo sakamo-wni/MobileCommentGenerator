@@ -1,6 +1,5 @@
 """コメント生成コントローラー"""
 
-import os
 import asyncio
 import logging
 from typing import List, Dict, Optional, Callable

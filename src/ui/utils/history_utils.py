@@ -5,7 +5,7 @@
 """
 
 import json
-import os
+from pathlib import Path
 from typing import List, Dict, Any
 from datetime import datetime
 import pandas as pd
@@ -21,7 +21,7 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
         location: 地点名
         llm_provider: LLMプロバイダー名
     """
-    history_file = "data/generation_history.json"
+    history_file = Path("data/generation_history.json")
 
     # 履歴データの作成
     history_item = {
@@ -38,7 +38,7 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
 
     try:
         # 既存履歴の読み込み
-        if os.path.exists(history_file):
+        if history_file.exists():
             with open(history_file, "r", encoding="utf-8") as f:
                 history = json.load(f)
         else:
@@ -52,7 +52,7 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
             history = history[-1000:]
 
         # ディレクトリが存在しない場合は作成
-        os.makedirs(os.path.dirname(history_file), exist_ok=True)
+        history_file.parent.mkdir(parents=True, exist_ok=True)
 
         # ファイルに保存
         with open(history_file, "w", encoding="utf-8") as f:
@@ -69,10 +69,10 @@ def load_history() -> List[Dict[str, Any]]:
     Returns:
         履歴データのリスト
     """
-    history_file = "data/generation_history.json"
+    history_file = Path("data/generation_history.json")
 
     try:
-        if os.path.exists(history_file):
+        if history_file.exists():
             with open(history_file, "r", encoding="utf-8") as f:
                 history = json.load(f)
                 return history

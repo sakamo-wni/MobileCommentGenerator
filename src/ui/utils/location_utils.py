@@ -5,7 +5,7 @@
 """
 
 from typing import List
-import os
+from pathlib import Path
 import pandas as pd
 import streamlit as st
 
@@ -127,14 +127,14 @@ def load_locations() -> List[str]:
         return st.session_state.locations
     
     # CSVファイルパスを構築
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
-    csv_path = os.path.join(data_dir, "locations.csv")
+    data_dir = Path(__file__).parent.parent.parent.parent / "data"
+    csv_path = data_dir / "locations.csv"
     
     try:
         # S3からの地点データがある場合は優先的に使用
-        from src.data.location_manager import get_location_manager
+        from src.data.location.manager import LocationManagerRefactored
         
-        location_manager = get_location_manager()
+        location_manager = LocationManagerRefactored()
         locations = [loc.name for loc in location_manager.get_all_locations()]
         
         if locations:
@@ -148,7 +148,7 @@ def load_locations() -> List[str]:
         st.warning(f"地点管理システムからの読み込みに失敗: {str(e)}")
     
     # フォールバック: CSVファイルから読み込み
-    if os.path.exists(csv_path):
+    if csv_path.exists():
         try:
             df = pd.read_csv(csv_path, header=None, names=['location'])
             locations = df['location'].unique().tolist()
