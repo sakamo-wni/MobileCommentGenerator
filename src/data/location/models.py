@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, TypedDict
 from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
 import os
@@ -42,7 +42,16 @@ def cached_levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
-def get_levenshtein_cache_info() -> Dict[str, Union[int, float]]:
+class CacheInfo(TypedDict):
+    """レーベンシュタイン距離キャッシュの統計情報"""
+    hits: int
+    misses: int
+    maxsize: int
+    currsize: int
+    hit_rate: float
+
+
+def get_levenshtein_cache_info() -> CacheInfo:
     """レーベンシュタイン距離計算のキャッシュ情報を取得
     
     Returns:
@@ -53,16 +62,16 @@ def get_levenshtein_cache_info() -> Dict[str, Union[int, float]]:
             - currsize (int): 現在のキャッシュサイズ
             - hit_rate (float): キャッシュヒット率
     """
+    cache_info = cached_levenshtein_distance.cache_info()
+    total_calls = cache_info.hits + cache_info.misses
+    hit_rate = cache_info.hits / total_calls if total_calls > 0 else 0.0
+    
     return {
-        "hits": cached_levenshtein_distance.cache_info().hits,
-        "misses": cached_levenshtein_distance.cache_info().misses,
-        "maxsize": cached_levenshtein_distance.cache_info().maxsize,
-        "currsize": cached_levenshtein_distance.cache_info().currsize,
-        "hit_rate": cached_levenshtein_distance.cache_info().hits / 
-                   (cached_levenshtein_distance.cache_info().hits + 
-                    cached_levenshtein_distance.cache_info().misses)
-                   if (cached_levenshtein_distance.cache_info().hits + 
-                       cached_levenshtein_distance.cache_info().misses) > 0 else 0
+        "hits": cache_info.hits,
+        "misses": cache_info.misses,
+        "maxsize": cache_info.maxsize,
+        "currsize": cache_info.currsize,
+        "hit_rate": hit_rate
     }
 
 

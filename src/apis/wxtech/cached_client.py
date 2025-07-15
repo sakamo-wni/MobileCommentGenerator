@@ -43,6 +43,12 @@ class CachedWxTechAPIClient(WxTechAPIClient):
         if cache_size is None:
             cache_size = int(os.environ.get('WXTECH_CACHE_SIZE', '100'))
         
+        # キャッシュサイズの上限チェック（メモリ使用量を制限）
+        MAX_CACHE_SIZE = 10000  # 最大10,000エントリ
+        if cache_size > MAX_CACHE_SIZE:
+            logger.warning(f"キャッシュサイズ {cache_size} は上限 {MAX_CACHE_SIZE} を超えています。上限値を使用します。")
+            cache_size = MAX_CACHE_SIZE
+        
         # キャッシュを初期化
         self._cache = TTLCache(default_ttl=cache_ttl, max_size=cache_size)
         logger.info(f"キャッシュを初期化しました（TTL: {cache_ttl}秒, サイズ: {cache_size}）")
