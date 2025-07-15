@@ -7,7 +7,6 @@ SIMILARITY_THRESHOLD = 0.7
 
 # 正規表現パターン（プリコンパイル）
 PUNCTUATION_PATTERN = re.compile(r'[、。・！？｢｣「」『』（）［］【】\s]+')
-PUNCTUATION_PATTERN_SIMPLE = re.compile(r'[。、！？\s　]')
 
 # 重複チェック用キーワード
 DUPLICATE_KEYWORDS = [

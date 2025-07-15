@@ -22,7 +22,10 @@
     "lint:react": "pnpm --filter react-version lint",
     "typecheck": "pnpm --recursive typecheck",
     "ci:test": "pnpm --recursive test:ci",
-    "ci:build": "pnpm --recursive build"
+    "ci:build": "pnpm --recursive build",
+    "validate:locations": "tsc compare_locations.ts --module commonjs --target es2020 && node compare_locations.js",
+    "validate:locations:detailed": "tsc compare_locations_detailed.ts --module commonjs --target es2020 && node compare_locations_detailed.js",
+    "validate:all": "pnpm run validate:locations && pnpm run validate:locations:detailed"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",

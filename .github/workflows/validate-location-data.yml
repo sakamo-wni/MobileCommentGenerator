@@ -1,0 +1,104 @@
+name: Validate Location Data
+
+on:
+  push:
+    paths:
+      - 'shared/src/config/regions.ts'
+      - 'src/data/location_coordinates.csv'
+      - 'src/data/Chiten.csv'
+      - 'src/ui/components/location_selector.py'
+      - '.github/workflows/validate-location-data.yml'
+  pull_request:
+    paths:
+      - 'shared/src/config/regions.ts'
+      - 'src/data/location_coordinates.csv'
+      - 'src/data/Chiten.csv'
+      - 'src/ui/components/location_selector.py'
+      - '.github/workflows/validate-location-data.yml'
+
+jobs:
+  validate-locations:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install Node dependencies
+      run: |
+        npm install
+        cd shared && npm install && npm run build
+    
+    - name: Install TypeScript
+      run: npm install -g typescript
+    
+    - name: Compile TypeScript validation scripts
+      run: |
+        tsc compare_locations.ts --module commonjs --target es2020
+        tsc extract_missing_locations.ts --module commonjs --target es2020
+        tsc compare_locations_detailed.ts --module commonjs --target es2020
+    
+    - name: Run location data validation
+      run: |
+        echo "=== Running basic location comparison ==="
+        node compare_locations.js
+        
+        echo -e "\n=== Running detailed location comparison ==="
+        node compare_locations_detailed.js
+    
+    - name: Create Python validation script
+      run: |
+        cat << 'EOF' > validate_python_locations.py
+        import sys
+        import csv
+        
+        # Read Chiten.csv
+        with open('src/data/Chiten.csv', 'r', encoding='utf-8') as f:
+            chiten_locations = [line.strip() for line in f if line.strip()]
+        
+        # Read location_coordinates.csv
+        csv_locations = []
+        with open('src/data/location_coordinates.csv', 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            csv_locations = [row['location_name'] for row in reader]
+        
+        # Check consistency
+        print(f"Chiten.csv locations: {len(chiten_locations)}")
+        print(f"location_coordinates.csv locations: {len(csv_locations)}")
+        
+        # Expected count
+        EXPECTED_COUNT = 142
+        
+        if len(chiten_locations) != EXPECTED_COUNT:
+            print(f"❌ Chiten.csv has {len(chiten_locations)} locations, expected {EXPECTED_COUNT}")
+            sys.exit(1)
+        
+        if len(csv_locations) != EXPECTED_COUNT:
+            print(f"❌ location_coordinates.csv has {len(csv_locations)} locations, expected {EXPECTED_COUNT}")
+            sys.exit(1)
+        
+        print("✅ Python location data validation passed")
+        EOF
+    
+    - name: Run Python validation
+      run: python validate_python_locations.py
+    
+    - name: Summary
+      if: always()
+      run: |
+        echo "=== Location Data Validation Summary ==="
+        echo "All location data sources should have exactly 142 locations"
+        echo "- TypeScript regions.ts: Check console output above"
+        echo "- Python CSV files: Check console output above"
+        echo "Any discrepancies should be resolved before merging"
