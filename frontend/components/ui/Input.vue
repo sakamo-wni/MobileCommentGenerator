@@ -47,7 +47,7 @@
       >
         <!-- クリアボタン -->
         <button
-          v-show="clearable && modelValue && !disabled"
+          v-if="clearable && modelValue && !disabled"
           type="button"
           class="text-secondary-400 hover:text-secondary-600 transition-colors p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           @click="handleClear"
