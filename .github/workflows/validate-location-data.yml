@@ -37,8 +37,7 @@ jobs:
         import sys
         
         # 期待される地点数
-        EXPECTED_CHITEN_COUNT = 142
-        EXPECTED_COORDINATES_COUNT = 162
+        EXPECTED_COUNT = 142
         
         # Chiten.csvのパスを探す
         chiten_paths = ['src/data/Chiten.csv', 'data/Chiten.csv', 'Chiten.csv']
@@ -79,12 +78,12 @@ jobs:
         # 検証結果
         validation_passed = True
         
-        if chiten_locations and len(chiten_locations) != EXPECTED_CHITEN_COUNT:
-            print(f"❌ 検証失敗: Chiten.csvに {len(chiten_locations)} 地点、期待値は {EXPECTED_CHITEN_COUNT}")
+        if chiten_locations and len(chiten_locations) != EXPECTED_COUNT:
+            print(f"❌ 検証失敗: Chiten.csvに {len(chiten_locations)} 地点、期待値は {EXPECTED_COUNT}")
             validation_passed = False
         
-        if csv_locations and len(csv_locations) != EXPECTED_COORDINATES_COUNT:
-            print(f"❌ 検証失敗: location_coordinates.csvに {len(csv_locations)} 地点、期待値は {EXPECTED_COORDINATES_COUNT}")
+        if csv_locations and len(csv_locations) != EXPECTED_COUNT:
+            print(f"❌ 検証失敗: location_coordinates.csvに {len(csv_locations)} 地点、期待値は {EXPECTED_COUNT}")
             validation_passed = False
         
         if validation_passed and (chiten_locations or csv_locations):
@@ -104,6 +103,5 @@ jobs:
       if: always()
       run: |
         echo "=== Location Data Validation Summary ==="
-        echo "Expected Chiten.csv count: 142"
-        echo "Expected location_coordinates.csv count: 162"
+        echo "Expected location count: 142"
         echo "Check the output above for validation results"
