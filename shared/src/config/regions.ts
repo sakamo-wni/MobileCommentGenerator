@@ -145,7 +145,6 @@ export const LOCATION_COORDINATES: Record<string, { latitude: number; longitude:
   '鹿屋': { latitude: 31.3777, longitude: 130.8518 },
   '種子島': { latitude: 30.7323, longitude: 130.9948 },
   '名瀬': { latitude: 28.3778, longitude: 129.4937 },
-  '沖永良部': { latitude: 27.3666, longitude: 128.5666 },
   // 沖縄地方
   '那覇': { latitude: 26.2125, longitude: 127.6811 },
   '名護': { latitude: 26.5918, longitude: 127.9774 },
@@ -153,7 +152,10 @@ export const LOCATION_COORDINATES: Record<string, { latitude: number; longitude:
   '大東島': { latitude: 25.8286, longitude: 131.2328 },
   '宮古島': { latitude: 24.8058, longitude: 125.2812 },
   '石垣島': { latitude: 24.4070, longitude: 124.1558 },
-  '与那国島': { latitude: 24.4669, longitude: 122.9989 }
+  '与那国島': { latitude: 24.4669, longitude: 122.9989 },
+  // 追加地点
+  '佐伯': { latitude: 32.9595, longitude: 131.9011 },
+  '人吉': { latitude: 32.2174, longitude: 130.7548 }
 } as const
 
 // 地域区分データ（シンプルなキー名を使用）
@@ -220,12 +222,12 @@ export const REGIONS = {
   },
   '九州': {
     '福岡': ['福岡', '八幡', '飯塚', '久留米'],
-    '大分': ['大分', '中津', '日田'],
+    '大分': ['大分', '中津', '日田', '佐伯'],
     '長崎': ['長崎', '佐世保', '厳原', '福江'],
     '佐賀': ['佐賀', '伊万里'],
-    '熊本': ['熊本', '阿蘇乙姫', '牛深'],
+    '熊本': ['熊本', '阿蘇乙姫', '牛深', '人吉'],
     '宮崎': ['宮崎', '延岡', '都城', '高千穂'],
-    '鹿児島': ['鹿児島', '鹿屋', '種子島', '名瀬', '沖永良部']
+    '鹿児島': ['鹿児島', '鹿屋', '種子島', '名瀬']
   },
   '沖縄': {
     '沖縄': ['那覇', '名護', '久米島', '宮古島', '石垣島', '与那国島', '大東島']
