@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - 'data/**/*.csv'
+      - 'src/data/**/*.csv'
       - 'src/utils/csv_validator.py'
   pull_request:
     paths:
       - 'data/**/*.csv'
+      - 'src/data/**/*.csv'
       - 'src/utils/csv_validator.py'
   workflow_dispatch:
 
@@ -41,10 +43,28 @@ jobs:
       if: steps.check_validator.outputs.validator_exists == 'true'
       run: |
         # CSVファイルが存在するディレクトリを検証
+        csv_found=false
+        
+        # data/ディレクトリのCSVファイルを検証
         if [ -d "data" ] && [ "$(find data -name '*.csv' -type f | head -1)" ]; then
           python src/utils/csv_validator.py data/ -o validation_report.txt -v || echo "CSV validation completed with warnings"
-        else
-          echo "No CSV files found in data directory" > validation_report.txt
+          csv_found=true
+        fi
+        
+        # src/data/ディレクトリのCSVファイルを検証
+        if [ -d "src/data" ] && [ "$(find src/data -name '*.csv' -type f | head -1)" ]; then
+          if [ "$csv_found" = true ]; then
+            python src/utils/csv_validator.py src/data/ -o src_data_validation_report.txt -v || echo "CSV validation completed with warnings"
+            echo -e "\n\n--- src/data directory validation ---\n" >> validation_report.txt
+            cat src_data_validation_report.txt >> validation_report.txt
+          else
+            python src/utils/csv_validator.py src/data/ -o validation_report.txt -v || echo "CSV validation completed with warnings"
+          fi
+          csv_found=true
+        fi
+        
+        if [ "$csv_found" = false ]; then
+          echo "No CSV files found in data or src/data directories" > validation_report.txt
         fi
     
     - name: Skip validation if no validator

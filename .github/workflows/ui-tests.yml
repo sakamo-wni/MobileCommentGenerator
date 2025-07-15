@@ -93,14 +93,42 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
     - name: Run security scan with bandit
       run: |
-        pip install bandit
-        bandit -r app.py src/ui/ -f json -o bandit-report.json || true
+        echo "Installing bandit..."
+        pip install bandit || { echo "Failed to install bandit"; exit 1; }
         
-        # レポートが存在する場合は表示
+        echo "Checking if target files exist..."
+        if [ ! -f "app.py" ]; then
+          echo "Warning: app.py not found"
+        fi
+        
+        if [ ! -d "src/ui/" ]; then
+          echo "Warning: src/ui/ directory not found"
+        fi
+        
+        echo "Running bandit security scan..."
+        # Run bandit and capture exit code
+        bandit -r app.py src/ui/ -f json -o bandit-report.json || bandit_exit_code=$?
+        
+        # Check if report was created
         if [ -f bandit-report.json ]; then
-          echo "Security scan completed - see artifacts for details"
+          echo "Security scan completed successfully"
+          echo "Bandit exit code: ${bandit_exit_code:-0}"
+          
+          # Show summary of findings
+          if command -v jq >/dev/null 2>&1; then
+            echo "Security scan summary:"
+            jq '.metrics._totals' bandit-report.json || true
+          fi
+        else
+          echo "Error: bandit-report.json was not created"
+          exit 1
         fi
     
     - name: Upload security report
