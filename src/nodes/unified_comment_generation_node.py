@@ -64,6 +64,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         
         # 温度に応じたコメントのフィルタリング
         temperature = getattr(weather_data, 'temperature', 0)
+        if temperature is None:
+            temperature = 0
         if temperature < TEMP.HEATSTROKE:
             # 熱中症閾値未満では熱中症関連のコメントを除外
             logger.info(f"温度が{temperature}°C（{TEMP.HEATSTROKE}°C未満）のため、熱中症関連コメントを除外")
@@ -73,6 +75,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         # 天気に応じたコメントのフィルタリング
         if hasattr(weather_data, 'weather_description') and '雨' in weather_data.weather_description:
             precipitation = getattr(weather_data, 'precipitation', 0)
+            if precipitation is None:
+                precipitation = 0
             logger.info(f"雨の天気（降水量: {precipitation}mm）のため、適切なコメントを選択")
             
             # 降水量に応じて適切なコメントを選択
@@ -352,7 +356,7 @@ def _check_continuous_rain(state: CommentGenerationState) -> bool:
     for f in period_forecasts:
         if hasattr(f, 'weather') and '雨' in f.weather:
             rain_hours += 1
-        elif hasattr(f, 'precipitation') and f.precipitation >= PRECIP.LIGHT:
+        elif hasattr(f, 'precipitation') and f.precipitation is not None and f.precipitation >= PRECIP.LIGHT:
             rain_hours += 1
     
     is_continuous_rain = rain_hours >= COMMENT.CONTINUOUS_RAIN_HOURS
