@@ -29,72 +29,14 @@ jobs:
       with:
         python-version: '3.10'
     
-    - name: Create Python validation script
+    - name: Copy validation script
       run: |
-        cat << 'EOF' > validate_location_data.py
-        import os
-        import csv
-        import sys
-        
-        # 期待される地点数
-        EXPECTED_COUNT = 142
-        
-        # Chiten.csvのパスを探す
-        chiten_paths = ['src/data/Chiten.csv', 'data/Chiten.csv', 'Chiten.csv']
-        chiten_path = None
-        for path in chiten_paths:
-            if os.path.exists(path):
-                chiten_path = path
-                break
-        
-        if chiten_path:
-            # Read Chiten.csv
-            with open(chiten_path, 'r', encoding='utf-8') as f:
-                chiten_locations = [line.strip() for line in f if line.strip()]
-            print(f"Chiten.csv ({chiten_path}): {len(chiten_locations)} 地点")
-        else:
-            print("警告: Chiten.csvが見つかりません")
-            chiten_locations = []
-        
-        # location_coordinates.csvのパスを探す
-        coord_paths = ['src/data/location_coordinates.csv', 'data/location_coordinates.csv']
-        coord_path = None
-        for path in coord_paths:
-            if os.path.exists(path):
-                coord_path = path
-                break
-        
-        if coord_path:
-            # Read location_coordinates.csv
-            csv_locations = []
-            with open(coord_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                csv_locations = [row['location_name'] for row in reader]
-            print(f"location_coordinates.csv ({coord_path}): {len(csv_locations)} 地点")
-        else:
-            print("警告: location_coordinates.csvが見つかりません")
-            csv_locations = []
-        
-        # 検証結果
-        validation_passed = True
-        
-        if chiten_locations and len(chiten_locations) != EXPECTED_COUNT:
-            print(f"❌ 検証失敗: Chiten.csvに {len(chiten_locations)} 地点、期待値は {EXPECTED_COUNT}")
-            validation_passed = False
-        
-        if csv_locations and len(csv_locations) != EXPECTED_COUNT:
-            print(f"❌ 検証失敗: location_coordinates.csvに {len(csv_locations)} 地点、期待値は {EXPECTED_COUNT}")
-            validation_passed = False
-        
-        if validation_passed and (chiten_locations or csv_locations):
-            print("✅ 検証成功: 地点データが正しく設定されています")
-        elif not chiten_locations and not csv_locations:
-            print("⚠️ 警告: 地点データファイルが見つかりません")
-            # ファイルが見つからない場合は成功とする（現在の実装に合わせる）
-            sys.exit(0)
-        else:
-            sys.exit(1)
-        EOF
+        if [ -f "scripts/validate_location_data.py" ]; then
+          cp scripts/validate_location_data.py validate_location_data.py
+        else
+          echo "エラー: scripts/validate_location_data.py が見つかりません"
+          exit 1
+        fi
     
     - name: Run Python validation
       run: python validate_location_data.py

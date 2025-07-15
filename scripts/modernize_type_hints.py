@@ -9,7 +9,7 @@
 import os
 import re
 from pathlib import Path
-from typing import List, Tuple
+# 型ヒントは新しい構文を使用
 
 # 変換マッピング
 TYPE_MAPPINGS = {
@@ -46,7 +46,7 @@ def should_process_file(file_path: Path) -> bool:
     return file_path.suffix == '.py'
 
 
-def update_imports(content: str) -> Tuple[str, int]:
+def update_imports(content: str) -> tuple[str, int]:
     """import文を更新"""
     changes = 0
     
@@ -80,7 +80,7 @@ def update_imports(content: str) -> Tuple[str, int]:
     return '\n'.join(new_lines), changes
 
 
-def update_type_hints(content: str) -> Tuple[str, int]:
+def update_type_hints(content: str) -> tuple[str, int]:
     """型ヒントを更新"""
     changes = 0
     
