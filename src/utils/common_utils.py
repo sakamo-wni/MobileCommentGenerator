@@ -1,13 +1,11 @@
 """共通ユーティリティ関数"""
 
 from datetime import datetime
-from typing import Dict
 
 from src.constants import (
     MORNING_START_HOUR, MORNING_END_HOUR,
     NOON_START_HOUR, NOON_END_HOUR,
-    EVENING_START_HOUR, EVENING_END_HOUR,
-    SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+    EVENING_START_HOUR, EVENING_END_HOUR
 )
 
 
