@@ -112,7 +112,15 @@ def _find_alternative_weather_comment(
     if weather_data.temperature >= 35:
         preferred_patterns = ["猛烈な暑さ", "危険な暑さ", "猛暑に警戒", "激しい暑さ"]
     elif weather_data.temperature >= 30:
-        preferred_patterns = ["厳しい暑さ", "強い日差し", "厳しい残暑", "強烈な日差し"]
+        # 月を確認して残暑を除外（7月は残暑ではない）
+        if state and hasattr(state, 'target_datetime'):
+            month = state.target_datetime.month
+            if month in [6, 7, 8]:  # 夏季
+                preferred_patterns = ["厳しい暑さ", "強い日差し", "強烈な日差し", "真夏の暑さ"]
+            else:  # 9月以降
+                preferred_patterns = ["厳しい暑さ", "強い日差し", "厳しい残暑", "強烈な日差し"]
+        else:
+            preferred_patterns = ["厳しい暑さ", "強い日差し", "強烈な日差し"]
     else:
         preferred_patterns = ["爽やかな晴天", "穏やかな空", "心地よい天気", "過ごしやすい天気"]
     

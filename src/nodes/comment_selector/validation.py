@@ -364,7 +364,7 @@ class CommentValidator:
             if month == 6:
                 patterns.extend(["盛夏", "真夏日", "猛暑日", "酷暑"])
             elif month == 7:
-                patterns.extend(["初夏", "残暑"])
+                patterns.extend(["初夏", "残暑", "晩夏", "秋"])
             return patterns
         elif month == 9:
             return ["真夏", "盛夏", "初夏", "梅雨"]
