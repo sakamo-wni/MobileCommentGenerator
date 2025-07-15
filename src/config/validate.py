@@ -11,12 +11,12 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
-from typing import Dict, List, Any
+from typing import Any
 
 from .app_settings import get_config, validate_config, setup_environment_defaults
 
 
-def format_errors(errors: Dict[str, List[str]]) -> str:
+def format_errors(errors: dict[str, list[str]]) -> str:
     """エラーを整形して表示用文字列を生成
     
     Args:
@@ -33,7 +33,7 @@ def format_errors(errors: Dict[str, List[str]]) -> str:
     return "\n".join(lines)
 
 
-def print_config_summary(config_dict: Dict[str, Any]) -> None:
+def print_config_summary(config_dict: dict[str, Any]) -> None:
     """設定のサマリーを表示
     
     Args:

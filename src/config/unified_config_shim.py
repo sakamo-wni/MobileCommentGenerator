@@ -4,7 +4,7 @@ unified_config.pyとの互換性のためのシムクラス
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 from .config import get_config
 
 
@@ -42,7 +42,7 @@ class APIConfigShim:
         )
         return self._config.llm.gemini_model
     
-    def validate_keys(self) -> Dict[str, bool]:
+    def validate_keys(self) -> dict[str, bool]:
         """APIキーの検証を委譲"""
         return self._config.api.validate_keys()
 

@@ -3,7 +3,7 @@
 import csv
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class ValidationError:
     """検証エラー情報"""
     file_path: str
-    line_number: Optional[int]
-    column: Optional[str]
+    line_number: int | None
+    column: str | None
     error_type: str
     message: str
     severity: str  # "error", "warning", "info"
@@ -25,15 +25,15 @@ class ValidationError:
 class ValidationResult:
     """検証結果"""
     is_valid: bool
-    errors: List[ValidationError]
-    warnings: List[ValidationError]
-    statistics: Dict[str, Any]
+    errors: list[ValidationError]
+    warnings: list[ValidationError]
+    statistics: dict[str, Any]
 
 
 class CSVValidator:
     """CSVファイルの検証クラス"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any | None] = None):
         """初期化
         
         Args:
@@ -41,7 +41,7 @@ class CSVValidator:
         """
         self.config = config or self._get_default_config()
     
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """デフォルト設定を取得"""
         return {
             "validation": {
@@ -196,9 +196,9 @@ class CSVValidator:
         is_valid = len(errors) == 0
         return ValidationResult(is_valid, errors, warnings, statistics)
     
-    def _validate_row(self, row: Dict[str, str], line_num: int, 
-                     expected_column: Optional[str], 
-                     seen_comments: set) -> List[ValidationError]:
+    def _validate_row(self, row: dict[str, str], line_num: int, 
+                     expected_column: str | None, 
+                     seen_comments: set) -> list[ValidationError]:
         """行データを検証"""
         errors = []
         config = self.config["validation"]
@@ -301,7 +301,7 @@ class CSVValidator:
         
         return errors
     
-    def validate_directory(self, directory: Path) -> Dict[str, ValidationResult]:
+    def validate_directory(self, directory: Path) -> dict[str, ValidationResult]:
         """ディレクトリ内の全CSVファイルを検証
         
         Args:
@@ -318,7 +318,7 @@ class CSVValidator:
         
         return results
     
-    def generate_report(self, results: Dict[str, ValidationResult]) -> str:
+    def generate_report(self, results: dict[str, ValidationResult]) -> str:
         """検証結果のレポートを生成
         
         Args:

@@ -2,7 +2,7 @@
 
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 import jsonschema
 import logging
 
@@ -23,7 +23,7 @@ CONFIG_SCHEMAS = {
 }
 
 
-def load_config(config_name: str, validate: bool = True) -> Dict[str, Any]:
+def load_config(config_name: str, validate: bool = True) -> dict[str, Any]:
     """YAMLファイルから設定を読み込む
     
     Args:
@@ -67,7 +67,7 @@ def load_config(config_name: str, validate: bool = True) -> Dict[str, Any]:
     return config
 
 
-def validate_config(config_name: str, config_data: Dict[str, Any]) -> bool:
+def validate_config(config_name: str, config_data: dict[str, Any]) -> bool:
     """設定データの検証
     
     Args:
@@ -89,6 +89,6 @@ def validate_config(config_name: str, config_data: Dict[str, Any]) -> bool:
         return False
 
 
-def get_weather_thresholds() -> Dict[str, Any]:
+def get_weather_thresholds() -> dict[str, Any]:
     """天気関連の閾値設定を取得"""
     return load_config('weather_thresholds')

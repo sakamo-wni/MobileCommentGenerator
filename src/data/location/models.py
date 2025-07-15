@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Union, TypedDict
+from typing import Any, TypedDict
 from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
 import os
@@ -98,13 +98,13 @@ class Location:
 
     name: str
     normalized_name: str
-    prefecture: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    region: Optional[str] = None
-    location_type: Optional[str] = None
-    population: Optional[int] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    prefecture: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    region: str | None = None
+    location_type: str | None = None
+    population: int | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """データクラス初期化後の処理"""
@@ -155,7 +155,7 @@ class Location:
                 katakana += char
         return katakana
 
-    def _infer_prefecture(self) -> Optional[str]:
+    def _infer_prefecture(self) -> str | None:
         """地点名から都道府県名を推定
 
         Returns:
@@ -233,7 +233,7 @@ class Location:
 
         return None
 
-    def _infer_region(self) -> Optional[str]:
+    def _infer_region(self) -> str | None:
         """都道府県名から地方区分を推定
 
         Returns:
@@ -260,7 +260,7 @@ class Location:
 
         return None
 
-    def distance_to(self, other: "Location") -> Optional[float]:
+    def distance_to(self, other: "Location") -> float | None:
         """他の地点との距離を計算（km）
 
         Args:
@@ -340,7 +340,7 @@ class Location:
         """
         return cached_levenshtein_distance(s1, s2)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:

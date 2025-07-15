@@ -3,7 +3,6 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
 
 from dotenv import load_dotenv
 
@@ -58,7 +57,7 @@ class ServerConfig:
     api_host: str = field(default="0.0.0.0")
     api_port: int = field(default=8000)
     frontend_port: int = field(default=3000)
-    cors_origins: List[str] = field(default_factory=list)
+    cors_origins: list[str] = field(default_factory=list)
     
     def __post_init__(self):
         """環境変数から値を読み込む"""
@@ -115,4 +114,4 @@ class SystemConstants:
     
     # 検証用の制限値
     MAX_API_TIMEOUT: int = 300                 # 最大APIタイムアウト（5分）
-    VALID_LOG_LEVELS: List[str] = field(default_factory=lambda: ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+    VALID_LOG_LEVELS: list[str] = field(default_factory=lambda: ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])

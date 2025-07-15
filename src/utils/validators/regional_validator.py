@@ -1,7 +1,6 @@
 """地域特性バリデータ - 地域に基づくコメント検証"""
 
 import logging
-from typing import Tuple
 
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
@@ -31,7 +30,7 @@ class RegionalValidator(BaseValidator):
             "北見", "小樽", "室蘭", "苫小牧"
         ]
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """地域特性に基づいてコメントを検証"""
         location = comment.location
         comment_text = comment.comment_text
@@ -48,7 +47,7 @@ class RegionalValidator(BaseValidator):
         
         return True, "地域検証OK"
     
-    def _check_regional_specifics(self, comment_text: str, location: str) -> Tuple[bool, str]:
+    def _check_regional_specifics(self, comment_text: str, location: str) -> tuple[bool, str]:
         """地域特性に基づく検証（改善版）"""
         # 地域判定の改善：都道府県と市町村の適切な判定
         location_lower = location.lower()
@@ -93,7 +92,7 @@ class RegionalValidator(BaseValidator):
         return True, "地域特性OK"
     
     def _check_humidity_conditions(self, comment_text: str, 
-                                  weather_data: WeatherForecast) -> Tuple[bool, str]:
+                                  weather_data: WeatherForecast) -> tuple[bool, str]:
         """湿度条件に基づく検証"""
         humidity = weather_data.humidity
         

@@ -1,7 +1,7 @@
 """コメントのキャッシュ管理を担当するクラス"""
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Any
 from datetime import datetime, timedelta
 
 from src.data.past_comment import PastComment
@@ -42,7 +42,7 @@ class CommentCache:
         """キャッシュが有効かどうかを確認（互換性のため維持）"""
         return self._lru_cache.get(self.DEFAULT_CACHE_KEY) is not None
     
-    def get(self, key: Optional[str] = None) -> Optional[List[PastComment]]:
+    def get(self, key: str | None = None) -> list[PastComment | None]:
         """キャッシュを取得（有効な場合のみ）"""
         # 互換性のため、keyが指定されない場合はデフォルトキーを使用
         cache_key = key or self.DEFAULT_CACHE_KEY
@@ -56,7 +56,7 @@ class CommentCache:
         
         return result
     
-    def set(self, comments: List[PastComment], key: Optional[str] = None) -> None:
+    def set(self, comments: list[PastComment], key: str | None = None) -> None:
         """キャッシュを設定"""
         # 互換性のため、keyが指定されない場合はデフォルトキーを使用
         cache_key = key or self.DEFAULT_CACHE_KEY
@@ -70,7 +70,7 @@ class CommentCache:
         """キャッシュヒット率を計算"""
         return self._lru_cache.get_hit_rate()
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """キャッシュの統計情報を取得"""
         return self._lru_cache.get_stats()
     
@@ -88,7 +88,7 @@ class SeasonalCommentFilter:
     """季節に基づくコメントのフィルタリング"""
     
     @staticmethod
-    def get_relevant_seasons(month: int) -> List[str]:
+    def get_relevant_seasons(month: int) -> list[str]:
         """月から関連する季節を取得"""
         season_map = {
             (3, 4): ["春", "梅雨"],
@@ -108,17 +108,17 @@ class SeasonalCommentFilter:
         return ["春", "夏", "秋", "冬", "梅雨", "台風"]
     
     @staticmethod
-    def filter_by_season(comments: List[PastComment], seasons: List[str]) -> List[PastComment]:
+    def filter_by_season(comments: list[PastComment], seasons: list[str]) -> list[PastComment]:
         """指定された季節のコメントのみをフィルタ"""
         return [c for c in comments if c.raw_data.get('season') in seasons]
     
     @staticmethod
     def filter_by_type_and_season(
-        comments: List[PastComment], 
+        comments: list[PastComment], 
         comment_type: str, 
         season: str, 
-        limit: Optional[int] = None
-    ) -> List[PastComment]:
+        limit: int | None = None
+    ) -> list[PastComment]:
         """タイプと季節でフィルタリング"""
         filtered = [
             c for c in comments 

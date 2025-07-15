@@ -3,8 +3,6 @@
 import logging
 import yaml
 from pathlib import Path
-from typing import Tuple, Dict, List, Optional
-
 from src.config.config import get_weather_constants
 
 # 定数を取得
@@ -18,7 +16,7 @@ logger = logging.getLogger(__name__)
 class WeatherConditionValidator:
     """天気条件に基づいてコメントの適切性を検証"""
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初期化
         
@@ -32,7 +30,7 @@ class WeatherConditionValidator:
         comment_text: str, 
         comment_type: str,
         weather_description: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """天気条件に基づく検証"""
         weather_desc_lower = weather_description.lower()
         
@@ -70,7 +68,7 @@ class WeatherConditionValidator:
         self,
         comment_text: str,
         weather_description: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """雨天時の矛盾をチェックする（全タイプ共通）"""
         weather_desc_lower = weather_description.lower()
         
@@ -112,7 +110,7 @@ class WeatherConditionValidator:
         
         return is_cloudy and not is_unstable
     
-    def _load_forbidden_words(self, config_path: Optional[str] = None) -> Dict[str, Dict[str, List[str]]]:
+    def _load_forbidden_words(self, config_path: str | None = None) -> dict[str, Dict[str, list[str]]]:
         """禁止ワード設定をYAMLファイルから読み込む"""
         if config_path is None:
             # デフォルトパスを構築
@@ -140,7 +138,7 @@ class WeatherConditionValidator:
             logger.error(f"設定ファイルの読み込みエラー: {e}. デフォルト設定を使用します。")
             return self._get_default_forbidden_words()
     
-    def _get_default_forbidden_words(self) -> Dict[str, Dict[str, List[str]]]:
+    def _get_default_forbidden_words(self) -> dict[str, Dict[str, list[str]]]:
         """デフォルトの禁止ワード設定を返す"""
         return {
             # 雨天時（全レベル）

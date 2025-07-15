@@ -1,7 +1,6 @@
 """バリデーションモジュール"""
 
-from typing import Tuple, List
-from src.config.app_config import AppConfig
+from typing import from src.config.app_config import AppConfig
 
 
 class ValidationManager:
@@ -10,7 +9,7 @@ class ValidationManager:
     def __init__(self, config: AppConfig):
         self._config = config
     
-    def validate_location_count(self, locations: List[str]) -> Tuple[bool, str | None]:
+    def validate_location_count(self, locations: list[str]) -> tuple[bool, str | None]:
         """地点数の検証"""
         max_locations = self._config.ui_settings.max_locations_per_generation
         

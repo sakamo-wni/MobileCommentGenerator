@@ -2,7 +2,7 @@
 
 import streamlit as st
 import os
-from typing import Dict, Any
+from typing import Any
 from src.config.app_config import get_config, reset_config
 try:
     from src.utils.secure_config import get_secure_config, mask_api_key
@@ -11,7 +11,7 @@ except ImportError:
     mask_api_key = lambda x: "*" * 20 if x else ""
 
 
-def settings_panel() -> Dict[str, Any]:
+def settings_panel() -> dict[str, Any]:
     """
     設定パネルコンポーネント
     

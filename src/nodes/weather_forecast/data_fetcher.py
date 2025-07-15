@@ -6,9 +6,7 @@ WxTech APIを使用して天気予報データを取得する機能を提供
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, Union
-
-import pytz
+from typing import import pytz
 
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.cached_client import CachedWxTechAPIClient
@@ -35,8 +33,8 @@ class WeatherDataFetcher:
     
     async def fetch_weather_data(
         self,
-        location: Union[str, Tuple[float, float]],
-    ) -> Optional[WeatherForecastCollection]:
+        location: str | tuple[float, float],
+    ) -> WeatherForecastCollection | None:
         """天気予報データを取得
         
         Args:
@@ -85,9 +83,9 @@ class WeatherDataFetcher:
     def fetch_for_workflow(
         self,
         location_name: str,
-        provided_lat: Optional[float] = None,
-        provided_lon: Optional[float] = None,
-    ) -> Tuple[WeatherForecastCollection, Location]:
+        provided_lat: float | None = None,
+        provided_lon: float | None = None,
+    ) -> tuple[WeatherForecastCollection, Location]:
         """ワークフロー用の天気予報データ取得（同期版）
         
         Args:

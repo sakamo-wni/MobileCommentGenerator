@@ -7,7 +7,7 @@ aiohttpを使用した真の非同期実装
 import asyncio
 import logging
 import os
-from typing import Optional, Any, Dict
+from typing import Any
 from datetime import datetime, timedelta
 
 import aiohttp
@@ -202,7 +202,7 @@ class AsyncWxTechAPIClient:
             logger.error(f"予期しないエラー: {str(e)}")
             raise
     
-    def get_cache_stats(self) -> Optional[Dict[str, Any]]:
+    def get_cache_stats(self) -> dict[str, Any | None]:
         """キャッシュの統計情報を取得
         
         Returns:

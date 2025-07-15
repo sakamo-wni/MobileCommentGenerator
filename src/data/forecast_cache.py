@@ -11,7 +11,7 @@ import re
 import logging
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from functools import lru_cache
@@ -69,16 +69,16 @@ class ForecastCacheEntry:
     forecast_datetime: datetime
     cached_at: datetime
     temperature: float
-    max_temperature: Optional[float] = None
-    min_temperature: Optional[float] = None
+    max_temperature: float | None = None
+    min_temperature: float | None = None
     weather_condition: str = ""
     weather_description: str = ""
     precipitation: float = 0.0
     humidity: float = 0.0
     wind_speed: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     
-    def to_csv_row(self) -> List[str]:
+    def to_csv_row(self) -> list[str]:
         """CSV行として出力"""
         return [
             self.location_name,
@@ -96,7 +96,7 @@ class ForecastCacheEntry:
         ]
     
     @classmethod
-    def from_csv_row(cls, row: List[str]) -> "ForecastCacheEntry":
+    def from_csv_row(cls, row: list[str]) -> "ForecastCacheEntry":
         """CSV行から作成"""
         try:
             # 必須フィールドの解析
@@ -239,7 +239,7 @@ class ForecastCache:
             logger.error(f"予報データの保存に失敗: {e}")
     
     def get_forecast_at_time(self, location_name: str, target_datetime: datetime, 
-                           tolerance_hours: int = 3) -> Optional[ForecastCacheEntry]:
+                           tolerance_hours: int = 3) -> ForecastCacheEntry | None:
         """指定時刻の予報データを取得
         
         Args:
@@ -297,7 +297,7 @@ class ForecastCache:
             logger.error(f"予報データの取得に失敗: {e}")
             return None
     
-    def get_previous_day_forecast(self, location_name: str, reference_datetime: datetime) -> Optional[ForecastCacheEntry]:
+    def get_previous_day_forecast(self, location_name: str, reference_datetime: datetime) -> ForecastCacheEntry | None:
         """前日の同時刻の予報データを取得
         
         Args:
@@ -310,7 +310,7 @@ class ForecastCache:
         previous_day = reference_datetime - timedelta(days=1)
         return self.get_forecast_at_time(location_name, previous_day, tolerance_hours=6)
     
-    def get_forecast_12hours_ago(self, location_name: str, reference_datetime: datetime) -> Optional[ForecastCacheEntry]:
+    def get_forecast_12hours_ago(self, location_name: str, reference_datetime: datetime) -> ForecastCacheEntry | None:
         """12時間前の予報データを取得
         
         Args:
@@ -324,7 +324,7 @@ class ForecastCache:
         return self.get_forecast_at_time(location_name, twelve_hours_ago, tolerance_hours=3)
     
     def calculate_temperature_difference(self, current_forecast: WeatherForecast, 
-                                       location_name: str) -> Dict[str, Optional[float]]:
+                                       location_name: str) -> dict[str, float | None]:
         """気温差を計算
         
         Args:
@@ -369,8 +369,8 @@ class ForecastCache:
         return result
     
     def _load_cache_entries(self, location_name: str, 
-                           date_filter: Optional[datetime] = None,
-                           days_range: int = 7) -> List[ForecastCacheEntry]:
+                           date_filter: datetime | None = None,
+                           days_range: int = 7) -> list[ForecastCacheEntry]:
         """キャッシュエントリを読み込み
         
         Args:
@@ -418,7 +418,7 @@ class ForecastCache:
         
         return entries
     
-    def _get_daily_forecasts(self, location_name: str, target_date) -> List[ForecastCacheEntry]:
+    def _get_daily_forecasts(self, location_name: str, target_date) -> list[ForecastCacheEntry]:
         """指定日の全ての予報データを取得"""
         entries = self._load_cache_entries(location_name)
         return [entry for entry in entries if entry.forecast_datetime.date() == target_date]
@@ -455,7 +455,7 @@ class ForecastCache:
 
 
 # グローバルキャッシュインスタンス
-_global_cache: Optional[ForecastCache] = None
+_global_cache: ForecastCache | None = None
 
 
 def get_forecast_cache() -> ForecastCache:
@@ -472,7 +472,7 @@ def save_forecast_to_cache(weather_forecast: WeatherForecast, location_name: str
     cache.save_forecast(weather_forecast, location_name)
 
 
-def get_temperature_differences(current_forecast: WeatherForecast, location_name: str) -> Dict[str, Optional[float]]:
+def get_temperature_differences(current_forecast: WeatherForecast, location_name: str) -> dict[str, float | None]:
     """気温差を取得（便利関数）"""
     cache = get_forecast_cache()
     return cache.calculate_temperature_difference(current_forecast, location_name)

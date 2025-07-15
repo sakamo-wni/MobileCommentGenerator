@@ -1,7 +1,7 @@
 """LLMプロバイダー選択コンポーネント"""
 
 import streamlit as st
-from typing import Dict, Any
+from typing import Any
 from src.config.app_config import get_config
 
 

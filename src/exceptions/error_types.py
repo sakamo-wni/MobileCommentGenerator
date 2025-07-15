@@ -1,7 +1,7 @@
 """Standardized error types and error handling for the application"""
 
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Any
 
 class ErrorType(Enum):
     """Standardized error types for consistent error handling"""
@@ -32,7 +32,7 @@ class ErrorType(Enum):
 class ErrorMessages:
     """Internationalized error messages"""
     
-    _messages: Dict[ErrorType, Dict[str, str]] = {
+    _messages: dict[ErrorType, Dict[str, str]] = {
         ErrorType.WEATHER_FETCH: {
             "ja": "天気データの取得エラー",
             "en": "Weather data fetch error"
@@ -109,8 +109,8 @@ class AppException(Exception):
     def __init__(
         self,
         error_type: ErrorType,
-        message: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        message: str | None = None,
+        details: dict[str, Any | None] = None,
         lang: str = "ja"
     ):
         self.error_type = error_type
@@ -125,7 +125,7 @@ class AppException(Exception):
         
         super().__init__(self.message)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API responses"""
         return {
             "error_type": self.error_type.value,
@@ -136,25 +136,25 @@ class AppException(Exception):
 # Specific exception classes
 class WeatherFetchError(AppException):
     """Error fetching weather data"""
-    def __init__(self, message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
         super().__init__(ErrorType.WEATHER_FETCH, message, details)
 
 class DataAccessError(AppException):
     """Error accessing data (S3, local files, etc.)"""
-    def __init__(self, message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
         super().__init__(ErrorType.DATA_ACCESS, message, details)
 
 class LLMError(AppException):
     """Error in LLM processing"""
-    def __init__(self, message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
         super().__init__(ErrorType.LLM_ERROR, message, details)
 
 class ValidationError(AppException):
     """Data validation error"""
-    def __init__(self, message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
         super().__init__(ErrorType.VALIDATION_ERROR, message, details)
 
 class ConfigError(AppException):
     """Configuration error"""
-    def __init__(self, message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
         super().__init__(ErrorType.CONFIG_ERROR, message, details)

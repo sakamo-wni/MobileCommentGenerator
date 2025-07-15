@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
 from src.types import CommentPair
@@ -205,7 +205,7 @@ class CommentPromptBuilder:
 
     def build_prompt(
         self,
-        weather_data: Union[WeatherForecast, dict[str, Any], None],
+        weather_data: WeatherForecast | dict[str, Any, None],
         past_comments: list[PastComment] | None = None,
         location: str = "",
         selected_pair: CommentPair | None = None
@@ -264,7 +264,7 @@ class CommentPromptBuilder:
             logger.error(f"プロンプト構築エラー: {str(e)}")
             return self._get_fallback_prompt(location, weather_data)
 
-    def _extract_weather_info(self, weather_data: Union[WeatherForecast, dict[str, Any], None]) -> dict[str, Any]:
+    def _extract_weather_info(self, weather_data: WeatherForecast | dict[str, Any, None]) -> dict[str, Any]:
         """天気データから情報を抽出"""
         if not weather_data:
             return {
@@ -368,7 +368,7 @@ class CommentPromptBuilder:
         except Exception:
             return ""
 
-    def _get_fallback_prompt(self, location: str, _weather_data: Union[WeatherForecast, dict[str, Any], None]) -> str:
+    def _get_fallback_prompt(self, location: str, _weather_data: WeatherForecast | dict[str, Any, None]) -> str:
         """フォールバック用のシンプルなプロンプト"""
         try:
             return self.templates.fallback_template.format(location=location or '')
@@ -378,7 +378,7 @@ class CommentPromptBuilder:
     def create_custom_prompt(
         self,
         template: str,
-        weather_data: Union[WeatherForecast, dict[str, Any], None],
+        weather_data: WeatherForecast | dict[str, Any, None],
         past_comments: list[PastComment] | None = None,
         **kwargs: Any
     ) -> str:

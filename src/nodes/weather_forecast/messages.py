@@ -5,7 +5,7 @@ Weather forecast error messages
 将来的な国際化（i18n）に対応できる構造
 """
 
-from typing import Dict, Any
+from typing import Any
 
 
 class Messages:

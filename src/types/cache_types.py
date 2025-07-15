@@ -3,7 +3,7 @@ Cache-related type definitions for Python 3.13+.
 This module contains type definitions for TTL cache implementation.
 """
 
-from typing import TypedDict, Any, Generic, TypeVar
+from typing import Typed, Any, Generic, TypeVar
 from datetime import datetime
 
 # Type variable for cached values

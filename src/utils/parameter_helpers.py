@@ -1,13 +1,13 @@
 """Helper functions for standardizing function parameters"""
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
 from datetime import datetime
 
 def standardize_weather_params(
     location_name: str,
-    target_datetime: Optional[datetime] = None,
+    target_datetime: datetime | None = None,
     **kwargs: Any
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Standardize weather-related function parameters
     
     Args:
@@ -25,7 +25,7 @@ def standardize_weather_params(
     params.update(kwargs)
     return params
 
-def extract_location_coords(location_name: str) -> Tuple[str, Optional[float], Optional[float]]:
+def extract_location_coords(location_name: str) -> tuple[str, float | None, float | None]:
     """Extract location name and coordinates from a string
     
     Args:
@@ -52,11 +52,11 @@ def extract_location_coords(location_name: str) -> Tuple[str, Optional[float], O
 
 def standardize_comment_params(
     location_name: str,
-    target_datetime: Optional[datetime] = None,
-    llm_provider: Optional[str] = None,
+    target_datetime: datetime | None = None,
+    llm_provider: str | None = None,
     exclude_previous: bool = False,
     **kwargs: Any
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Standardize comment generation parameters
     
     Args:

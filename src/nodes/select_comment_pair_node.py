@@ -2,8 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
-
+from typing import Any
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.comment_pair import CommentPair
 from src.data.past_comment import CommentType, PastCommentCollection, PastComment

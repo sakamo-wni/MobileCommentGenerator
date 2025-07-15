@@ -3,8 +3,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Tuple, List
-from dotenv import load_dotenv
+from typing import from dotenv import load_dotenv
 
 from src.config.config import get_weather_constants
 from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
@@ -55,7 +54,7 @@ class CommentValidator:
         weather_comment: PastComment, 
         advice_comment: PastComment, 
         weather_data: WeatherForecast,
-        state: Optional[CommentGenerationState] = None
+        state: CommentGenerationState | None = None
     ) -> bool:
         """コメントペアの最終バリデーション（包括的一貫性チェック含む）"""
         weather_valid, weather_reason = self.validator.validate_comment(weather_comment, weather_data)
@@ -252,7 +251,7 @@ class CommentValidator:
                     
         return False
     
-    def _get_inappropriate_seasonal_patterns(self, month: int) -> List[str]:
+    def _get_inappropriate_seasonal_patterns(self, month: int) -> list[str]:
         """月ごとの不適切な季節表現パターンを取得"""
         if month in [6, 7, 8]:  # 夏
             patterns = [
@@ -268,7 +267,7 @@ class CommentValidator:
             return ["真夏", "盛夏", "初夏", "梅雨"]
         return []
     
-    def is_stable_weather_with_unstable_comment(self, comment_text: str, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
+    def is_stable_weather_with_unstable_comment(self, comment_text: str, weather_data: WeatherForecast, state: CommentGenerationState | None = None) -> bool:
         """安定した天気時に急変・不安定表現が含まれているかチェック"""
         # 翌日の全データから安定性を判定
         is_stable = self._check_full_day_stability(weather_data, state)
@@ -292,7 +291,7 @@ class CommentValidator:
         
         return False
     
-    def _extract_next_day_forecasts(self, state: Optional[CommentGenerationState]) -> List[WeatherForecast]:
+    def _extract_next_day_forecasts(self, state: CommentGenerationState | None) -> list[WeatherForecast]:
         """翌日の予報データを抽出"""
         if not state:
             return []
@@ -346,13 +345,13 @@ class CommentValidator:
             logger.error(f"予期しないエラー: {e}")
             return []
 
-    def _analyze_weather_type_changes(self, weather_type_sequence: List[str]) -> Tuple[set, int]:
+    def _analyze_weather_type_changes(self, weather_type_sequence: list[str]) -> tuple[set, int]:
         """天気タイプの変化を分析"""
         weather_types = set(weather_type_sequence)
         type_changes = count_weather_type_changes(weather_type_sequence)
         return weather_types, type_changes
     
-    def _check_weather_stability_pattern(self, weather_type_sequence: List[str], weather_types: set, type_changes: int) -> Optional[bool]:
+    def _check_weather_stability_pattern(self, weather_type_sequence: list[str], weather_types: set, type_changes: int) -> bool | None:
         """天気パターンの安定性をチェック"""
         if type_changes >= WEATHER_CHANGE_THRESHOLD:
             logger.debug(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
@@ -375,7 +374,7 @@ class CommentValidator:
         
         return None  # 単一天気タイプの場合は判定継続
 
-    def _check_single_weather_type_stability(self, weather_type: str, next_day_forecasts: List[WeatherForecast]) -> bool:
+    def _check_single_weather_type_stability(self, weather_type: str, next_day_forecasts: list[WeatherForecast]) -> bool:
         """単一天気タイプの安定性をチェック"""
         if weather_type == "sunny":
             logger.debug("翌日は終日晴天で安定")
@@ -396,7 +395,7 @@ class CommentValidator:
             logger.debug(f"翌日は終日{weather_type}で安定")
             return True
     
-    def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
+    def _check_full_day_stability(self, weather_data: WeatherForecast, state: CommentGenerationState | None = None) -> bool:
         """対象日（翌日）の全データから安定性を判定"""
         next_day_forecasts = self._extract_next_day_forecasts(state)
         
@@ -624,13 +623,13 @@ class CommentValidator:
         """コメントが極端な天候に適切かチェック"""
         return any(pattern in comment_text for pattern in SEVERE_WEATHER_PATTERNS)
     
-    def is_weather_matched(self, comment_condition: Optional[str], weather_description: str) -> bool:
+    def is_weather_matched(self, comment_condition: str | None, weather_description: str) -> bool:
         """コメントの天気条件と実際の天気が一致するかチェック"""
         if not comment_condition:
             return True
         return comment_condition.lower() in weather_description.lower()
     
-    def _get_weather_type_sequence(self, forecasts: List) -> List[str]:
+    def _get_weather_type_sequence(self, forecasts: List) -> list[str]:
         """天気予報リストから天気タイプのシーケンスを生成"""
         weather_type_sequence = []
         for forecast in forecasts:

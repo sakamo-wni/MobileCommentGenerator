@@ -3,7 +3,7 @@ Workflow-related type definitions for Python 3.13+.
 This module contains type definitions for LangGraph workflow states and metadata.
 """
 
-from typing import TypedDict, NotRequired, Literal
+from typing import Typed, NotRequired, Literal
 from datetime import datetime
 
 # Python 3.13 type alias syntax

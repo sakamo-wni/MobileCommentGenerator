@@ -6,7 +6,7 @@ LangGraph関連の設定を管理する
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -32,7 +32,7 @@ class LangGraphConfig:
         self.weather_context_window = int(os.getenv("LANGGRAPH_WEATHER_CONTEXT_WINDOW", str(self.weather_context_window)))
         self.min_confidence_threshold = float(os.getenv("LANGGRAPH_MIN_CONFIDENCE", str(self.min_confidence_threshold)))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:

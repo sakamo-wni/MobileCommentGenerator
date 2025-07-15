@@ -4,13 +4,13 @@
 履歴データからの統計情報生成など
 """
 
-from typing import List, Dict, Any
+from typing import Any
 from datetime import datetime, date
 from collections import Counter
 import pandas as pd
 
 
-def get_statistics(history: List[Dict[str, Any]]) -> Dict[str, Any]:
+def get_statistics(history: list[dict[str, Any]]) -> dict[str, Any]:
     """
     履歴データから統計情報を生成
 

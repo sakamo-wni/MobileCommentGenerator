@@ -4,7 +4,7 @@
 既存のワークフローと完全な互換性を保ちます。
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
 from datetime import datetime, timedelta
 import time
 import json
@@ -89,11 +89,11 @@ def create_unified_comment_generation_workflow() -> StateGraph:
 
 def run_unified_comment_generation(
     location_name: str,
-    target_datetime: Optional[datetime] = None,
+    target_datetime: datetime | None = None,
     llm_provider: str = "openai",
     exclude_previous: bool = False,
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """統合コメント生成ワークフローを実行
     
     Args:

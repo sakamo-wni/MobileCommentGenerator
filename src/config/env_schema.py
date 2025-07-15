@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, , 
 from enum import Enum
 import os
 import logging
@@ -30,13 +30,13 @@ class EnvVarSchema:
     default: Any
     description: str
     required: bool = False
-    choices: Optional[List[Any]] = None
-    min_value: Optional[Union[int, float]] = None
-    max_value: Optional[Union[int, float]] = None
+    choices: list[Any | None] = None
+    min_value: int | float | None = None
+    max_value: int | float | None = None
 
 
 # 環境変数スキーマの定義
-ENV_SCHEMA: List[EnvVarSchema] = [
+ENV_SCHEMA: list[EnvVarSchema] = [
     # API Keys
     EnvVarSchema("WXTECH_API_KEY", EnvVarType.STRING, "", "WxTech API key for weather data"),
     EnvVarSchema("OPENAI_API_KEY", EnvVarType.STRING, "", "OpenAI API key"),
@@ -118,7 +118,7 @@ def validate_env_value(schema: EnvVarSchema, value: Any) -> bool:
     return True
 
 
-def load_env_with_schema() -> Dict[str, Any]:
+def load_env_with_schema() -> dict[str, Any]:
     """スキーマに基づいて環境変数を読み込み、検証する"""
     env_values = {}
     validation_errors = []

@@ -5,7 +5,7 @@
 """
 
 import math
-from typing import List, Dict, Any, Tuple, Optional
+from typing import Any
 from datetime import datetime
 import logging
 
@@ -62,7 +62,7 @@ class CommentSimilarityCalculator:
         return score
 
     def calculate_temperature_similarity(
-        self, current_temp: float, past_temp: Optional[float]
+        self, current_temp: float, past_temp: float | None
     ) -> float:
         """
         気温の類似度を計算
@@ -110,7 +110,7 @@ class CommentSimilarityCalculator:
         return intersection / union if union > 0 else 0.0
 
     def calculate_temporal_similarity(
-        self, current_datetime: datetime, past_datetime: Optional[datetime]
+        self, current_datetime: datetime, past_datetime: datetime | None
     ) -> float:
         """
         時間的類似度を計算
@@ -174,7 +174,7 @@ class CommentSimilarityCalculator:
         past_comment: PastComment,
         current_datetime: datetime,
         current_location: str,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         総合的な類似度を計算
 

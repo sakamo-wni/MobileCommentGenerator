@@ -2,7 +2,7 @@
 メタデータフォーマッター
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any
 import logging
 from datetime import datetime
 
@@ -20,7 +20,7 @@ class MetadataFormatter:
     
     def create_generation_metadata(
         self, state: CommentGenerationState, execution_time_ms: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成メタデータを作成
         """
@@ -81,7 +81,7 @@ class MetadataFormatter:
         
         return metadata
     
-    def _get_weather_pattern(self, forecasts: List[Dict[str, Any]]) -> str:
+    def _get_weather_pattern(self, forecasts: list[dict[str, Any]]) -> str:
         """天気パターンを簡易分析"""
         if not forecasts:
             return "データなし"
@@ -101,7 +101,7 @@ class MetadataFormatter:
         else:
             return "変わりやすい天気"
     
-    def _format_weather_info(self, weather_data: Any, location_name: Optional[str], state: CommentGenerationState) -> Dict[str, Any]:
+    def _format_weather_info(self, weather_data: Any, location_name: str | None, state: CommentGenerationState) -> dict[str, Any]:
         """天気情報をフォーマット"""
         weather_info = {}
         
@@ -186,7 +186,7 @@ class MetadataFormatter:
         
         return weather_info
     
-    def _extract_selected_comments(self, selected_pair: Any) -> List[Dict[str, str]]:
+    def _extract_selected_comments(self, selected_pair: Any) -> list[dict[str, str]]:
         """
         選択されたコメント情報を抽出
         """

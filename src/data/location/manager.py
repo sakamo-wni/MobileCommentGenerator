@@ -1,7 +1,7 @@
 """リファクタリングされた地点データ管理システム - ファサードパターンで各コンポーネントを統合"""
 
 import logging
-from typing import List, Dict, Optional, Any
+from typing import Any
 from pathlib import Path
 
 from .models import Location
@@ -21,13 +21,13 @@ class LocationManagerRefactored:
     _instance = None
     _initialized = False
     
-    def __new__(cls, csv_path: Optional[str] = None):
+    def __new__(cls, csv_path: str | None = None):
         """シングルトンパターンの実装"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def __init__(self, csv_path: Optional[str] = None):
+    def __init__(self, csv_path: str | None = None):
         """初期化
         
         Args:
@@ -41,9 +41,9 @@ class LocationManagerRefactored:
         
         # コンポーネントの初期化
         self.csv_loader = LocationCSVLoader(csv_path)
-        self.locations: List[Location] = []
-        self.search_engine: Optional[LocationSearchEngine] = None
-        self._location_order: Dict[str, int] = {}
+        self.locations: list[Location] = []
+        self.search_engine: LocationSearchEngine | None = None
+        self._location_order: dict[str, int] = {}
         
         # データの読み込み
         self.load_locations()
@@ -106,7 +106,7 @@ class LocationManagerRefactored:
         # 順序辞書の作成
         self._location_order = {name: i for i, name in enumerate(default_order)}
     
-    def get_location(self, name: str) -> Optional[Location]:
+    def get_location(self, name: str) -> Location | None:
         """地点名から地点データを取得
         
         Args:
@@ -124,11 +124,11 @@ class LocationManagerRefactored:
     def search_locations(
         self, 
         query: str = "",
-        region: Optional[str] = None,
-        prefecture: Optional[str] = None,
+        region: str | None = None,
+        prefecture: str | None = None,
         fuzzy: bool = True,
         limit: int = 10
-    ) -> List[Location]:
+    ) -> list[Location]:
         """地点を検索
         
         Args:
@@ -156,7 +156,7 @@ class LocationManagerRefactored:
         # 結果を表示順序でソート
         return self._sort_locations_by_order(results)
     
-    def get_locations_by_region(self, region: str) -> List[Location]:
+    def get_locations_by_region(self, region: str) -> list[Location]:
         """地方から地点リストを取得
         
         Args:
@@ -172,7 +172,7 @@ class LocationManagerRefactored:
         locations = self.search_engine.get_locations_by_region(region)
         return self._sort_locations_by_order(locations)
     
-    def get_locations_by_prefecture(self, prefecture: str) -> List[Location]:
+    def get_locations_by_prefecture(self, prefecture: str) -> list[Location]:
         """都道府県から地点リストを取得
         
         Args:
@@ -193,7 +193,7 @@ class LocationManagerRefactored:
         location: Location, 
         radius_km: float = 50.0,
         limit: int = 10
-    ) -> List[Location]:
+    ) -> list[Location]:
         """指定地点の近隣地点を取得
         
         Args:
@@ -210,7 +210,7 @@ class LocationManagerRefactored:
         
         return self.search_engine.get_nearby_locations(location, radius_km, limit)
     
-    def get_all_locations(self) -> List[Location]:
+    def get_all_locations(self) -> list[Location]:
         """全地点データを取得（表示順序でソート済み）
         
         Returns:
@@ -218,7 +218,7 @@ class LocationManagerRefactored:
         """
         return self._sort_locations_by_order(self.locations)
     
-    def _sort_locations_by_order(self, locations: List[Location]) -> List[Location]:
+    def _sort_locations_by_order(self, locations: list[Location]) -> list[Location]:
         """地点リストを表示順序でソート
         
         Args:
@@ -235,7 +235,7 @@ class LocationManagerRefactored:
         
         return sorted(locations, key=sort_key)
     
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """統計情報を取得
         
         Returns:

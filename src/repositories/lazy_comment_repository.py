@@ -6,7 +6,7 @@ CSVファイルを必要な時だけ読み込むことで、起動時間とメ�
 
 import logging
 from pathlib import Path
-from typing import Optional, Union, Any
+from typing import Any
 from datetime import datetime
 import functools
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,8 +30,8 @@ class LazyCommentRepository(CommentRepositoryInterface):
     DEFAULT_COMMENT_TYPES = ["weather_comment", "advice"]
     
     def __init__(self, output_dir: str = "output", cache_ttl_minutes: int = 60,
-                 seasons: Optional[list[str]] = None, 
-                 comment_types: Optional[list[str]] = None,
+                 seasons: list[str | None] = None, 
+                 comment_types: list[str | None] = None,
                  max_workers: int | None = None):
         """
         Args:
@@ -151,7 +151,7 @@ class LazyCommentRepository(CommentRepositoryInterface):
         logger.info(f"Loaded total of {len(all_comments)} comments using {self.max_workers} workers")
         return all_comments
     
-    def get_comments_by_season(self, seasons: Union[str, list[str]], limit: int = 100) -> list[PastComment]:
+    def get_comments_by_season(self, seasons: str | list[str], limit: int = 100) -> list[PastComment]:
         """指定された季節のコメントを取得（並列遅延読み込み）
         
         Args:

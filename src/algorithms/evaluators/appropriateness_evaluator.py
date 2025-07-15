@@ -5,7 +5,6 @@
 """
 
 import re
-from typing import List
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
@@ -18,7 +17,7 @@ class AppropriatenessEvaluator(BaseEvaluator):
     """
     
     def __init__(self, weight: float, evaluation_mode: str = "relaxed", 
-                 enabled_checks: List[str] = None, inappropriate_patterns: List[str] = None):
+                 enabled_checks: list[str] = None, inappropriate_patterns: list[str] = None):
         """
         初期化
         

@@ -1,9 +1,7 @@
 """温度条件バリデーター - 温度条件に基づいてコメントの適切性を検証"""
 
 import logging
-from typing import Tuple, Dict, List
-
-from src.config.config import get_weather_constants
+from typing import from src.config.config import get_weather_constants
 
 # 定数を取得
 _weather_const = get_weather_constants()
@@ -100,7 +98,7 @@ class TemperatureConditionValidator:
         comment_text: str,
         comment_type: str,
         temperature: float
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """温度条件に基づく検証"""
         # 気温に基づいて該当する温度カテゴリを決定
         temp_category = self._get_temperature_category(temperature)
@@ -148,7 +146,7 @@ class TemperatureConditionValidator:
         weather_comment: str,
         advice_comment: str,
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """温度と症状の矛盾をチェック"""
         temp = weather_data.temperature
         

@@ -1,7 +1,7 @@
 """Google Gemini APIプロバイダー"""
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 import google.generativeai as genai
 
@@ -29,7 +29,7 @@ class GeminiProvider(LLMProvider):
         logger.info(f"Initialized Gemini provider with model: {model}")
 
     def generate_comment(
-        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
+        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: dict[str, Any]
     ) -> str:
         """
         Gemini APIを使用してコメントを生成。

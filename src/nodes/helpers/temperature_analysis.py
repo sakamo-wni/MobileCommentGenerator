@@ -1,13 +1,13 @@
 """気温差分析モジュール"""
 
-from typing import Dict, Any, Optional
+from typing import Any
 import logging
 from src.config.weather_config import get_config
 
 logger = logging.getLogger(__name__)
 
 
-def analyze_temperature_differences(temperature_differences: Dict[str, Optional[float]], current_temp: float) -> Dict[str, Any]:
+def analyze_temperature_differences(temperature_differences: dict[str, float | None], current_temp: float) -> dict[str, Any]:
     """気温差を分析して特徴を抽出
     
     温度差の閾値について：

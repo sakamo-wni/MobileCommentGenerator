@@ -1,7 +1,7 @@
 """Anthropic Claude APIプロバイダー"""
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 from anthropic import Anthropic
 
@@ -28,7 +28,7 @@ class AnthropicProvider(LLMProvider):
         logger.info(f"Initialized Anthropic provider with model: {model}")
 
     def generate_comment(
-        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
+        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: dict[str, Any]
     ) -> str:
         """
         Claude APIを使用してコメントを生成。

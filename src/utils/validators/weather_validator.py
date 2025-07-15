@@ -1,7 +1,7 @@
 """天気条件バリデータ - 天気状態に基づくコメント検証"""
 
 import logging
-from typing import Tuple, Dict, List, TypedDict
+from typing import Dict, Typed
 
 from src.config.config import get_weather_constants
 
@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 class WeatherForbiddenWords(TypedDict):
     """天気別禁止ワードの型定義"""
-    weather_comment: List[str]
-    advice: List[str]
+    weather_comment: list[str]
+    advice: list[str]
 
 
 class WeatherValidator(BaseValidator):
@@ -29,7 +29,7 @@ class WeatherValidator(BaseValidator):
     
     def _initialize_weather_forbidden_words(self):
         """天気別禁止ワードの定義"""
-        self.weather_forbidden_words: Dict[str, WeatherForbiddenWords] = {
+        self.weather_forbidden_words: dict[str, WeatherForbiddenWords] = {
             # 雨天時（全レベル）
             "rain": {
                 "weather_comment": [
@@ -105,7 +105,7 @@ class WeatherValidator(BaseValidator):
             }
         }
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """天気条件に基づいてコメントを検証"""
         # 霧関連コメントの検証を最初に実行
         fog_result = self._check_fog_comment_validity(comment.comment_text, weather_data)
@@ -119,7 +119,7 @@ class WeatherValidator(BaseValidator):
         )
     
     def _check_weather_conditions(self, comment_text: str, comment_type: str, 
-                                weather_data: WeatherForecast) -> Tuple[bool, str]:
+                                weather_data: WeatherForecast) -> tuple[bool, str]:
         """天気条件に基づいてコメントの適切性をチェック"""
         # 天気タイプの判定
         weather_type = self._get_weather_type(weather_data)
@@ -173,7 +173,7 @@ class WeatherValidator(BaseValidator):
         return "unknown"
     
     def _check_rainy_weather_contradictions(self, comment_text: str, 
-                                          weather_data: WeatherForecast) -> Tuple[bool, str]:
+                                          weather_data: WeatherForecast) -> tuple[bool, str]:
         """雨天時の矛盾をチェック"""
         # 降水量チェック（大雨に対して軽微な表現）
         if weather_data.precipitation > 5:  # 5mm/h以上の雨
@@ -208,7 +208,7 @@ class WeatherValidator(BaseValidator):
         return True, ""
     
     def _check_required_keywords(self, comment_text: str, comment_type: str,
-                               weather_data: WeatherForecast) -> Tuple[bool, str]:
+                               weather_data: WeatherForecast) -> tuple[bool, str]:
         """必須キーワードのチェック"""
         weather_desc = weather_data.weather_description.lower()
         
@@ -270,7 +270,7 @@ class WeatherValidator(BaseValidator):
         return True
     
     def _check_cloudy_weather_stability(self, comment_text: str,
-                                      weather_data: WeatherForecast) -> Tuple[bool, str]:
+                                      weather_data: WeatherForecast) -> tuple[bool, str]:
         """曇り天気の安定性に基づいてコメントの適切性をチェック"""
         is_stable = self._is_stable_cloudy_weather(weather_data)
         
@@ -296,7 +296,7 @@ class WeatherValidator(BaseValidator):
         
         return True, ""
     
-    def _check_fog_comment_validity(self, comment_text: str, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def _check_fog_comment_validity(self, comment_text: str, weather_data: WeatherForecast) -> tuple[bool, str]:
         """霧関連コメントの妥当性をチェック
         
         霧に関するコメントが、実際に霧の天気条件がある場合のみ使用されることを確認

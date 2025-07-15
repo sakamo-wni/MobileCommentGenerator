@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
 from src.data.past_comment import CommentType
 from src.data.weather_data import WeatherForecast
@@ -11,7 +11,7 @@ from src.repositories.lazy_comment_repository import LazyCommentRepository
 logger = logging.getLogger(__name__)
 
 
-def retrieve_past_comments_node(state: Dict[str, Any]) -> Dict[str, Any]:
+def retrieve_past_comments_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraphノード関数 - 過去コメントを取得
     
     Args:

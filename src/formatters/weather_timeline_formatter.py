@@ -2,7 +2,7 @@
 天気タイムラインフォーマッター
 """
 
-from typing import Dict, Any, List
+from typing import Any
 import logging
 from datetime import datetime, timedelta
 import pytz
@@ -22,7 +22,7 @@ class WeatherTimelineFormatter:
         self.jst = pytz.timezone("Asia/Tokyo")
         self.WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
     
-    def get_weather_timeline(self, location_name: str, base_datetime: datetime) -> Dict[str, Any]:
+    def get_weather_timeline(self, location_name: str, base_datetime: datetime) -> dict[str, Any]:
         """翌日9:00-18:00の天気データを取得
         
         Args:
@@ -34,7 +34,7 @@ class WeatherTimelineFormatter:
         """
         now_jst = datetime.now(self.jst)
         
-        timeline_data: Dict[str, Any] = {
+        timeline_data: dict[str, Any] = {
             "future_forecasts": [],
             "past_forecasts": [],
             "base_time": base_datetime.isoformat()
@@ -96,7 +96,7 @@ class WeatherTimelineFormatter:
         
         return timeline_data
     
-    def _analyze_weather_pattern(self, forecasts: List[Dict[str, Any]]) -> str:
+    def _analyze_weather_pattern(self, forecasts: list[dict[str, Any]]) -> str:
         """天気パターンを分析
         
         Args:

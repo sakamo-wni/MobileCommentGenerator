@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import List, Callable, Optional
+from typing import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.types import LocationResult, BatchGenerationResult
@@ -35,11 +35,11 @@ class BatchProcessor:
     
     async def process_batch_async(
         self,
-        locations: List[str],
+        locations: list[str],
         llm_provider: str,
         generate_func: Callable[[str, str], LocationResult],
-        progress_callback: Optional[Callable[[int, int, str], None]] = None,
-        max_workers: Optional[int] = None
+        progress_callback: Callable[[int, int, str | None, None]] = None,
+        max_workers: int | None = None
     ) -> BatchGenerationResult:
         """非同期バッチ処理（asyncio版）"""
         if not locations:
@@ -95,7 +95,7 @@ class BatchProcessor:
         llm_provider: str,
         idx: int,
         total: int,
-        progress_callback: Optional[Callable[[int, int, str], None]],
+        progress_callback: Callable[[int, int, str | None, None]],
         semaphore: asyncio.Semaphore
     ) -> LocationResult:
         """単一地点の処理（コールバック付き）"""
@@ -111,11 +111,11 @@ class BatchProcessor:
     
     def process_batch_sync(
         self,
-        locations: List[str],
+        locations: list[str],
         llm_provider: str,
         generate_func: Callable[[str, str], LocationResult],
-        progress_callback: Optional[Callable[[int, int, str], None]] = None,
-        max_workers: Optional[int] = None
+        progress_callback: Callable[[int, int, str | None, None]] = None,
+        max_workers: int | None = None
     ) -> BatchGenerationResult:
         """同期バッチ処理（ThreadPoolExecutor版）- 後方互換性のため"""
         if not locations:

@@ -4,8 +4,7 @@ CommentGenerationControllerから設定管理の責務を分離。
 """
 
 import logging
-from typing import Dict, List, Optional
-from src.config.app_config import AppConfig, get_config
+from typing import from src.config.app_config import AppConfig, get_config
 from src.ui.streamlit_utils import load_locations
 
 logger = logging.getLogger(__name__)
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ConfigManager:
     """アプリケーション設定を管理するクラス"""
     
-    def __init__(self, config: Optional[AppConfig] = None):
+    def __init__(self, config: AppConfig | None = None):
         self._config = config or get_config()
         
     @property
@@ -22,7 +21,7 @@ class ConfigManager:
         """設定を取得"""
         return self._config
     
-    def get_default_locations(self) -> List[str]:
+    def get_default_locations(self) -> list[str]:
         """デフォルトの地点リストを取得"""
         return load_locations()
     
@@ -30,7 +29,7 @@ class ConfigManager:
         """デフォルトのLLMプロバイダーを取得"""
         return self.config.ui_settings.default_llm_provider
     
-    def get_config_dict(self) -> Dict[str, str | int | float | bool]:
+    def get_config_dict(self) -> dict[str, str | int | float | bool]:
         """設定を辞書形式で取得"""
         return self.config.to_dict()
     

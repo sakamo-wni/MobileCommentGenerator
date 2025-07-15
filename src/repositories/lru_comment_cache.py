@@ -6,7 +6,7 @@
 
 import logging
 import threading
-from typing import List, Optional, Dict, Any, Tuple
+from typing import Any, 
 from datetime import datetime, timedelta
 from collections import OrderedDict
 import sys
@@ -36,7 +36,7 @@ class LRUCommentCache:
         # スレッドセーフティのためのロック
         self._lock = threading.RLock()
         
-        self._cache: OrderedDict[str, Tuple[List[PastComment], datetime]] = OrderedDict()
+        self._cache: OrderedDict[str, tuple[list[PastComment], datetime]] = OrderedDict()
         self._max_size = max_size
         self._cache_ttl = timedelta(minutes=cache_ttl_minutes)
         self._max_memory_bytes = max_memory_mb * 1024 * 1024
@@ -47,7 +47,7 @@ class LRUCommentCache:
         self._total_requests = 0
         self._eviction_count = 0
         
-    def _estimate_memory_usage(self, comments: List[PastComment]) -> int:
+    def _estimate_memory_usage(self, comments: list[PastComment]) -> int:
         """コメントリストのメモリ使用量を推定（バイト）"""
         # 簡易的な推定: 各コメントのテキスト長 + オーバーヘッド
         total_size = 0
@@ -88,7 +88,7 @@ class LRUCommentCache:
         """エントリが有効期限内かチェック"""
         return datetime.now() - timestamp < self._cache_ttl
     
-    def get(self, key: str) -> Optional[List[PastComment]]:
+    def get(self, key: str) -> list[PastComment | None]:
         """キャッシュからコメントを取得"""
         with self._lock:
             self._total_requests += 1
@@ -111,7 +111,7 @@ class LRUCommentCache:
             logger.debug(f"Cache miss for key: {key} (hit rate: {self.get_hit_rate():.1%})")
             return None
     
-    def set(self, key: str, comments: List[PastComment]) -> None:
+    def set(self, key: str, comments: list[PastComment]) -> None:
         """キャッシュにコメントを設定"""
         new_size = self._estimate_memory_usage(comments)
         
@@ -149,7 +149,7 @@ class LRUCommentCache:
                 return 0.0
             return self._cache_hits / self._total_requests
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """詳細なキャッシュ統計を取得"""
         with self._lock:
             memory_usage_mb = self._get_total_memory_usage() / (1024 * 1024)

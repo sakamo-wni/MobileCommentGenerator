@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Any
 import logging
 
 from .config import (
@@ -27,10 +27,10 @@ except ImportError as e:
 @dataclass
 class APIKeys:
     """APIキーの管理（非推奨: config.APIConfigを使用してください）"""
-    openai_key: Optional[str] = field(default=None)
-    gemini_key: Optional[str] = field(default=None)
-    anthropic_key: Optional[str] = field(default=None)
-    wxtech_key: Optional[str] = field(default=None)
+    openai_key: str | None = field(default=None)
+    gemini_key: str | None = field(default=None)
+    anthropic_key: str | None = field(default=None)
+    wxtech_key: str | None = field(default=None)
     
     @classmethod
     def from_env(cls) -> "APIKeys":
@@ -56,12 +56,12 @@ class APIKeys:
                 wxtech_key=api_config.wxtech_api_key
             )
     
-    def validate(self) -> Dict[str, bool]:
+    def validate(self) -> dict[str, bool]:
         """APIキーの存在を検証"""
         api_config = get_api_config()
         return api_config.validate_keys()
     
-    def get_llm_key(self, provider: str) -> Optional[str]:
+    def get_llm_key(self, provider: str) -> str | None:
         """LLMプロバイダーに対応するAPIキーを取得"""
         api_config = get_api_config()
         return api_config.get_llm_key(provider)
@@ -103,7 +103,7 @@ class AppConfig:
         
         return config
     
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> dict[str, Any]:
         """設定の検証"""
         api_key_validation = self.api_keys.validate()
         validation_results = {
@@ -120,7 +120,7 @@ class AppConfig:
         
         return validation_results
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """設定を辞書形式に変換（APIキーは除外）"""
         return {
             "environment": self.env,
@@ -145,7 +145,7 @@ class AppConfig:
 
 
 # シングルトンインスタンス
-_config_instance: Optional[AppConfig] = None
+_config_instance: AppConfig | None = None
 
 
 def get_config() -> AppConfig:

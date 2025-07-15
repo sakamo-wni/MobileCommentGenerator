@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple, Optional, TYPE_CHECKING, NamedTuple
+from typing import Tuple, TYPE_CHECKING, Named
 from datetime import datetime
 
 if TYPE_CHECKING:
@@ -50,7 +50,7 @@ class WeatherCommentValidatorRefactored:
         self, 
         comment: PastComment, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         コメントを天気条件に基づいて検証
         
@@ -122,7 +122,7 @@ class WeatherCommentValidatorRefactored:
         weather_comment: str, 
         advice_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """天気コメントとアドバイスの一貫性を包括的にチェック"""
         # 1. 天気と現実の矛盾チェック
         weather_reality_check = self.consistency_validator.check_weather_reality_contradiction(
@@ -156,9 +156,9 @@ class WeatherCommentValidatorRefactored:
     
     def filter_comments(
         self, 
-        comments: List[PastComment], 
+        comments: list[PastComment], 
         weather_data: WeatherForecast
-    ) -> List[PastComment]:
+    ) -> list[PastComment]:
         """
         コメントリストから天気条件に適合するものをフィルタリング
         
@@ -183,10 +183,10 @@ class WeatherCommentValidatorRefactored:
     
     def get_weather_appropriate_comments(
         self, 
-        comments: List[PastComment],
+        comments: list[PastComment],
         weather_data: WeatherForecast,
         max_results: int = 10
-    ) -> List[PastComment]:
+    ) -> list[PastComment]:
         """
         天気条件に最も適したコメントを取得
         
@@ -218,7 +218,7 @@ class WeatherCommentValidatorRefactored:
         comment_text: str, 
         comment_type: str,
         humidity: float
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """湿度条件に基づく検証（シンプル版）"""
         # 高湿度時（70%以上）
         if humidity >= 70:
@@ -241,7 +241,7 @@ class WeatherCommentValidatorRefactored:
         comment_text: str, 
         comment_type: str,
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """必須キーワードの存在チェック（シンプル版）"""
         weather_desc = weather_data.weather_description.lower()
         

@@ -5,7 +5,7 @@
 
 import asyncio
 import logging
-from typing import List, Dict, Optional, Callable
+from typing import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.types import LocationResult, BatchGenerationResult
@@ -45,27 +45,27 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
     def config(self):
         return self._config_manager.config
     
-    def get_default_locations(self) -> List[str]:
+    def get_default_locations(self) -> list[str]:
         return self._config_manager.get_default_locations()
     
     def get_default_llm_provider(self) -> str:
         return self._config_manager.get_default_llm_provider()
     
-    def get_config_dict(self) -> Dict[str, str | int | float | bool]:
+    def get_config_dict(self) -> dict[str, str | int | float | bool]:
         return self._config_manager.get_config_dict()
     
     # === 履歴関連のメソッド（HistoryManagerに委譲）===
     
     @property
-    def generation_history(self) -> List[Dict[str, str]]:
+    def generation_history(self) -> list[dict[str, str]]:
         return self._history_manager.generation_history
     
     # === 検証関連のメソッド（ValidationManagerに委譲）===
     
-    def validate_configuration(self) -> Dict[str, bool | str]:
+    def validate_configuration(self) -> dict[str, bool | str]:
         return self._validators.validate_configuration()
     
-    def validate_location_count(self, locations: List[str]) -> tuple[bool, Optional[str]]:
+    def validate_location_count(self, locations: list[str]) -> tuple[bool, str | None]:
         return self._validators.validate_location_count(locations)
     
     # === メタデータ関連のメソッド（MetadataExtractorに委譲）===
@@ -73,7 +73,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
     def format_forecast_time(self, forecast_time: str) -> str:
         return self._metadata_extractor.format_forecast_time(forecast_time)
     
-    def extract_weather_metadata(self, result: LocationResult) -> Dict[str, str | float | None]:
+    def extract_weather_metadata(self, result: LocationResult) -> dict[str, str | float | None]:
         return self._metadata_extractor.extract_weather_metadata(result)
     
     # === コメント生成のコアロジック ===
@@ -104,10 +104,10 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
     
     def generate_comments_batch(
         self, 
-        locations: List[str], 
+        locations: list[str], 
         llm_provider: str,
-        progress_callback: Optional[Callable[[int, int, str], None]] = None, 
-        max_workers: Optional[int] = None
+        progress_callback: Callable[[int, int, str | None, None]] = None, 
+        max_workers: int | None = None
     ) -> BatchGenerationResult:
         """複数地点のコメント生成（並列処理版）"""
         # 最適な並列度を決定
@@ -141,7 +141,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
     
     def generate_with_progress(
         self, 
-        locations: List[str], 
+        locations: list[str], 
         llm_provider: str,
         view, 
         results_container
@@ -223,7 +223,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
     
     def _execute_batch_with_progress(
         self,
-        locations: List[str],
+        locations: list[str],
         llm_provider: str,
         progress_callback: Callable,
         all_results: List,

@@ -4,7 +4,6 @@ WxTech API エラー定義
 WxTech API で発生するエラーの定義と処理を管理
 """
 
-from typing import Optional
 
 
 class WxTechAPIError(Exception):
@@ -15,7 +14,7 @@ class WxTechAPIError(Exception):
         error_type: エラータイプ（api_key_invalid, rate_limit, network_error等）
     """
     
-    def __init__(self, message: str, status_code: Optional[int] = None, error_type: Optional[str] = None):
+    def __init__(self, message: str, status_code: int | None = None, error_type: str | None = None):
         super().__init__(message)
         self.status_code = status_code
         self.error_type = error_type

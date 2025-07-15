@@ -1,7 +1,6 @@
 """地点データ検索エンジン - 地点データの高速検索機能を提供"""
 
 import logging
-from typing import List, Dict, Optional, Set, Tuple
 from collections import defaultdict
 
 from .models import Location
@@ -13,14 +12,14 @@ logger = logging.getLogger(__name__)
 class LocationSearchEngine:
     """地点データ検索エンジン"""
     
-    def __init__(self, locations: List[Location]):
+    def __init__(self, locations: list[Location]):
         """初期化
         
         Args:
             locations: 検索対象の地点データリスト
         """
         self.locations = locations
-        self._search_cache: Dict[str, Optional[Location]] = {}  # 検索結果のキャッシュ
+        self._search_cache: dict[str, Location | None] = {}  # 検索結果のキャッシュ
         self._build_index()
     
     def _build_index(self):
@@ -28,10 +27,10 @@ class LocationSearchEngine:
         logger.info("検索インデックスを構築中...")
         
         # 各種インデックスの初期化
-        self.name_index: Dict[str, Location] = {}
-        self.normalized_index: Dict[str, Location] = {}
-        self.prefecture_index: Dict[str, List[Location]] = defaultdict(list)
-        self.region_index: Dict[str, List[Location]] = defaultdict(list)
+        self.name_index: dict[str, Location] = {}
+        self.normalized_index: dict[str, Location] = {}
+        self.prefecture_index: dict[str, list[Location]] = defaultdict(list)
+        self.region_index: dict[str, list[Location]] = defaultdict(list)
         self.prefix_trie = LocationTrie()  # Trie構造を使用
         
         # インデックスの構築
@@ -61,7 +60,7 @@ class LocationSearchEngine:
             f"{len(self.region_index)}地方"
         )
     
-    def get_location(self, name: str) -> Optional[Location]:
+    def get_location(self, name: str) -> Location | None:
         """地点名から地点データを取得
         
         Args:
@@ -117,11 +116,11 @@ class LocationSearchEngine:
     def search_locations(
         self, 
         query: str, 
-        region: Optional[str] = None,
-        prefecture: Optional[str] = None,
+        region: str | None = None,
+        prefecture: str | None = None,
         fuzzy: bool = True,
         limit: int = 10
-    ) -> List[Location]:
+    ) -> list[Location]:
         """地点を検索
         
         Args:
@@ -157,7 +156,7 @@ class LocationSearchEngine:
         
         return results
     
-    def get_locations_by_region(self, region: str) -> List[Location]:
+    def get_locations_by_region(self, region: str) -> list[Location]:
         """地方から地点リストを取得
         
         Args:
@@ -168,7 +167,7 @@ class LocationSearchEngine:
         """
         return self.region_index.get(region, [])
     
-    def get_locations_by_prefecture(self, prefecture: str) -> List[Location]:
+    def get_locations_by_prefecture(self, prefecture: str) -> list[Location]:
         """都道府県から地点リストを取得
         
         Args:
@@ -184,7 +183,7 @@ class LocationSearchEngine:
         location: Location, 
         radius_km: float = 50.0,
         limit: int = 10
-    ) -> List[Location]:
+    ) -> list[Location]:
         """指定地点の近隣地点を取得
         
         Args:
@@ -215,7 +214,7 @@ class LocationSearchEngine:
         # 上位N件を返す
         return [loc for _, loc in nearby[:limit]]
     
-    def get_statistics(self) -> Dict[str, any]:
+    def get_statistics(self) -> dict[str, any]:
         """検索エンジンの統計情報を取得
         
         Returns:

@@ -1,7 +1,7 @@
 """結果表示コンポーネント"""
 
 import streamlit as st
-from typing import Dict, Any, List, Optional
+from typing import Any
 from datetime import datetime
 import pytz
 import logging
@@ -10,7 +10,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def display_single_result(result: Dict[str, Any]) -> None:
+def display_single_result(result: dict[str, Any]) -> None:
     """単一地点の結果を表示"""
     location = result.get('location', '不明')
     success = result.get('success', False)
@@ -36,7 +36,7 @@ def display_single_result(result: Dict[str, Any]) -> None:
         st.error(f"❌ **{location}**: {error}")
 
 
-def display_metadata(metadata: Dict[str, Any], location: str) -> None:
+def display_metadata(metadata: dict[str, Any], location: str) -> None:
     """メタデータを表示"""
     # デバッグログ追加
     weather_timeline = metadata.get('weather_timeline')
@@ -131,7 +131,7 @@ def display_metadata(metadata: Dict[str, Any], location: str) -> None:
             logger.debug(f"weather_timeline not found or invalid: {weather_timeline}")
 
 
-def display_batch_results(results: List[Dict[str, Any]]) -> None:
+def display_batch_results(results: list[dict[str, Any]]) -> None:
     """バッチ結果を表示"""
     if not results:
         st.info("結果がありません")
@@ -154,7 +154,7 @@ def display_batch_results(results: List[Dict[str, Any]]) -> None:
         st.markdown("---")
 
 
-def result_display(result_data: Optional[Dict[str, Any]]) -> None:
+def result_display(result_data: dict[str, Any | None]) -> None:
     """
     生成結果表示コンポーネント
 

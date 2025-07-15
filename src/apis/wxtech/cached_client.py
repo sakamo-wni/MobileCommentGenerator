@@ -4,7 +4,7 @@
 キャッシュ機能を持つWxTech APIクライアントの実装
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
 import logging
 import os
 
@@ -22,7 +22,7 @@ class CachedWxTechAPIClient(WxTechAPIClient):
     WxTechAPIClientにTTLキャッシュ機能を追加
     """
     
-    def __init__(self, api_key: str, timeout: int = 30, cache_ttl: Optional[int] = None, cache_size: Optional[int] = None):
+    def __init__(self, api_key: str, timeout: int = 30, cache_ttl: int | None = None, cache_size: int | None = None):
         """キャッシュ付きクライアントを初期化
         
         Args:
@@ -93,7 +93,7 @@ class CachedWxTechAPIClient(WxTechAPIClient):
         """
         return super().get_forecast_for_next_day_hours_optimized(lat, lon)
     
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """キャッシュの統計情報を取得
         
         Returns:

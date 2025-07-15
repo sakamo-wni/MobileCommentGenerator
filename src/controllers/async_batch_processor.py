@@ -5,7 +5,7 @@
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
 from datetime import datetime
 
 from src.apis.wxtech.cached_client import CachedWxTechAPIClient
@@ -30,8 +30,8 @@ class AsyncBatchProcessor:
         
     async def fetch_all_weather_data_async(
         self, 
-        locations: List[str]
-    ) -> Dict[str, Any]:
+        locations: list[str]
+    ) -> dict[str, Any]:
         """全地点の天気予報データを並列で非同期取得（真の非同期実装）
         
         Args:
@@ -104,9 +104,9 @@ class AsyncBatchProcessor:
     
     async def generate_comments_batch_async(
         self,
-        locations: List[str],
+        locations: list[str],
         llm_provider: str = "gemini",
-        progress_callback: Optional[callable] = None
+        progress_callback: callable | None = None
     ) -> BatchGenerationResult:
         """複数地点のコメントを非同期で生成
         
@@ -178,7 +178,7 @@ class AsyncBatchProcessor:
 
 # 既存のコントローラーから呼び出すためのラッパー関数
 async def run_async_batch_generation(
-    locations: List[str],
+    locations: list[str],
     llm_provider: str = "gemini"
 ) -> BatchGenerationResult:
     """非同期バッチ生成を実行するラッパー関数"""

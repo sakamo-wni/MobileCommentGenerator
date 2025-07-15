@@ -4,8 +4,7 @@
 天気条件との関連性を評価する
 """
 
-from typing import List, Tuple
-from src.algorithms.evaluators.base_evaluator import BaseEvaluator
+from typing import from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast

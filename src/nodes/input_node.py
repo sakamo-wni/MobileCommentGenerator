@@ -4,7 +4,7 @@
 ユーザー入力を受け取り、初期状態を設定するLangGraphノード
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
 import logging
 from datetime import datetime, timedelta
 import pytz
@@ -143,7 +143,7 @@ def _create_location(location_name: str) -> Location:
             )
 
 
-def _get_default_preferences() -> Dict[str, Any]:
+def _get_default_preferences() -> dict[str, Any]:
     """
     デフォルトのユーザー設定を取得
     """
@@ -208,7 +208,7 @@ def _validate_input_parameters(state: CommentGenerationState):
         _validate_user_preferences(preferences)
 
 
-def _validate_user_preferences(preferences: Dict[str, Any]):
+def _validate_user_preferences(preferences: dict[str, Any]):
     """
     ユーザー設定の検証
     """

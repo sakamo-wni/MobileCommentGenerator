@@ -4,7 +4,7 @@ WxTech API クライアント
 高レベルのAPI操作インターフェースを提供
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -44,7 +44,7 @@ class WxTechAPIClient:
         self.timeout = timeout
         
         # 非同期セッション（必要時に初期化）
-        self._async_session: Optional[aiohttp.ClientSession] = None
+        self._async_session: aiohttp.ClientSession | None = None
         self.base_url = "https://wxtech.weathernews.com/api/v1"
     
     def get_forecast(self, lat: float, lon: float, forecast_hours: int = 72) -> WeatherForecastCollection:
@@ -239,7 +239,7 @@ class WxTechAPIClient:
     def __enter__(self):
         return self
     
-    def __exit__(self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+    def __exit__(self, exc_type: type[BaseException | None], exc_val: BaseException | None, exc_tb: Any | None) -> None:
         self.close()
     
     async def __aenter__(self):
@@ -360,7 +360,7 @@ class WxTechAPIClient:
 # 既存の関数との互換性を保つためのラッパー関数
 async def get_japan_1km_mesh_weather_forecast(
     lat: float, lon: float, api_key: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """既存の get_japan_1km_mesh_weather_forecast 関数の互換ラッパー
     
     Args:

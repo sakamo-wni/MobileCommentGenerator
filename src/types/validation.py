@@ -4,7 +4,7 @@
 Protocolを使用して、型の一貫性を保証
 """
 
-from typing import Protocol, List, Optional, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -36,7 +36,7 @@ class DictValidationResult:
         return self._data.get("is_valid", True)
 
 
-def ensure_validation_result(result: any) -> Optional[ValidationResult]:
+def ensure_validation_result(result: any) -> ValidationResult | None:
     """
     様々な形式のバリデーション結果をValidationResultプロトコルに変換
     

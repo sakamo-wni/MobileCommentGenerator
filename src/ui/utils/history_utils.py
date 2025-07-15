@@ -6,13 +6,13 @@
 
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
 from datetime import datetime
 import pandas as pd
 import streamlit as st
 
 
-def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
+def save_to_history(result: dict[str, Any], location: str, llm_provider: str):
     """
     生成結果を履歴に保存
 
@@ -62,7 +62,7 @@ def save_to_history(result: Dict[str, Any], location: str, llm_provider: str):
         st.error(f"履歴保存エラー: {str(e)}")
 
 
-def load_history() -> List[Dict[str, Any]]:
+def load_history() -> list[dict[str, Any]]:
     """
     履歴データを読み込む
 
@@ -82,7 +82,7 @@ def load_history() -> List[Dict[str, Any]]:
     return []
 
 
-def export_history_csv(history: List[Dict[str, Any]]) -> str:
+def export_history_csv(history: list[dict[str, Any]]) -> str:
     """
     履歴データをCSV形式でエクスポート
 

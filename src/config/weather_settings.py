@@ -7,7 +7,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Any
 
 from .config import get_system_constants, get_weather_constants, get_weather_config
 

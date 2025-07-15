@@ -6,7 +6,7 @@
 
 import json
 import os
-from typing import Dict, Optional, Any
+from typing import Any
 from enum import Enum
 from pathlib import Path
 import streamlit as st
@@ -22,7 +22,7 @@ class Language(Enum):
 
 
 # デフォルトの翻訳データ
-DEFAULT_TRANSLATIONS: Dict[str, Dict[str, str]] = {
+DEFAULT_TRANSLATIONS: dict[str, Dict[str, str]] = {
     # エラーメッセージ
     "error.api_key_missing.title": {
         "ja": "APIキーが設定されていません",
@@ -214,7 +214,7 @@ class I18n:
         
         return text
     
-    def add_translation(self, key: str, translations: Dict[str, str]):
+    def add_translation(self, key: str, translations: dict[str, str]):
         """
         翻訳を追加
         

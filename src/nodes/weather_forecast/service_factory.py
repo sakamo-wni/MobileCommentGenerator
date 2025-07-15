@@ -4,7 +4,6 @@ Weather forecast service factory
 サービスの依存性注入を管理するファクトリークラス
 """
 
-from typing import Optional
 from src.nodes.weather_forecast.services import (
     LocationService,
     WeatherAPIService,
@@ -22,10 +21,10 @@ class WeatherForecastServiceFactory:
     
     def __init__(
         self,
-        location_service: Optional[LocationService] = None,
-        weather_api_service: Optional[WeatherAPIService] = None,
-        forecast_processing_service: Optional[ForecastProcessingService] = None,
-        temperature_analysis_service: Optional[TemperatureAnalysisService] = None
+        location_service: LocationService | None = None,
+        weather_api_service: WeatherAPIService | None = None,
+        forecast_processing_service: ForecastProcessingService | None = None,
+        temperature_analysis_service: TemperatureAnalysisService | None = None
     ):
         """サービスファクトリーの初期化
         
@@ -39,7 +38,7 @@ class WeatherForecastServiceFactory:
         self._weather_api_service = weather_api_service
         self._forecast_processing_service = forecast_processing_service
         self._temperature_analysis_service = temperature_analysis_service
-        self._api_key: Optional[str] = None
+        self._api_key: str | None = None
     
     def set_api_key(self, api_key: str) -> None:
         """APIキーを設定"""

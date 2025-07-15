@@ -1,6 +1,6 @@
 """NGワード管理モジュール"""
 
-from typing import List, Dict, Any
+from typing import Any
 import logging
 from pathlib import Path
 import yaml
@@ -22,7 +22,7 @@ DEFAULT_NG_WORDS = [
 ]
 
 
-def get_ng_words() -> List[str]:
+def get_ng_words() -> list[str]:
     """NGワードリストを取得"""
     # 設定ファイルから読み込み
     config_path = Path(__file__).parent.parent.parent.parent / "config" / "ng_words.yaml"
@@ -41,7 +41,7 @@ def get_ng_words() -> List[str]:
         return DEFAULT_NG_WORDS
 
 
-def check_ng_words(text: str) -> Dict[str, Any]:
+def check_ng_words(text: str) -> dict[str, Any]:
     """テキストにNGワードが含まれているかチェック
     
     Args:

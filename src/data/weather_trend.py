@@ -2,8 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Tuple
-from enum import Enum
+from typing import from enum import Enum
 
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.config.config import get_comment_config
@@ -37,7 +36,7 @@ class WeatherTrend:
     
     start_forecast: WeatherForecast
     end_forecast: WeatherForecast
-    hourly_forecasts: List[WeatherForecast]
+    hourly_forecasts: list[WeatherForecast]
     weather_trend: TrendDirection
     temperature_trend: TrendDirection
     temperature_change: float
@@ -45,10 +44,10 @@ class WeatherTrend:
     min_temperature: float
     precipitation_total: float
     has_weather_change: bool
-    weather_changes: List[Tuple[datetime, str, str]]  # (時刻, 変化前, 変化後)
+    weather_changes: list[tuple[datetime, str, str]]  # (時刻, 変化前, 変化後)
     
     @classmethod
-    def from_forecasts(cls, forecasts: List[WeatherForecast]) -> "WeatherTrend":
+    def from_forecasts(cls, forecasts: list[WeatherForecast]) -> "WeatherTrend":
         """予報リストから気象傾向を分析して生成
         
         Args:
@@ -114,8 +113,8 @@ class WeatherTrend:
         )
     
     @staticmethod
-    def _determine_weather_trend(forecasts: List[WeatherForecast], 
-                                changes: List[Tuple[datetime, str, str]]) -> TrendDirection:
+    def _determine_weather_trend(forecasts: list[WeatherForecast], 
+                                changes: list[tuple[datetime, str, str]]) -> TrendDirection:
         """天気の変化傾向を判定"""
         if not changes:
             return TrendDirection.STABLE

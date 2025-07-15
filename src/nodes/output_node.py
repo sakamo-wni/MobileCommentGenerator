@@ -4,7 +4,7 @@
 最終結果を整形してJSON形式で出力するLangGraphノード
 """
 
-from typing import Dict, Any
+from typing import Any
 import logging
 from datetime import datetime
 import json

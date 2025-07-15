@@ -2,7 +2,6 @@
 
 import pytest
 import time
-from typing import List
 
 from src.data.location.models import Location
 from src.data.location.search_engine import LocationSearchEngine
@@ -12,7 +11,7 @@ class TestLocationSearchEnginePerformance:
     """LocationSearchEngineのパフォーマンステスト"""
     
     @pytest.fixture
-    def large_location_dataset(self) -> List[Location]:
+    def large_location_dataset(self) -> list[Location]:
         """大規模な地点データセットを生成"""
         locations = []
         prefectures = ["東京", "大阪", "愛知", "北海道", "福岡", "神奈川", "埼玉", "千葉"]

@@ -2,9 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List
-
-from dotenv import load_dotenv
+from typing import from dotenv import load_dotenv
 from pathlib import Path
 
 from src.data.weather_data import WeatherCondition
@@ -25,7 +23,7 @@ class CommentConfig:
     trend_hours_ahead: int = field(default=12)  # 気象変化を分析する時間（時間）
     
     # 天気スコア（良い天気ほど高いスコア）
-    weather_scores: Dict[WeatherCondition, int] = field(default_factory=lambda: {
+    weather_scores: dict[WeatherCondition, int] = field(default_factory=lambda: {
         WeatherCondition.CLEAR: 5,
         WeatherCondition.PARTLY_CLOUDY: 4,
         WeatherCondition.CLOUDY: 3,
@@ -49,7 +47,7 @@ class CommentConfig:
 class SevereWeatherConfig:
     """悪天候時の特別なコメント選択設定"""
     # 悪天候として特別扱いする条件
-    severe_weather_conditions: List[WeatherCondition] = field(default_factory=lambda: [
+    severe_weather_conditions: list[WeatherCondition] = field(default_factory=lambda: [
         WeatherCondition.SEVERE_STORM,  # 大雨・嵐
         WeatherCondition.STORM,         # 嵐
         WeatherCondition.THUNDER,       # 雷
@@ -61,7 +59,7 @@ class SevereWeatherConfig:
     ])
     
     # 悪天候時に推奨される天気コメント
-    severe_weather_comments: Dict[str, List[str]] = field(default_factory=lambda: {
+    severe_weather_comments: dict[str, list[str]] = field(default_factory=lambda: {
         "大雨・嵐": [
             "大荒れの空",
             "激しい雨に警戒",
@@ -100,7 +98,7 @@ class SevereWeatherConfig:
     })
     
     # 悪天候時に推奨されるアドバイスコメント
-    severe_weather_advice: Dict[str, List[str]] = field(default_factory=lambda: {
+    severe_weather_advice: dict[str, list[str]] = field(default_factory=lambda: {
         "大雨・嵐": [
             "室内で安全に",
             "無理な外出は避けて",
@@ -139,7 +137,7 @@ class SevereWeatherConfig:
     })
     
     # 悪天候時の除外キーワード（これらを含むコメントは選ばない）
-    exclude_keywords_severe: List[str] = field(default_factory=lambda: [
+    exclude_keywords_severe: list[str] = field(default_factory=lambda: [
         "穏やか", "過ごしやすい", "快適", "爽やか", "心地良い",
         "青空", "晴れ", "快晴", "日差し", "太陽",
         "散歩", "ピクニック", "お出かけ", "外出日和",
@@ -148,7 +146,7 @@ class SevereWeatherConfig:
     ])
     
     # 天気条件の日本語マッピング
-    weather_condition_japanese: Dict[WeatherCondition, str] = field(default_factory=lambda: {
+    weather_condition_japanese: dict[WeatherCondition, str] = field(default_factory=lambda: {
         WeatherCondition.SEVERE_STORM: "大雨・嵐",
         WeatherCondition.STORM: "嵐",
         WeatherCondition.THUNDER: "雷",
@@ -163,7 +161,7 @@ class SevereWeatherConfig:
         """指定された天気条件が悪天候かどうか判定"""
         return condition in self.severe_weather_conditions
     
-    def get_recommended_comments(self, condition: WeatherCondition) -> Dict[str, List[str]]:
+    def get_recommended_comments(self, condition: WeatherCondition) -> dict[str, list[str]]:
         """指定された天気条件に推奨されるコメントを取得"""
         japanese_name = self.weather_condition_japanese.get(condition, "")
         

@@ -6,7 +6,7 @@ import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from typing import Optional, Dict, Any
+from typing import Any
 import logging
 from pathlib import Path
 
@@ -18,7 +18,7 @@ class SecureConfigManager:
     
     def __init__(self, config_file: str = ".secure_config"):
         self.config_file = Path.home() / config_file
-        self._cipher_suite: Optional[Fernet] = None
+        self._cipher_suite: Fernet | None = None
         self._init_encryption()
     
     def _init_encryption(self) -> None:
@@ -64,7 +64,7 @@ class SecureConfigManager:
         self._save_config(config)
         logger.info(f"API key for {provider} saved securely")
     
-    def get_api_key(self, provider: str) -> Optional[str]:
+    def get_api_key(self, provider: str) -> str | None:
         """暗号化されたAPIキーを復号して取得"""
         # まず環境変数をチェック
         env_key_map = {
@@ -101,7 +101,7 @@ class SecureConfigManager:
             self._save_config(config)
             logger.info(f"API key for {provider} removed")
     
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """設定ファイルを読み込む"""
         if not self.config_file.exists():
             return {}
@@ -113,7 +113,7 @@ class SecureConfigManager:
             logger.error(f"Failed to load config: {e}")
             return {}
     
-    def _save_config(self, config: Dict[str, Any]) -> None:
+    def _save_config(self, config: dict[str, Any]) -> None:
         """設定ファイルに保存"""
         try:
             # ディレクトリが存在しない場合は作成
@@ -129,7 +129,7 @@ class SecureConfigManager:
 
 
 # シングルトンインスタンス
-_secure_config_instance: Optional[SecureConfigManager] = None
+_secure_config_instance: SecureConfigManager | None = None
 
 
 def get_secure_config() -> SecureConfigManager:

@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Any
 import pytz
 
 from src.data.location.models import Location
@@ -42,7 +42,7 @@ class LocationService:
     def __init__(self):
         self.location_manager = LocationManagerRefactored()
     
-    def parse_location_string(self, location_name_raw: str) -> Tuple[str, Optional[float], Optional[float]]:
+    def parse_location_string(self, location_name_raw: str) -> tuple[str, float | None, float | None]:
         """地点名文字列から地点名と座標を抽出
         
         Args:
@@ -78,8 +78,8 @@ class LocationService:
     def get_location_with_coordinates(
         self, 
         location_name: str, 
-        provided_lat: Optional[float] = None,
-        provided_lon: Optional[float] = None
+        provided_lat: float | None = None,
+        provided_lon: float | None = None
     ) -> Location:
         """地点情報を取得（座標情報付き）
         
@@ -316,8 +316,8 @@ class ForecastProcessingService:
         self, 
         forecast_collection: WeatherForecastCollection,
         target_date: datetime.date,
-        target_hours: Optional[List[int]] = None
-    ) -> List[WeatherForecast]:
+        target_hours: list[int | None] = None
+    ) -> list[WeatherForecast]:
         """指定時刻の予報を抽出
         
         Args:
@@ -363,9 +363,9 @@ class ForecastProcessingService:
     
     def _find_closest_forecast(
         self, 
-        forecasts: List[WeatherForecast], 
+        forecasts: list[WeatherForecast], 
         target_time: datetime
-    ) -> Optional[WeatherForecast]:
+    ) -> WeatherForecast | None:
         """目標時刻に最も近い予報を見つける
         
         Args:
@@ -406,8 +406,8 @@ class ForecastProcessingService:
     
     def analyze_weather_trend(
         self, 
-        period_forecasts: List[WeatherForecast]
-    ) -> Optional[WeatherTrend]:
+        period_forecasts: list[WeatherForecast]
+    ) -> WeatherTrend | None:
         """気象変化傾向を分析
         
         Args:
@@ -428,9 +428,9 @@ class ForecastProcessingService:
     
     def select_forecast_by_time(
         self, 
-        forecasts: List[WeatherForecast], 
+        forecasts: list[WeatherForecast], 
         target_datetime: datetime
-    ) -> Optional[WeatherForecast]:
+    ) -> WeatherForecast | None:
         """ターゲット時刻に最も近い予報を選択
         
         Args:
@@ -444,8 +444,8 @@ class ForecastProcessingService:
     
     def select_priority_forecast(
         self, 
-        forecasts: List[WeatherForecast]
-    ) -> Optional[WeatherForecast]:
+        forecasts: list[WeatherForecast]
+    ) -> WeatherForecast | None:
         """優先度に基づいて予報を選択（雨・猛暑日を優先）
         
         Args:
@@ -465,7 +465,7 @@ class TemperatureAnalysisService:
         self, 
         forecast: WeatherForecast, 
         location_name: str
-    ) -> Dict[str, Optional[float]]:
+    ) -> dict[str, float | None]:
         """気温差を計算
         
         Args:

@@ -6,8 +6,7 @@ HTMLサニタイズ、入力検証など
 
 import re
 import html
-from typing import Any, Dict, List, Optional
-import hashlib
+from typing import Any, import hashlib
 import time
 
 
@@ -114,11 +113,11 @@ def generate_safe_id(prefix: str = "component") -> str:
 def validate_input(
     value: Any,
     input_type: str,
-    min_value: Optional[float] = None,
-    max_value: Optional[float] = None,
-    allowed_values: Optional[List[Any]] = None,
-    pattern: Optional[str] = None
-) -> tuple[bool, Optional[str]]:
+    min_value: float | None = None,
+    max_value: float | None = None,
+    allowed_values: list[Any | None] = None,
+    pattern: str | None = None
+) -> tuple[bool, str | None]:
     """
     入力値の検証
     

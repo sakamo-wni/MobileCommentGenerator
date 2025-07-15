@@ -10,8 +10,7 @@ import logging
 import os
 import pytz
 from datetime import datetime, timedelta
-from typing import Any, Optional
-
+from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import END, START, StateGraph
 
@@ -110,7 +109,7 @@ class WeatherForecastNode:
 
 async def fetch_weather_forecast_node_async(
     state,
-    service_factory: Optional[WeatherForecastServiceFactory] = None
+    service_factory: WeatherForecastServiceFactory | None = None
 ):
     """非同期版: ワークフロー用の天気予報取得ノード関数
 
@@ -193,7 +192,7 @@ async def fetch_weather_forecast_node_async(
 
 def fetch_weather_forecast_node(
     state,
-    service_factory: Optional[WeatherForecastServiceFactory] = None
+    service_factory: WeatherForecastServiceFactory | None = None
 ):
     """ワークフロー用の天気予報取得ノード関数
 

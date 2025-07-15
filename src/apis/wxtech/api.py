@@ -4,7 +4,7 @@ WxTech API リクエスト処理
 低レベルのHTTPリクエスト処理とレート制限を管理
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
 import requests
 import json
 import time
@@ -61,7 +61,7 @@ class WxTechAPI:
         
         self._last_request_time = time.time()
     
-    def make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def make_request(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         """API リクエストを実行
         
         Args:

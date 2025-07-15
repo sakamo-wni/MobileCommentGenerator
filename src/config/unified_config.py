@@ -6,7 +6,7 @@
 """
 
 import warnings
-from typing import Optional, Dict, List, Any
+from typing import Any
 
 # 新しい設定システムからインポート
 from .config import (
@@ -34,7 +34,7 @@ class UnifiedConfig:
     新しいコードではget_config()を使用してください。
     """
     
-    _instance: Optional["UnifiedConfig"] = None
+    _instance: "UnifiedConfig" | None = None
     
     def __new__(cls):
         """シングルトンパターンの実装"""
@@ -75,14 +75,14 @@ class UnifiedConfig:
         """サーバー設定を取得"""
         return self._config.server
     
-    def get_api_key(self, provider: str) -> Optional[str]:
+    def get_api_key(self, provider: str) -> str | None:
         """APIキーを取得（非推奨）"""
         if provider == "wxtech":
             return self._config.api.wxtech_api_key
         key = self._config.api.get_llm_key(provider)
         return key if key else None
     
-    def get_weather_config(self) -> Dict[str, Any]:
+    def get_weather_config(self) -> dict[str, Any]:
         """天気設定を辞書形式で取得（非推奨）"""
         return {
             "forecast_hours_ahead": self.weather.forecast_hours_ahead,
@@ -90,14 +90,14 @@ class UnifiedConfig:
             "cache_ttl_seconds": self.weather.cache_ttl_seconds,
         }
     
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> dict[str, Any]:
         """設定の検証（非推奨）"""
         return {
             "environment": self.app.env,
             "api_keys": self.api.validate_keys(),
         }
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """設定を辞書形式で返す（非推奨）"""
         return self._config.to_dict()
     
@@ -105,12 +105,12 @@ class UnifiedConfig:
         """本番環境かどうかを判定（非推奨）"""
         return self._config.app.env == "production"
     
-    def get_cors_origins(self) -> List[str]:
+    def get_cors_origins(self) -> list[str]:
         """CORS許可オリジンのリストを取得（非推奨）"""
         # 新しい設定システムで処理されるため、単に返すだけ
         return self._config.server.cors_origins
     
-    def get_yaml_config(self, config_name: str) -> Dict[str, Any]:
+    def get_yaml_config(self, config_name: str) -> dict[str, Any]:
         """YAML設定を取得（未実装・非推奨）"""
         # 将来的な実装のためのスタブ
         return {}

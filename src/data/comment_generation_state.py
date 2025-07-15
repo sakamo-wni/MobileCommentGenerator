@@ -7,7 +7,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import Any
 from datetime import datetime
 
 # Import new type definitions for Python 3.13+

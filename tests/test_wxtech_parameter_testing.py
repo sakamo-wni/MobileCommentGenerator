@@ -7,7 +7,7 @@ WxTech API パラメータテスト
 import logging
 import pytz
 from datetime import timedelta, datetime
-from typing import Dict, Any
+from typing import Any
 
 from src.apis.wxtech.api import WxTechAPI
 from src.apis.wxtech.errors import WxTechAPIError
@@ -28,7 +28,7 @@ class WxTechParameterTester:
         """
         self.api = WxTechAPI(api_key, timeout)
     
-    def test_specific_time_parameters(self, lat: float, lon: float) -> Dict[str, Any]:
+    def test_specific_time_parameters(self, lat: float, lon: float) -> dict[str, Any]:
         """特定時刻指定パラメータのテスト
         
         様々なパラメータでWxTech APIをテストし、特定時刻指定が可能か検証する
@@ -160,7 +160,7 @@ class WxTechParameterTester:
             "successful_count": len(successful_tests)
         }
     
-    def test_specific_times_only(self, lat: float, lon: float) -> Dict[str, Any]:
+    def test_specific_times_only(self, lat: float, lon: float) -> dict[str, Any]:
         """特定時刻のみのデータ取得テスト
         
         翌日の9,12,15,18時のみのデータが取得できるかテスト

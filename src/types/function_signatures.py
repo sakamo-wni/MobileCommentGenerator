@@ -1,6 +1,6 @@
 """Standardized function signatures for consistency across the codebase"""
 
-from typing import Protocol, Optional, Dict, Any, List
+from typing import Protocol, Any, 
 from datetime import datetime
 
 from .common import LLMProvider, PastComment, WeatherForecast
@@ -18,11 +18,11 @@ class CommentGeneratorProtocol(Protocol):
     def __call__(
         self,
         location_name: str,
-        target_datetime: Optional[datetime] = None,
-        llm_provider: Optional[LLMProvider] = None,
+        target_datetime: datetime | None = None,
+        llm_provider: LLMProvider | None = None,
         exclude_previous: bool = False,
         **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         ...
 
 class CommentRetrieverProtocol(Protocol):
@@ -31,10 +31,10 @@ class CommentRetrieverProtocol(Protocol):
     def __call__(
         self,
         location_name: str,
-        target_datetime: Optional[datetime] = None,
-        limit: Optional[int] = None,
+        target_datetime: datetime | None = None,
+        limit: int | None = None,
         **kwargs: Any
-    ) -> List[PastComment]:
+    ) -> list[PastComment]:
         ...
 
 class WeatherFetcherProtocol(Protocol):
@@ -43,7 +43,7 @@ class WeatherFetcherProtocol(Protocol):
     def __call__(
         self,
         location_name: str,
-        target_datetime: Optional[datetime] = None,
+        target_datetime: datetime | None = None,
         force_refresh: bool = False,
         **kwargs: Any
     ) -> WeatherForecast:
@@ -56,8 +56,8 @@ class CommentEvaluatorProtocol(Protocol):
         self,
         comment: str,
         location_name: str,
-        target_datetime: Optional[datetime] = None,
-        weather_data: Optional[WeatherForecast] = None,
+        target_datetime: datetime | None = None,
+        weather_data: WeatherForecast | None = None,
         **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         ...

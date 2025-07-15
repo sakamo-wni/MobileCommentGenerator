@@ -4,8 +4,7 @@
 コメント間の一貫性と整合性を評価する
 """
 
-from typing import List, Dict
-from src.algorithms.evaluators.base_evaluator import BaseEvaluator
+from typing import from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast
@@ -17,7 +16,7 @@ class ConsistencyEvaluator(BaseEvaluator):
     """
     
     def __init__(self, weight: float, evaluation_mode: str = "relaxed", 
-                 enabled_checks: List[str] = None, contradiction_patterns: List[Dict[str, List[str]]] = None):
+                 enabled_checks: list[str] = None, contradiction_patterns: list[dict[str, List[str]]] = None):
         """
         初期化
         
