@@ -1,7 +1,8 @@
 """一貫性バリデーター - コメントペアの一貫性を検証"""
 
 import logging
-from typing import import re
+from typing import Any
+import re
 
 from src.config.config import get_weather_constants
 

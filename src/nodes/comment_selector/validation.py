@@ -630,7 +630,7 @@ class CommentValidator:
             return True
         return comment_condition.lower() in weather_description.lower()
     
-    def _get_weather_type_sequence(self, forecasts: List) -> list[str]:
+    def _get_weather_type_sequence(self, forecasts: list) -> list[str]:
         """天気予報リストから天気タイプのシーケンスを生成"""
         weather_type_sequence = []
         for forecast in forecasts:

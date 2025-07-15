@@ -5,7 +5,9 @@
 """
 
 from dataclasses import dataclass, field
-from typing import @dataclass
+from typing import Any
+
+@dataclass
 class EvaluatorConfig:
     """
     評価器の共通設定
@@ -15,7 +17,7 @@ class EvaluatorConfig:
     
     # パターン設定
     inappropriate_patterns: list[str] = field(default_factory=list)
-    contradiction_patterns: list[dict[str, List[str]]] = field(default_factory=list)
+    contradiction_patterns: list[dict[str, list[str]]] = field(default_factory=list)
     positive_expressions: list[str] = field(default_factory=list)
     engagement_elements: list[str] = field(default_factory=list)
     

@@ -1,6 +1,7 @@
 """コメント安全性チェックモジュール"""
 
-from typing import import logging
+from typing import Any
+import logging
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment, CommentType

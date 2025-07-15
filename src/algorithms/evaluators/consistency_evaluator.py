@@ -17,7 +17,7 @@ class ConsistencyEvaluator(BaseEvaluator):
     """
     
     def __init__(self, weight: float, evaluation_mode: str = "relaxed", 
-                 enabled_checks: list[str] = None, contradiction_patterns: list[dict[str, List[str]]] = None):
+                 enabled_checks: list[str] = None, contradiction_patterns: list[dict[str, list[str]]] = None):
         """
         初期化
         

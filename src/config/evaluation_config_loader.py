@@ -57,7 +57,7 @@ class EvaluationConfigLoader:
         
         return patterns
     
-    def get_contradiction_patterns(self, mode: str = "relaxed") -> list[dict[str, List[str]]]:
+    def get_contradiction_patterns(self, mode: str = "relaxed") -> list[dict[str, list[str]]]:
         """矛盾パターンを取得"""
         config = self.load_config()
         mode_config = config.get("evaluation_modes", {}).get(mode, {})
@@ -80,7 +80,7 @@ class EvaluationConfigLoader:
         
         return []
     
-    def _flatten_contradiction_patterns(self, patterns: Dict) -> list[dict[str, List[str]]]:
+    def _flatten_contradiction_patterns(self, patterns: dict) -> list[dict[str, list[str]]]:
         """矛盾パターンをフラット化"""
         result = []
         for category, items in patterns.items():

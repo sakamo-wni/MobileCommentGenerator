@@ -119,7 +119,7 @@ class CommentParser:
             return None
     
     @staticmethod
-    def _parse_count(count_str: str | int, None, line_number: int) -> int:
+    def _parse_count(count_str: str | int | None, line_number: int) -> int:
         """カウント値を整数に変換
         
         Args:
