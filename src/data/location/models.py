@@ -5,6 +5,62 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from math import radians, sin, cos, sqrt, atan2
+from functools import lru_cache
+
+
+@lru_cache(maxsize=4096)
+def cached_levenshtein_distance(s1: str, s2: str) -> int:
+    """キャッシュ付きレーベンシュタイン距離（編集距離）計算
+    
+    Args:
+        s1: 文字列1
+        s2: 文字列2
+        
+    Returns:
+        編集距離
+    """
+    if len(s1) < len(s2):
+        return cached_levenshtein_distance(s2, s1)
+    
+    if len(s2) == 0:
+        return len(s1)
+    
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            # 文字が同じ場合はコスト0、異なる場合はコスト1
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    
+    return previous_row[-1]
+
+
+def get_levenshtein_cache_info() -> Dict[str, Any]:
+    """レーベンシュタイン距離計算のキャッシュ情報を取得
+    
+    Returns:
+        キャッシュ情報（ヒット数、ミス数、キャッシュサイズなど）
+    """
+    return {
+        "hits": cached_levenshtein_distance.cache_info().hits,
+        "misses": cached_levenshtein_distance.cache_info().misses,
+        "maxsize": cached_levenshtein_distance.cache_info().maxsize,
+        "currsize": cached_levenshtein_distance.cache_info().currsize,
+        "hit_rate": cached_levenshtein_distance.cache_info().hits / 
+                   (cached_levenshtein_distance.cache_info().hits + 
+                    cached_levenshtein_distance.cache_info().misses)
+                   if (cached_levenshtein_distance.cache_info().hits + 
+                       cached_levenshtein_distance.cache_info().misses) > 0 else 0
+    }
+
+
+def clear_levenshtein_cache():
+    """レーベンシュタイン距離計算のキャッシュをクリア"""
+    cached_levenshtein_distance.cache_clear()
 
 
 @dataclass
@@ -246,41 +302,26 @@ class Location:
         if fuzzy:
             # レーベンシュタイン距離による曖昧マッチング
             max_distance = max(1, len(query) // 3)  # クエリ長の1/3までの誤差を許容
-            if self._levenshtein_distance(query, name_lower) <= max_distance:
+            if cached_levenshtein_distance(query, name_lower) <= max_distance:
                 return True
-            if self._levenshtein_distance(query, normalized_lower) <= max_distance:
+            if cached_levenshtein_distance(query, normalized_lower) <= max_distance:
                 return True
 
         return False
 
     def _levenshtein_distance(self, s1: str, s2: str) -> int:
         """レーベンシュタイン距離（編集距離）を計算
-
+        
+        実際の計算はキャッシュ付きのグローバル関数に委譲
+        
         Args:
             s1: 文字列1
             s2: 文字列2
-
+            
         Returns:
             編集距離
         """
-        if len(s1) < len(s2):
-            return self._levenshtein_distance(s2, s1)
-
-        if len(s2) == 0:
-            return len(s1)
-
-        previous_row = range(len(s2) + 1)
-        for i, c1 in enumerate(s1):
-            current_row = [i + 1]
-            for j, c2 in enumerate(s2):
-                # 文字が同じ場合はコスト0、異なる場合はコスト1
-                insertions = previous_row[j + 1] + 1
-                deletions = current_row[j] + 1
-                substitutions = previous_row[j] + (c1 != c2)
-                current_row.append(min(insertions, deletions, substitutions))
-            previous_row = current_row
-
-        return previous_row[-1]
+        return cached_levenshtein_distance(s1, s2)
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換
