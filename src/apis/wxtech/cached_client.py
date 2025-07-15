@@ -44,7 +44,7 @@ class CachedWxTechAPIClient(WxTechAPIClient):
             cache_size = int(os.environ.get('WXTECH_CACHE_SIZE', '100'))
         
         # キャッシュを初期化
-        self._cache = TTLCache(maxsize=cache_size, ttl=cache_ttl)
+        self._cache = TTLCache(default_ttl=cache_ttl, max_size=cache_size)
         logger.info(f"キャッシュを初期化しました（TTL: {cache_ttl}秒, サイズ: {cache_size}）")
     
     @cached_method(cache_attr="_cache")
