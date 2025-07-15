@@ -1,24 +1,25 @@
 """コメントバリデーションロジック"""
 
 import logging
-import re
 import os
 from pathlib import Path
 from typing import Optional, Tuple, List
 from dotenv import load_dotenv
 
+from src.config.config import get_weather_constants
+from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+from src.constants.validation_constants import SIMILARITY_THRESHOLD
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
-from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
-from src.config.config import get_weather_constants
 from src.utils.validators.pollen_validator import PollenValidator
+from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
+from src.utils.validators.duplication_checker import DuplicationChecker
 
 # 定数を取得
 WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
-from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +36,17 @@ class CommentValidator:
         # 環境変数を再読み込み
         load_dotenv(override=True)
         api_key = os.getenv("GEMINI_API_KEY")
-        logger.info(f"GEMINI_API_KEY: {'設定済み' if api_key else '未設定'}")
+        logger.debug(f"GEMINI_API_KEY: {'設定済み' if api_key else '未設定'}")
         if api_key:
             try:
                 self.llm_validator = LLMDuplicationValidator(api_key)
-                logger.info("LLM重複検証バリデータを初期化しました")
+                logger.debug("LLM重複検証バリデータを初期化しました")
+            except ImportError as e:
+                logger.warning(f"LLM重複検証バリデータのインポートエラー: {e}")
+                self.llm_validator = None
             except Exception as e:
                 logger.warning(f"LLMバリデータの初期化に失敗: {e}")
+                self.llm_validator = None
         else:
             logger.warning("APIキーが設定されていないため、LLM重複検証は無効です")
     
@@ -57,9 +62,9 @@ class CommentValidator:
         advice_valid, advice_reason = self.validator.validate_comment(advice_comment, weather_data)
         
         if not weather_valid or not advice_valid:
-            logger.critical("個別バリデーション失敗:")
-            logger.critical(f"  天気コメント: '{weather_comment.comment_text}' - {weather_reason}")
-            logger.critical(f"  アドバイス: '{advice_comment.comment_text}' - {advice_reason}")
+            logger.warning("個別バリデーション失敗:")
+            logger.warning(f"  天気コメント: '{weather_comment.comment_text}' - {weather_reason}")
+            logger.warning(f"  アドバイス: '{advice_comment.comment_text}' - {advice_reason}")
             return False
         
         # 包括的一貫性チェック（新機能）
@@ -130,134 +135,27 @@ class CommentValidator:
     
     def _check_basic_duplication(self, weather_text: str, advice_text: str) -> bool:
         """基本的な重複チェック（完全一致、正規化後の一致など）"""
-        # 完全一致
-        if weather_text == advice_text:
-            return True
-        
-        # 語尾の微差を無視した一致
-        weather_normalized = weather_text.replace("です", "").replace("だ", "").replace("である", "").replace("。", "").strip()
-        advice_normalized = advice_text.replace("です", "").replace("だ", "").replace("である", "").replace("。", "").strip()
-        
-        if weather_normalized == advice_normalized:
-            logger.debug(f"ほぼ完全一致検出: '{weather_text}' ≈ '{advice_text}'")
-            return True
-        
-        # 句読点や助詞の差のみの場合
-        weather_core = re.sub(r'[。、！？\s　]', '', weather_text)
-        advice_core = re.sub(r'[。、！？\s　]', '', advice_text)
-        
-        if weather_core == advice_core:
-            logger.debug(f"句読点差のみ検出: '{weather_text}' ≈ '{advice_text}'")
-            return True
-        
-        return False
+        return DuplicationChecker.check_text_similarity(weather_text, advice_text)
     
     def _check_keyword_duplication(self, weather_text: str, advice_text: str) -> bool:
         """キーワードベースの重複チェック"""
-        duplicate_keywords = [
-            "にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑",
-            "注意", "警戒", "対策", "気をつけ", "備え", "準備", "傘"
-        ]
-        
-        weather_keywords = [kw for kw in duplicate_keywords if kw in weather_text]
-        advice_keywords = [kw for kw in duplicate_keywords if kw in advice_text]
-        
-        common_keywords = set(weather_keywords) & set(advice_keywords)
-        if common_keywords:
-            critical_duplicates = {"にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑"}
-            if any(keyword in critical_duplicates for keyword in common_keywords):
-                logger.debug(f"重複キーワード検出: {common_keywords}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_keyword_duplication(weather_text, advice_text)
     
     def _check_semantic_contradiction(self, weather_text: str, advice_text: str) -> bool:
         """意味的矛盾のチェック"""
-        contradiction_patterns = [
-            (["日差しの活用", "日差しを楽しん", "陽射しを活用", "太陽を楽しん", "日光浴", "日向"], 
-             ["紫外線対策", "日焼け対策", "日差しに注意", "陽射しに注意", "UV対策", "日陰"]),
-            (["外出推奨", "お出かけ日和", "散歩日和", "外出には絶好", "外で過ごそう"], 
-             ["外出時は注意", "外出を控え", "屋内にいよう", "外出は危険"]),
-            (["暑さを楽しん", "夏を満喫", "暑いけど気持ち"], 
-             ["暑さに注意", "熱中症対策", "暑さを避け"]),
-            (["雨を楽しん", "雨音が心地", "恵みの雨"], 
-             ["雨に注意", "濡れないよう", "雨対策"])
-        ]
-        
-        for positive_patterns, negative_patterns in contradiction_patterns:
-            has_positive = any(pattern in weather_text for pattern in positive_patterns)
-            has_negative = any(pattern in advice_text for pattern in negative_patterns)
-            has_positive_advice = any(pattern in advice_text for pattern in positive_patterns)
-            has_negative_weather = any(pattern in weather_text for pattern in negative_patterns)
-            
-            if (has_positive and has_negative) or (has_positive_advice and has_negative_weather):
-                logger.debug(f"意味的矛盾検出: ポジティブ={positive_patterns}, ネガティブ={negative_patterns}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_semantic_contradiction(weather_text, advice_text)
     
     def _check_umbrella_duplication(self, weather_text: str, advice_text: str) -> bool:
         """傘関連の重複チェック"""
-        umbrella_expressions = [
-            "傘が必須", "傘がお守り", "傘を忘れずに", "傘をお忘れなく",
-            "傘の準備", "傘が活躍", "折り畳み傘", "傘があると安心",
-            "傘をお持ちください", "傘の携帯"
-        ]
-        
-        weather_has_umbrella = any(expr in weather_text for expr in umbrella_expressions) or "傘" in weather_text
-        advice_has_umbrella = any(expr in advice_text for expr in umbrella_expressions) or "傘" in advice_text
-        
-        if weather_has_umbrella and advice_has_umbrella:
-            similar_meanings = ["必須", "お守り", "必要", "忘れずに", "お忘れなく", "携帯", "準備", "活躍", "安心"]
-            weather_meanings = [m for m in similar_meanings if m in weather_text]
-            advice_meanings = [m for m in similar_meanings if m in advice_text]
-            
-            if weather_meanings and advice_meanings:
-                logger.debug(f"傘関連の意味的重複検出: 天気側={weather_meanings}, アドバイス側={advice_meanings}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_umbrella_duplication(weather_text, advice_text)
     
     def _check_similar_expressions(self, weather_text: str, advice_text: str) -> bool:
         """類似表現のチェック"""
-        similarity_patterns = [
-            (["雨が心配", "雨に注意"], ["雨", "注意"]),
-            (["暑さが心配", "暑さに注意"], ["暑", "注意"]),
-            (["風が強い", "風に注意"], ["風", "注意"]),
-            (["紫外線が強い", "紫外線対策"], ["紫外線"]),
-            (["雷が心配", "雷に注意"], ["雷", "注意"]),
-            (["傘が必須", "傘を忘れずに", "傘をお忘れなく"], ["傘", "必要", "お守り", "安心"]),
-            (["傘がお守り", "傘が安心"], ["傘", "必要", "必須", "忘れずに"]),
-        ]
-        
-        for weather_patterns, advice_patterns in similarity_patterns:
-            weather_match = any(pattern in weather_text for pattern in weather_patterns)
-            advice_match = any(pattern in advice_text for pattern in advice_patterns)
-            if weather_match and advice_match:
-                logger.debug(f"類似表現検出: 天気パターン={weather_patterns}, アドバイスパターン={advice_patterns}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_similar_expressions(weather_text, advice_text)
     
     def _check_string_similarity(self, weather_text: str, advice_text: str) -> bool:
         """文字列の類似度チェック（短いコメントのみ）"""
-        if len(weather_text) <= 10 and len(advice_text) <= 10:
-            min_length = min(len(weather_text), len(advice_text))
-            if min_length == 0:
-                return False
-                
-            max_length = max(len(weather_text), len(advice_text))
-            if max_length / min_length > 2.0:
-                return False
-            
-            common_chars = set(weather_text) & set(advice_text)
-            similarity_ratio = len(common_chars) / max_length
-            
-            if similarity_ratio > 0.7:
-                logger.debug(f"高い文字列類似度検出: {similarity_ratio:.2f}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_character_similarity(weather_text, advice_text, SIMILARITY_THRESHOLD)
     
     def is_sunny_weather_with_changeable_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """晴天時に「変わりやすい」系のコメントが含まれているかチェック（強化）"""
@@ -394,87 +292,80 @@ class CommentValidator:
         
         return False
     
-    def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
-        """対象日（翌日）の全データから安定性を判定"""
+    def _extract_next_day_forecasts(self, state: Optional[CommentGenerationState]) -> List[WeatherForecast]:
+        """翌日の予報データを抽出"""
         if not state:
-            # stateがない場合はデフォルトで不安定とする
-            return False
+            return []
         
-        # forecast_collectionを取得
         forecast_collection = state.generation_metadata.get('forecast_collection')
         if not forecast_collection or not hasattr(forecast_collection, 'forecasts'):
-            # 翌日のデータがない場合は不安定とする
-            return False
+            return []
         
-        # 翌日の予報データを取得（9:00-18:00）
-        import pytz
-        from datetime import datetime, timedelta
-        
-        jst = pytz.timezone("Asia/Tokyo")
-        
-        # target_datetimeから翌日を計算（より確実）
-        if state.target_datetime:
-            base_datetime = state.target_datetime
-            if base_datetime.tzinfo is None:
-                base_datetime = jst.localize(base_datetime)
-            # target_datetimeの日付を取得
-            target_date = base_datetime.date()
-            logger.debug(f"target_datetime: {base_datetime}, 対象日: {target_date}")
-        else:
-            # target_datetimeがない場合は現在時刻を使用
-            target_date = datetime.now(jst).date()
-            logger.debug(f"target_datetimeなし、現在日付を使用: {target_date}")
-        
-        target_hours = [9, 12, 15, 18]
-        
-        logger.debug(f"天気安定性チェック開始: 対象日={target_date}")
-        logger.debug(f"  予報データ数: {len(forecast_collection.forecasts)}")
-        
-        next_day_forecasts = []
-        for forecast in forecast_collection.forecasts:
-            forecast_dt = forecast.datetime
-            if forecast_dt.tzinfo is None:
-                forecast_dt = jst.localize(forecast_dt)
+        try:
+            import pytz
+            from datetime import datetime
             
-            # 対象日の9:00-18:00の予報のみ抽出
-            if forecast_dt.date() == target_date and forecast_dt.hour in target_hours:
-                next_day_forecasts.append(forecast)
-                logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
-        
-        if len(next_day_forecasts) < 4:
-            # 4つの時間帯のデータが揃わない場合は不安定とする
-            logger.debug(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
-            logger.debug(f"  検索対象日: {target_date}")
-            logger.debug(f"  検索時間帯: {target_hours}")
-            return False
-        
-        # 天気タイプの時系列を作成
-        weather_type_sequence = self._get_weather_type_sequence(next_day_forecasts)
-        
-        # 全ての時間帯が同じ天気か確認
+            jst = pytz.timezone("Asia/Tokyo")
+            
+            if state.target_datetime:
+                base_datetime = state.target_datetime
+                if base_datetime.tzinfo is None:
+                    base_datetime = jst.localize(base_datetime)
+                target_date = base_datetime.date()
+                logger.debug(f"target_datetime: {base_datetime}, 対象日: {target_date}")
+            else:
+                target_date = datetime.now(jst).date()
+                logger.debug(f"target_datetimeなし、現在日付を使用: {target_date}")
+            
+            target_hours = [9, 12, 15, 18]
+            
+            logger.debug(f"天気安定性チェック開始: 対象日={target_date}")
+            logger.debug(f"  予報データ数: {len(forecast_collection.forecasts)}")
+            
+            next_day_forecasts = []
+            for forecast in forecast_collection.forecasts:
+                forecast_dt = forecast.datetime
+                if forecast_dt.tzinfo is None:
+                    forecast_dt = jst.localize(forecast_dt)
+                
+                if forecast_dt.date() == target_date and forecast_dt.hour in target_hours:
+                    next_day_forecasts.append(forecast)
+                    logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
+            
+            return next_day_forecasts
+        except pytz.exceptions.AmbiguousTimeError as e:
+            logger.error(f"タイムゾーン変換エラー: {e}")
+            return []
+        except AttributeError as e:
+            logger.error(f"予報データ構造エラー: {e}")
+            return []
+        except ValueError as e:
+            logger.error(f"日時変換エラー: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"予期しないエラー: {e}")
+            return []
+
+    def _analyze_weather_type_changes(self, weather_type_sequence: List[str]) -> Tuple[set, int]:
+        """天気タイプの変化を分析"""
         weather_types = set(weather_type_sequence)
-        
-        # 変化回数をカウント
         type_changes = count_weather_type_changes(weather_type_sequence)
-        
-        # WEATHER_CHANGE_THRESHOLD回以上変化する場合は不安定
+        return weather_types, type_changes
+    
+    def _check_weather_stability_pattern(self, weather_type_sequence: List[str], weather_types: set, type_changes: int) -> Optional[bool]:
+        """天気パターンの安定性をチェック"""
         if type_changes >= WEATHER_CHANGE_THRESHOLD:
             logger.debug(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
             return False
         
-        # 異なる天気タイプが複数ある場合でも、変化が1回だけなら追加チェック
         if len(weather_types) > 1:
-            # 朝だけ違って、その後同じ天気が続く場合は安定とみなす
             if type_changes == 1 and len(weather_type_sequence) >= 4:
                 if weather_type_sequence[1] == weather_type_sequence[2] == weather_type_sequence[3]:
                     logger.debug(f"朝だけ天気が異なるが、その後安定: {weather_type_sequence}")
-                    # 朝が曇りで日中晴れ続きなら安定
                     if weather_type_sequence[0] == "cloudy" and weather_type_sequence[1] == "sunny":
                         return True
-                    # 朝が晴れで日中曇り続きなら、追加条件確認へ
                     elif weather_type_sequence[0] == "sunny" and weather_type_sequence[1] == "cloudy":
-                        # 曇りの安定性を確認（下の曇り判定へ）
-                        pass
+                        return None  # 追加チェックが必要
                 else:
                     logger.debug(f"翌日の天気が変化: {weather_types}")
                     return False
@@ -482,34 +373,48 @@ class CommentValidator:
                 logger.debug(f"翌日の天気が変化: {weather_types}")
                 return False
         
-        # 単一の天気タイプの場合、その種類に応じて判定
+        return None  # 単一天気タイプの場合は判定継続
+
+    def _check_single_weather_type_stability(self, weather_type: str, next_day_forecasts: List[WeatherForecast]) -> bool:
+        """単一天気タイプの安定性をチェック"""
+        if weather_type == "sunny":
+            logger.debug("翌日は終日晴天で安定")
+            return True
+        
+        elif weather_type == "cloudy":
+            for forecast in next_day_forecasts:
+                if forecast.precipitation > 1.0 or forecast.wind_speed > 10.0:
+                    logger.debug(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
+                    return False
+                if "雷" in forecast.weather_description or "thunder" in forecast.weather_description.lower():
+                    logger.debug("翌日に雷が含まれるため不安定")
+                    return False
+            logger.debug("翌日は終日曇天で安定")
+            return True
+        
+        else:
+            logger.debug(f"翌日は終日{weather_type}で安定")
+            return True
+    
+    def _check_full_day_stability(self, weather_data: WeatherForecast, state: Optional[CommentGenerationState] = None) -> bool:
+        """対象日（翌日）の全データから安定性を判定"""
+        next_day_forecasts = self._extract_next_day_forecasts(state)
+        
+        if len(next_day_forecasts) < 4:
+            logger.debug(f"翌日のデータが不足: {len(next_day_forecasts)}件のみ")
+            return False
+        
+        weather_type_sequence = self._get_weather_type_sequence(next_day_forecasts)
+        weather_types, type_changes = self._analyze_weather_type_changes(weather_type_sequence)
+        
+        stability_result = self._check_weather_stability_pattern(weather_type_sequence, weather_types, type_changes)
+        if stability_result is not None:
+            return stability_result
+        
         if len(weather_types) == 1:
             weather_type = list(weather_types)[0]
-            
-            # 全てが晴れの場合は安定
-            if weather_type == "sunny":
-                logger.debug("翌日は終日晴天で安定")
-                return True
-            
-            # 全てが曇りの場合、追加条件を確認
-            elif weather_type == "cloudy":
-                # 降水量、風速、雷のチェック
-                for forecast in next_day_forecasts:
-                    if forecast.precipitation > 1.0 or forecast.wind_speed > 10.0:
-                        logger.debug(f"翌日の曇天が不安定: 降水量={forecast.precipitation}mm, 風速={forecast.wind_speed}m/s")
-                        return False
-                    if "雷" in forecast.weather_description or "thunder" in forecast.weather_description.lower():
-                        logger.debug("翌日に雷が含まれるため不安定")
-                        return False
-                logger.debug("翌日は終日曇天で安定")
-                return True
-            
-            # 雨の場合も、同じ天気が続くなら安定とする
-            else:
-                logger.debug(f"翌日は終日{weather_type}で安定")
-                return True
+            return self._check_single_weather_type_stability(weather_type, next_day_forecasts)
         
-        # その他の場合は不安定
         return False
     
     def is_rain_weather_with_pollen_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
@@ -552,6 +457,9 @@ class CommentValidator:
             except yaml.YAMLError as e:
                 logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
                 # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except FileNotFoundError as e:
+                logger.error(f"制限設定ファイルが見つかりません: {e}")
                 return False
             except Exception as e:
                 logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
@@ -621,7 +529,13 @@ class CommentValidator:
                     return True
             
             return False
-            
+        
+        except KeyError as e:
+            logger.error(f"必要なデータが見つかりません: {e}")
+            return False
+        except TypeError as e:
+            logger.error(f"データ型エラー: {e}")
+            return False    
         except Exception as e:
             logger.warning(f"YAML設定チェック中にエラー: {e}")
             return False
@@ -655,6 +569,9 @@ class CommentValidator:
             except yaml.YAMLError as e:
                 logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
                 # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except FileNotFoundError as e:
+                logger.error(f"制限設定ファイルが見つかりません: {e}")
                 return False
             except Exception as e:
                 logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
@@ -692,7 +609,13 @@ class CommentValidator:
                         return True
             
             return False
-            
+        
+        except KeyError as e:
+            logger.error(f"必要なデータが見つかりません: {e}")
+            return False
+        except TypeError as e:
+            logger.error(f"データ型エラー: {e}")
+            return False    
         except Exception as e:
             logger.warning(f"YAML設定チェック中にエラー: {e}")
             return False

@@ -105,7 +105,57 @@ export const LOCATION_COORDINATES: Record<string, { latitude: number; longitude:
   '宇和島': { latitude: 33.227027, longitude: 132.5429882 },
   '高知': { latitude: 33.5597078, longitude: 133.5311114 },
   '室戸岬': { latitude: 33.25611, longitude: 134.15250 },
-  '清水': { latitude: 32.78333, longitude: 132.95000 }
+  '清水': { latitude: 32.78333, longitude: 132.95000 },
+  // 中国地方
+  '岡山': { latitude: 34.6617, longitude: 133.9350 },
+  '津山': { latitude: 35.0703, longitude: 134.0043 },
+  '広島': { latitude: 34.3966, longitude: 132.4596 },
+  '庄原': { latitude: 34.8588, longitude: 133.0166 },
+  '鳥取': { latitude: 35.5036, longitude: 134.2383 },
+  '米子': { latitude: 35.4223, longitude: 133.3310 },
+  '松江': { latitude: 35.4723, longitude: 133.0505 },
+  '浜田': { latitude: 34.8986, longitude: 132.0702 },
+  '西郷': { latitude: 36.2074, longitude: 133.3233 },
+  '下関': { latitude: 34.0064, longitude: 130.9246 },
+  '山口': { latitude: 34.1860, longitude: 131.4705 },
+  '柳井': { latitude: 33.9584, longitude: 132.1016 },
+  '萩': { latitude: 34.4084, longitude: 131.3990 },
+  // 九州地方
+  '福岡': { latitude: 33.5904, longitude: 130.4017 },
+  '八幡': { latitude: 33.8685, longitude: 130.7156 },
+  '飯塚': { latitude: 33.6459, longitude: 130.6915 },
+  '久留米': { latitude: 33.3195, longitude: 130.5081 },
+  '大分': { latitude: 33.2382, longitude: 131.6126 },
+  '中津': { latitude: 33.5985, longitude: 131.1878 },
+  '日田': { latitude: 33.3213, longitude: 130.9415 },
+  '長崎': { latitude: 32.7447, longitude: 129.8736 },
+  '佐世保': { latitude: 33.1792, longitude: 129.7148 },
+  '厳原': { latitude: 34.1978, longitude: 129.2893 },
+  '福江': { latitude: 32.7035, longitude: 128.8435 },
+  '佐賀': { latitude: 33.2492, longitude: 130.2988 },
+  '伊万里': { latitude: 33.2711, longitude: 129.8695 },
+  '熊本': { latitude: 32.7898, longitude: 130.7417 },
+  '阿蘇乙姫': { latitude: 32.8845, longitude: 131.0640 },
+  '牛深': { latitude: 32.1913, longitude: 130.0262 },
+  '宮崎': { latitude: 31.9109, longitude: 131.4239 },
+  '延岡': { latitude: 32.5816, longitude: 131.6616 },
+  '高千穂': { latitude: 32.7134, longitude: 131.3089 },
+  '都城': { latitude: 31.7211, longitude: 131.0613 },
+  '鹿児島': { latitude: 31.5602, longitude: 130.5581 },
+  '鹿屋': { latitude: 31.3777, longitude: 130.8518 },
+  '種子島': { latitude: 30.7323, longitude: 130.9948 },
+  '名瀬': { latitude: 28.3778, longitude: 129.4937 },
+  // 沖縄地方
+  '那覇': { latitude: 26.2125, longitude: 127.6811 },
+  '名護': { latitude: 26.5918, longitude: 127.9774 },
+  '久米島': { latitude: 26.3403, longitude: 126.8048 },
+  '大東島': { latitude: 25.8286, longitude: 131.2328 },
+  '宮古島': { latitude: 24.8058, longitude: 125.2812 },
+  '石垣島': { latitude: 24.4070, longitude: 124.1558 },
+  '与那国島': { latitude: 24.4669, longitude: 122.9989 },
+  // 追加地点
+  '佐伯': { latitude: 32.9595, longitude: 131.9011 },
+  '人吉': { latitude: 32.2174, longitude: 130.7548 }
 } as const
 
 // 地域区分データ（シンプルなキー名を使用）
@@ -162,6 +212,25 @@ export const REGIONS = {
     '香川': ['高松'],
     '愛媛': ['松山', '新居浜', '宇和島'],
     '高知': ['高知', '室戸岬', '清水']
+  },
+  '中国': {
+    '広島': ['広島', '庄原'],
+    '岡山': ['岡山', '津山'],
+    '山口': ['下関', '山口', '柳井', '萩'],
+    '島根': ['松江', '浜田', '西郷'],
+    '鳥取': ['鳥取', '米子']
+  },
+  '九州': {
+    '福岡': ['福岡', '八幡', '飯塚', '久留米'],
+    '大分': ['大分', '中津', '日田', '佐伯'],
+    '長崎': ['長崎', '佐世保', '厳原', '福江'],
+    '佐賀': ['佐賀', '伊万里'],
+    '熊本': ['熊本', '阿蘇乙姫', '牛深', '人吉'],
+    '宮崎': ['宮崎', '延岡', '都城', '高千穂'],
+    '鹿児島': ['鹿児島', '鹿屋', '種子島', '名瀬']
+  },
+  '沖縄': {
+    '沖縄': ['那覇', '名護', '久米島', '宮古島', '石垣島', '与那国島', '大東島']
   }
 } as const
 
@@ -219,6 +288,25 @@ export const REGIONS_EXTENDED_KEYS = {
     '西日本（香川）': REGIONS['四国']['香川'],
     '西日本（愛媛）': REGIONS['四国']['愛媛'],
     '西日本（高知）': REGIONS['四国']['高知']
+  },
+  '中国': {
+    '西日本（広島）': REGIONS['中国']['広島'],
+    '西日本（岡山）': REGIONS['中国']['岡山'],
+    '西日本（山口）': REGIONS['中国']['山口'],
+    '西日本（島根）': REGIONS['中国']['島根'],
+    '西日本（鳥取）': REGIONS['中国']['鳥取']
+  },
+  '九州': {
+    '西日本（福岡）': REGIONS['九州']['福岡'],
+    '西日本（大分）': REGIONS['九州']['大分'],
+    '西日本（長崎）': REGIONS['九州']['長崎'],
+    '西日本（佐賀）': REGIONS['九州']['佐賀'],
+    '西日本（熊本）': REGIONS['九州']['熊本'],
+    '西日本（宮崎）': REGIONS['九州']['宮崎'],
+    '西日本（鹿児島）': REGIONS['九州']['鹿児島']
+  },
+  '沖縄': {
+    '西日本（沖縄）': REGIONS['沖縄']['沖縄']
   }
 } as const
 

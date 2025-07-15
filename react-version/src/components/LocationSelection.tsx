@@ -201,20 +201,24 @@ export const LocationSelection: React.FC<LocationSelectionProps> = ({
               
               <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">地域選択:</div>
               <div className="flex flex-wrap gap-1">
-                {REGION_NAMES.map((region) => (
-                  <button
-                    key={region}
-                    onClick={() => selectRegionLocations(region)}
-                    className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
-                      isRegionSelected(region)
-                        ? 'bg-blue-500 text-white border border-blue-500'
-                        : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                    }`}
-                    aria-label={`${region}の地点を${isRegionSelected(region) ? '選択解除' : '選択'}`}
-                  >
-                    {region}
-                  </button>
-                ))}
+                {REGION_NAMES.map((region) => {
+                  const locations = getLocationsByRegion(region);
+                  return (
+                    <button
+                      key={region}
+                      onClick={() => selectRegionLocations(region)}
+                      className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+                        isRegionSelected(region)
+                          ? 'bg-blue-500 text-white border border-blue-500'
+                          : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                      aria-label={`${region}の地点を${isRegionSelected(region) ? '選択解除' : '選択'}`}
+                      title={`${region} (${locations.length}地点)`}
+                    >
+                      {region} ({locations.length})
+                    </button>
+                  );
+                })}
               </div>
             </div>
             

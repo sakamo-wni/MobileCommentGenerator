@@ -7,3 +7,9 @@ export const BATCH_CONFIG = {
   // Warning threshold for batch size
   WARN_BATCH_LOCATIONS: 20,
 } as const;
+
+// Location data configuration
+export const LOCATION_CONFIG = {
+  // 期待される地点数
+  EXPECTED_COUNT: 142,
+} as const;
