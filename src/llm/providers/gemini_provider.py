@@ -93,8 +93,7 @@ class GeminiProvider(LLMProvider):
                 generation_config=genai.GenerationConfig(
                     temperature=0.3,  # より決定的な出力に
                     max_output_tokens=100,  # 必要最小限に削減
-                ),
-                timeout=10.0  # 10秒のタイムアウト
+                )
             )
 
             generated_text = response.text
