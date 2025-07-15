@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import from enum import Enum
+from typing import Any
+from enum import Enum
 
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.config.config import get_comment_config

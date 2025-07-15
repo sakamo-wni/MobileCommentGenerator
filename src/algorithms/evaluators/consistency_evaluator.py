@@ -4,7 +4,8 @@
 コメント間の一貫性と整合性を評価する
 """
 
-from typing import from src.algorithms.evaluators.base_evaluator import BaseEvaluator
+from typing import Any
+from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair
 from src.data.weather_data import WeatherForecast

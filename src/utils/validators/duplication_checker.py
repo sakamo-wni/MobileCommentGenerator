@@ -1,7 +1,8 @@
 """重複チェック共通ユーティリティ"""
 
 import logging
-from typing import from src.constants.validation_constants import (
+from typing import Any
+from src.constants.validation_constants import (
     PUNCTUATION_PATTERN,
     REPETITIVE_PATTERNS,
     DUPLICATE_KEYWORDS,

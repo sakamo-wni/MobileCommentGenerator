@@ -1,7 +1,7 @@
 """統一されたエラーハンドリング"""
 
 import logging
-from typing import Any, Callable, TypeVar, 
+from typing import Any, Callable, TypeVar 
 from functools import wraps
 from dataclasses import dataclass
 import traceback

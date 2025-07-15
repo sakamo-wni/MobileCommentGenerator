@@ -3,7 +3,7 @@ API-related type definitions for Python 3.13+.
 This module contains type definitions for API parameters and responses.
 """
 
-from typing import Typed, Literal, NotRequired, Any
+from typing import TypedDict, Literal, NotRequired, Any
 from dataclasses import dataclass, field
 import hashlib
 import json

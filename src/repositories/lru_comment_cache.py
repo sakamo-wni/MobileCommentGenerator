@@ -6,7 +6,7 @@
 
 import logging
 import threading
-from typing import Any, 
+from typing import Any
 from datetime import datetime, timedelta
 from collections import OrderedDict
 import sys

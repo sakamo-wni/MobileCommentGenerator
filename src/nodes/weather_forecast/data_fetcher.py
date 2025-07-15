@@ -6,7 +6,8 @@ WxTech APIを使用して天気予報データを取得する機能を提供
 
 import logging
 from datetime import datetime, timedelta
-from typing import import pytz
+from typing import Any
+import pytz
 
 from src.apis.wxtech import WxTechAPIError
 from src.apis.wxtech.cached_client import CachedWxTechAPIClient

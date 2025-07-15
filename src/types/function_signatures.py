@@ -1,6 +1,6 @@
 """Standardized function signatures for consistency across the codebase"""
 
-from typing import Protocol, Any, 
+from typing import Protocol, Any 
 from datetime import datetime
 
 from .common import LLMProvider, PastComment, WeatherForecast

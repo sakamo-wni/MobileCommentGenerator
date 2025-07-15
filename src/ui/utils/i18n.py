@@ -22,7 +22,7 @@ class Language(Enum):
 
 
 # デフォルトの翻訳データ
-DEFAULT_TRANSLATIONS: dict[str, Dict[str, str]] = {
+DEFAULT_TRANSLATIONS: dict[str, dict[str, str]] = {
     # エラーメッセージ
     "error.api_key_missing.title": {
         "ja": "APIキーが設定されていません",

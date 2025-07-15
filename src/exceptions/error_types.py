@@ -32,7 +32,7 @@ class ErrorType(Enum):
 class ErrorMessages:
     """Internationalized error messages"""
     
-    _messages: dict[ErrorType, Dict[str, str]] = {
+    _messages: dict[ErrorType, dict[str, str]] = {
         ErrorType.WEATHER_FETCH: {
             "ja": "天気データの取得エラー",
             "en": "Weather data fetch error"

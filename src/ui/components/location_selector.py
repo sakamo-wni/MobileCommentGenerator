@@ -1,7 +1,8 @@
 """地点選択コンポーネント"""
 
 import streamlit as st
-from typing import from src.ui.streamlit_utils import load_locations, filter_locations, sort_locations_by_order
+from typing import Any
+from src.ui.streamlit_utils import load_locations, filter_locations, sort_locations_by_order
 from src.config.app_config import get_config
 
 # 地域別地点データ

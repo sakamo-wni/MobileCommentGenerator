@@ -4,7 +4,7 @@
 コメントの品質を多角的に評価する機能
 """
 
-from typing import Any, , 
+from typing import Any
 import re
 import logging
 from datetime import datetime

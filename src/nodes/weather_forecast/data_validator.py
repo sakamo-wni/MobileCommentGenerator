@@ -5,7 +5,8 @@
 """
 
 import logging
-from typing import from src.data.weather_data import WeatherForecast, WeatherCondition
+from typing import Any
+from src.data.weather_data import WeatherForecast, WeatherCondition
 
 logger = logging.getLogger(__name__)
 

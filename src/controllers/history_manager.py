@@ -4,7 +4,8 @@ CommentGenerationControllerから履歴管理の責務を分離。
 """
 
 import logging
-from typing import from src.ui.streamlit_utils import load_history, save_to_history
+from typing import Any
+from src.ui.streamlit_utils import load_history, save_to_history
 
 logger = logging.getLogger(__name__)
 

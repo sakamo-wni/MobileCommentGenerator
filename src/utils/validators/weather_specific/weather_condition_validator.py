@@ -110,7 +110,7 @@ class WeatherConditionValidator:
         
         return is_cloudy and not is_unstable
     
-    def _load_forbidden_words(self, config_path: str | None = None) -> dict[str, Dict[str, list[str]]]:
+    def _load_forbidden_words(self, config_path: str | None = None) -> dict[str, dict[str, list[str]]]:
         """禁止ワード設定をYAMLファイルから読み込む"""
         if config_path is None:
             # デフォルトパスを構築
@@ -138,7 +138,7 @@ class WeatherConditionValidator:
             logger.error(f"設定ファイルの読み込みエラー: {e}. デフォルト設定を使用します。")
             return self._get_default_forbidden_words()
     
-    def _get_default_forbidden_words(self) -> dict[str, Dict[str, list[str]]]:
+    def _get_default_forbidden_words(self) -> dict[str, dict[str, list[str]]]:
         """デフォルトの禁止ワード設定を返す"""
         return {
             # 雨天時（全レベル）

@@ -1,6 +1,7 @@
 """バリデーションモジュール"""
 
-from typing import from src.config.app_config import AppConfig
+from typing import Any
+from src.config.app_config import AppConfig
 
 
 class ValidationManager:

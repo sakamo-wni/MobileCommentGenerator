@@ -1,7 +1,8 @@
 """海岸地域バリデータ - 海岸/内陸に基づくコメント検証"""
 
 import logging
-from typing import from src.data.weather_data import WeatherForecast
+from typing import Any
+from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
 from src.data.location.manager import LocationManagerRefactored
 from src.utils.geography import CoastalDetector

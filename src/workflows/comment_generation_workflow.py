@@ -4,7 +4,7 @@
 パフォーマンスを最適化したワークフローです。
 """
 
-from typing import Any, , 
+from typing import Any
 from datetime import datetime, timedelta
 import time
 import json

@@ -1,7 +1,8 @@
 """LLMを使用した動的な重複検証バリデータ"""
 
 import logging
-from typing import from langchain_google_genai import ChatGoogleGenerativeAI
+from typing import Any
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from src.data.weather_data import WeatherForecast

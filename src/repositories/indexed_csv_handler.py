@@ -30,7 +30,7 @@ class IndexedCSVHandler:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # メモリキャッシュ
-        self.index_cache: dict[str, Dict[str, Any]] = {}
+        self.index_cache: dict[str, dict[str, Any]] = {}
         self.file_hashes: dict[str, str] = {}
         
     def get_file_hash(self, file_path: Path) -> str:

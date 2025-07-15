@@ -3,7 +3,8 @@
 import logging
 import os
 from pathlib import Path
-from typing import from dotenv import load_dotenv
+from typing import Any
+from dotenv import load_dotenv
 
 from src.config.config import get_weather_constants
 from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES

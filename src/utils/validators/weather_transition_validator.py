@@ -1,7 +1,8 @@
 """天気推移バリデータ - 天気の時系列変化に基づくコメント検証"""
 
 import logging
-from typing import from src.data.weather_data import WeatherForecast, WeatherCondition
+from typing import Any
+from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment
 from .base_validator import BaseValidator
 

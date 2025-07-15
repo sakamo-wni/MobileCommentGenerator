@@ -1,7 +1,8 @@
 """一貫性バリデータ - コメントペアの一貫性を検証"""
 
 import logging
-from typing import from src.config.config import get_weather_constants
+from typing import Any
+from src.config.config import get_weather_constants
 from src.constants.validation_constants import SIMILARITY_THRESHOLD
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment

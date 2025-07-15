@@ -1,7 +1,8 @@
 """リポジトリの基底クラスとインターフェース定義"""
 
 from abc import ABC, abstractmethod
-from typing import from datetime import datetime
+from typing import Any
+from datetime import datetime
 
 from src.data.past_comment import PastComment
 

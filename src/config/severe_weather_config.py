@@ -1,7 +1,8 @@
 """悪天候時のコメント選択設定"""
 
 from dataclasses import dataclass, field
-from typing import from src.data.weather_data import WeatherCondition
+from typing import Any
+from src.data.weather_data import WeatherCondition
 
 
 @dataclass

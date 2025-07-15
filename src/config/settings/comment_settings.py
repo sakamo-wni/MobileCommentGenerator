@@ -2,7 +2,8 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import from dotenv import load_dotenv
+from typing import Any
+from dotenv import load_dotenv
 from pathlib import Path
 
 from src.data.weather_data import WeatherCondition

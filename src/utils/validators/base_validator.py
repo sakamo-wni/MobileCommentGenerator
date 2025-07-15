@@ -1,7 +1,7 @@
 """ベースバリデータクラス - 共通の検証機能を提供"""
 
 import logging
-from typing import Any, , 
+from typing import Any
 from abc import ABC, abstractmethod
 
 from src.data.weather_data import WeatherForecast

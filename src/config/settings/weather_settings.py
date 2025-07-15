@@ -3,7 +3,8 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import from dotenv import load_dotenv
+from typing import Any
+from dotenv import load_dotenv
 
 # 環境変数の読み込み
 load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")

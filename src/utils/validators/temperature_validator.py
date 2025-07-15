@@ -1,7 +1,8 @@
 """温度条件バリデータ - 気温に基づくコメント検証"""
 
 import logging
-from typing import from src.config.config import get_weather_constants
+from typing import Any
+from src.config.config import get_weather_constants
 
 # 定数を取得
 _weather_const = get_weather_constants()

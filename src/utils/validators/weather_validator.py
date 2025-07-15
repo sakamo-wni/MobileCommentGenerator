@@ -1,7 +1,7 @@
 """天気条件バリデータ - 天気状態に基づくコメント検証"""
 
 import logging
-from typing import Dict, Typed
+from typing import Dict, TypedDict
 
 from src.config.config import get_weather_constants
 

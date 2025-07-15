@@ -4,7 +4,8 @@ CommentGenerationControllerから設定管理の責務を分離。
 """
 
 import logging
-from typing import from src.config.app_config import AppConfig, get_config
+from typing import Any
+from src.config.app_config import AppConfig, get_config
 from src.ui.streamlit_utils import load_locations
 
 logger = logging.getLogger(__name__)
