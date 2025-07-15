@@ -36,11 +36,11 @@ class CommentValidator:
         # 環境変数を再読み込み
         load_dotenv(override=True)
         api_key = os.getenv("GEMINI_API_KEY")
-        logger.info(f"GEMINI_API_KEY: {'設定済み' if api_key else '未設定'}")
+        logger.debug(f"GEMINI_API_KEY: {'設定済み' if api_key else '未設定'}")
         if api_key:
             try:
                 self.llm_validator = LLMDuplicationValidator(api_key)
-                logger.info("LLM重複検証バリデータを初期化しました")
+                logger.debug("LLM重複検証バリデータを初期化しました")
             except Exception as e:
                 logger.warning(f"LLMバリデータの初期化に失敗: {e}")
         else:
@@ -329,8 +329,14 @@ class CommentValidator:
                     logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
             
             return next_day_forecasts
+        except AttributeError as e:
+            logger.error(f"予報データ構造エラー: {e}")
+            return []
+        except ValueError as e:
+            logger.error(f"日時変換エラー: {e}")
+            return []
         except Exception as e:
-            logger.error(f"予報データ抽出エラー: {e}")
+            logger.error(f"予期しないエラー: {e}")
             return []
 
     def _analyze_weather_type_changes(self, weather_type_sequence: List[str]) -> Tuple[set, int]:

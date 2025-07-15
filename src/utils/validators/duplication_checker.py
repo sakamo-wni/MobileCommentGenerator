@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 class DuplicationChecker:
     """重複チェックの共通ロジックを提供するユーティリティクラス"""
     
+    # パターンの事前処理（パフォーマンス最適化）
+    _repetitive_pattern_cache = {
+        pattern["concept"]: pattern["expressions"] 
+        for pattern in REPETITIVE_PATTERNS
+    }
+    
     @staticmethod
     def check_repetitive_concepts(weather_text: str, advice_text: str) -> bool:
         """
@@ -31,10 +37,7 @@ class DuplicationChecker:
         Returns:
             重複が検出された場合True
         """
-        for pattern in REPETITIVE_PATTERNS:
-            concept = pattern["concept"]
-            expressions = pattern["expressions"]
-            
+        for concept, expressions in DuplicationChecker._repetitive_pattern_cache.items():
             weather_expressions = [expr for expr in expressions if expr in weather_text]
             advice_expressions = [expr for expr in expressions if expr in advice_text]
             
