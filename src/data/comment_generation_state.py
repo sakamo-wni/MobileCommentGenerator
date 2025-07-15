@@ -326,8 +326,3 @@ def create_initial_state(
     )
 
 
-def create_test_state() -> CommentGenerationState:
-    """テスト用の状態を作成"""
-    return create_initial_state(
-        location_name="稚内", target_datetime=datetime(2024, 6, 5, 9, 0, 0), llm_provider="openai"
-    )

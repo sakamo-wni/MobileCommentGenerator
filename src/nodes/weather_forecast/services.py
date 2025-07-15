@@ -152,12 +152,9 @@ class WeatherAPIService:
         
         for attempt in range(self.max_retries):
             try:
-                # 最適化版の使用を判定
-                if self.weather_config.use_optimized_forecast:
-                    logger.info("最適化された予報取得を使用")
-                    forecast_collection = self.client.get_forecast_for_next_day_hours_optimized(lat, lon)
-                else:
-                    forecast_collection = self.client.get_forecast_for_next_day_hours(lat, lon)
+                # 常に最適化版を使用
+                logger.info("最適化された予報取得を使用")
+                forecast_collection = self.client.get_forecast_for_next_day_hours_optimized(lat, lon)
                 
                 # forecast_collectionが空でないことを確認
                 if forecast_collection and forecast_collection.forecasts:

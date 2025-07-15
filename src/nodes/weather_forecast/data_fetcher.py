@@ -59,27 +59,19 @@ class WeatherDataFetcher:
                             raise ValueError(f"地点「{location}」が見つかりません")
                     
                     # 翌日9, 12, 15, 18時JSTのみ取得
-                    if self.weather_config.use_optimized_forecast:
-                        logger.info("最適化された予報取得を使用")
-                        return client.get_forecast_for_next_day_hours_optimized(
-                            location_obj.latitude,
-                            location_obj.longitude
-                        )
-                    else:
-                        return client.get_forecast_for_next_day_hours(
-                            location_obj.latitude,
-                            location_obj.longitude
-                        )
+                    # 常に最適化版を使用
+                    logger.info("最適化された予報取得を使用")
+                    return client.get_forecast_for_next_day_hours_optimized(
+                        location_obj.latitude,
+                        location_obj.longitude
+                    )
                 
                 if isinstance(location, tuple) and len(location) == 2:
                     # 緯度経度から直接取得
                     lat, lon = location
-                    # 翌日9, 12, 15, 18時JSTのみ取得
-                    if self.weather_config.use_optimized_forecast:
-                        logger.info("最適化された予報取得を使用")
-                        return client.get_forecast_for_next_day_hours_optimized(lat, lon)
-                    else:
-                        return client.get_forecast_for_next_day_hours(lat, lon)
+                    # 翌日9, 12, 15, 18時JSTのみ取得（常に最適化版を使用）
+                    logger.info("最適化された予報取得を使用")
+                    return client.get_forecast_for_next_day_hours_optimized(lat, lon)
                 
                 raise ValueError("無効な地点情報です")
                 
@@ -144,11 +136,9 @@ class WeatherDataFetcher:
         with CachedWxTechAPIClient(self.api_key) as client:
             # 天気予報の取得（翌日9, 12, 15, 18時JSTのみ）
             try:
-                if self.weather_config.use_optimized_forecast:
-                    logger.info("最適化された予報取得を使用")
-                    forecast_collection = client.get_forecast_for_next_day_hours_optimized(lat, lon)
-                else:
-                    forecast_collection = client.get_forecast_for_next_day_hours(lat, lon)
+                # 常に最適化版を使用
+                logger.info("最適化された予報取得を使用")
+                forecast_collection = client.get_forecast_for_next_day_hours_optimized(lat, lon)
                 return forecast_collection, location
             except WxTechAPIError as e:
                 # エラータイプに基づいて適切なエラーメッセージを設定

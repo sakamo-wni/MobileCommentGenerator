@@ -106,7 +106,7 @@ class WxTechAPIClient:
         if location.latitude is None or location.longitude is None:
             raise ValueError(f"地点 '{location.name}' に緯度経度情報がありません")
         
-        forecast_collection = self.get_forecast_for_next_day_hours(location.latitude, location.longitude)
+        forecast_collection = self.get_forecast_for_next_day_hours_optimized(location.latitude, location.longitude)
         
         # 地点名を正しく設定
         forecast_collection.location = location.name
