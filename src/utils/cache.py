@@ -6,7 +6,7 @@ import json
 import inspect
 import threading
 import sys
-from typing import Any, Optional, Callable, TypeVar, cast
+from typing import Any, Optional, Callable, TypeVar
 from functools import wraps
 import logging
 

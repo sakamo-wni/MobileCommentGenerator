@@ -188,7 +188,7 @@ def print_migration_guide():
        warnings.filterwarnings("ignore", category=DeprecationWarning)
        で抑制できますが、早めの移行を推奨します。
     """
-    print(guide)
+    logger.info(guide)
 
 
 if __name__ == "__main__":
