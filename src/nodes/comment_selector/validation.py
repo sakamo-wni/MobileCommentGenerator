@@ -16,9 +16,14 @@ from src.utils.weather_classifier import classify_weather_type, count_weather_ty
 from src.config.config import get_weather_constants
 from src.utils.validators.pollen_validator import PollenValidator
 from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
+from src.utils.validators.duplication_checker import DuplicationChecker
+from src.constants.validation_constants import SIMILARITY_THRESHOLD
 
 # 定数を取得
 WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
+
+# 正規表現パターンのプリコンパイル
+PUNCTUATION_PATTERN = re.compile(r'[。、！？\s　]')
 
 logger = logging.getLogger(__name__)
 
@@ -130,134 +135,27 @@ class CommentValidator:
     
     def _check_basic_duplication(self, weather_text: str, advice_text: str) -> bool:
         """基本的な重複チェック（完全一致、正規化後の一致など）"""
-        # 完全一致
-        if weather_text == advice_text:
-            return True
-        
-        # 語尾の微差を無視した一致
-        weather_normalized = weather_text.replace("です", "").replace("だ", "").replace("である", "").replace("。", "").strip()
-        advice_normalized = advice_text.replace("です", "").replace("だ", "").replace("である", "").replace("。", "").strip()
-        
-        if weather_normalized == advice_normalized:
-            logger.debug(f"ほぼ完全一致検出: '{weather_text}' ≈ '{advice_text}'")
-            return True
-        
-        # 句読点や助詞の差のみの場合
-        weather_core = re.sub(r'[。、！？\s　]', '', weather_text)
-        advice_core = re.sub(r'[。、！？\s　]', '', advice_text)
-        
-        if weather_core == advice_core:
-            logger.debug(f"句読点差のみ検出: '{weather_text}' ≈ '{advice_text}'")
-            return True
-        
-        return False
+        return DuplicationChecker.check_text_similarity(weather_text, advice_text)
     
     def _check_keyword_duplication(self, weather_text: str, advice_text: str) -> bool:
         """キーワードベースの重複チェック"""
-        duplicate_keywords = [
-            "にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑",
-            "注意", "警戒", "対策", "気をつけ", "備え", "準備", "傘"
-        ]
-        
-        weather_keywords = [kw for kw in duplicate_keywords if kw in weather_text]
-        advice_keywords = [kw for kw in duplicate_keywords if kw in advice_text]
-        
-        common_keywords = set(weather_keywords) & set(advice_keywords)
-        if common_keywords:
-            critical_duplicates = {"にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑"}
-            if any(keyword in critical_duplicates for keyword in common_keywords):
-                logger.debug(f"重複キーワード検出: {common_keywords}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_keyword_duplication(weather_text, advice_text)
     
     def _check_semantic_contradiction(self, weather_text: str, advice_text: str) -> bool:
         """意味的矛盾のチェック"""
-        contradiction_patterns = [
-            (["日差しの活用", "日差しを楽しん", "陽射しを活用", "太陽を楽しん", "日光浴", "日向"], 
-             ["紫外線対策", "日焼け対策", "日差しに注意", "陽射しに注意", "UV対策", "日陰"]),
-            (["外出推奨", "お出かけ日和", "散歩日和", "外出には絶好", "外で過ごそう"], 
-             ["外出時は注意", "外出を控え", "屋内にいよう", "外出は危険"]),
-            (["暑さを楽しん", "夏を満喫", "暑いけど気持ち"], 
-             ["暑さに注意", "熱中症対策", "暑さを避け"]),
-            (["雨を楽しん", "雨音が心地", "恵みの雨"], 
-             ["雨に注意", "濡れないよう", "雨対策"])
-        ]
-        
-        for positive_patterns, negative_patterns in contradiction_patterns:
-            has_positive = any(pattern in weather_text for pattern in positive_patterns)
-            has_negative = any(pattern in advice_text for pattern in negative_patterns)
-            has_positive_advice = any(pattern in advice_text for pattern in positive_patterns)
-            has_negative_weather = any(pattern in weather_text for pattern in negative_patterns)
-            
-            if (has_positive and has_negative) or (has_positive_advice and has_negative_weather):
-                logger.debug(f"意味的矛盾検出: ポジティブ={positive_patterns}, ネガティブ={negative_patterns}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_semantic_contradiction(weather_text, advice_text)
     
     def _check_umbrella_duplication(self, weather_text: str, advice_text: str) -> bool:
         """傘関連の重複チェック"""
-        umbrella_expressions = [
-            "傘が必須", "傘がお守り", "傘を忘れずに", "傘をお忘れなく",
-            "傘の準備", "傘が活躍", "折り畳み傘", "傘があると安心",
-            "傘をお持ちください", "傘の携帯"
-        ]
-        
-        weather_has_umbrella = any(expr in weather_text for expr in umbrella_expressions) or "傘" in weather_text
-        advice_has_umbrella = any(expr in advice_text for expr in umbrella_expressions) or "傘" in advice_text
-        
-        if weather_has_umbrella and advice_has_umbrella:
-            similar_meanings = ["必須", "お守り", "必要", "忘れずに", "お忘れなく", "携帯", "準備", "活躍", "安心"]
-            weather_meanings = [m for m in similar_meanings if m in weather_text]
-            advice_meanings = [m for m in similar_meanings if m in advice_text]
-            
-            if weather_meanings and advice_meanings:
-                logger.debug(f"傘関連の意味的重複検出: 天気側={weather_meanings}, アドバイス側={advice_meanings}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_umbrella_duplication(weather_text, advice_text)
     
     def _check_similar_expressions(self, weather_text: str, advice_text: str) -> bool:
         """類似表現のチェック"""
-        similarity_patterns = [
-            (["雨が心配", "雨に注意"], ["雨", "注意"]),
-            (["暑さが心配", "暑さに注意"], ["暑", "注意"]),
-            (["風が強い", "風に注意"], ["風", "注意"]),
-            (["紫外線が強い", "紫外線対策"], ["紫外線"]),
-            (["雷が心配", "雷に注意"], ["雷", "注意"]),
-            (["傘が必須", "傘を忘れずに", "傘をお忘れなく"], ["傘", "必要", "お守り", "安心"]),
-            (["傘がお守り", "傘が安心"], ["傘", "必要", "必須", "忘れずに"]),
-        ]
-        
-        for weather_patterns, advice_patterns in similarity_patterns:
-            weather_match = any(pattern in weather_text for pattern in weather_patterns)
-            advice_match = any(pattern in advice_text for pattern in advice_patterns)
-            if weather_match and advice_match:
-                logger.debug(f"類似表現検出: 天気パターン={weather_patterns}, アドバイスパターン={advice_patterns}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_similar_expressions(weather_text, advice_text)
     
     def _check_string_similarity(self, weather_text: str, advice_text: str) -> bool:
         """文字列の類似度チェック（短いコメントのみ）"""
-        if len(weather_text) <= 10 and len(advice_text) <= 10:
-            min_length = min(len(weather_text), len(advice_text))
-            if min_length == 0:
-                return False
-                
-            max_length = max(len(weather_text), len(advice_text))
-            if max_length / min_length > 2.0:
-                return False
-            
-            common_chars = set(weather_text) & set(advice_text)
-            similarity_ratio = len(common_chars) / max_length
-            
-            if similarity_ratio > 0.7:
-                logger.debug(f"高い文字列類似度検出: {similarity_ratio:.2f}")
-                return True
-        
-        return False
+        return DuplicationChecker.check_character_similarity(weather_text, advice_text, SIMILARITY_THRESHOLD)
     
     def is_sunny_weather_with_changeable_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """晴天時に「変わりやすい」系のコメントが含まれているかチェック（強化）"""
@@ -403,37 +301,41 @@ class CommentValidator:
         if not forecast_collection or not hasattr(forecast_collection, 'forecasts'):
             return []
         
-        import pytz
-        from datetime import datetime
-        
-        jst = pytz.timezone("Asia/Tokyo")
-        
-        if state.target_datetime:
-            base_datetime = state.target_datetime
-            if base_datetime.tzinfo is None:
-                base_datetime = jst.localize(base_datetime)
-            target_date = base_datetime.date()
-            logger.debug(f"target_datetime: {base_datetime}, 対象日: {target_date}")
-        else:
-            target_date = datetime.now(jst).date()
-            logger.debug(f"target_datetimeなし、現在日付を使用: {target_date}")
-        
-        target_hours = [9, 12, 15, 18]
-        
-        logger.debug(f"天気安定性チェック開始: 対象日={target_date}")
-        logger.debug(f"  予報データ数: {len(forecast_collection.forecasts)}")
-        
-        next_day_forecasts = []
-        for forecast in forecast_collection.forecasts:
-            forecast_dt = forecast.datetime
-            if forecast_dt.tzinfo is None:
-                forecast_dt = jst.localize(forecast_dt)
+        try:
+            import pytz
+            from datetime import datetime
             
-            if forecast_dt.date() == target_date and forecast_dt.hour in target_hours:
-                next_day_forecasts.append(forecast)
-                logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
-        
-        return next_day_forecasts
+            jst = pytz.timezone("Asia/Tokyo")
+            
+            if state.target_datetime:
+                base_datetime = state.target_datetime
+                if base_datetime.tzinfo is None:
+                    base_datetime = jst.localize(base_datetime)
+                target_date = base_datetime.date()
+                logger.debug(f"target_datetime: {base_datetime}, 対象日: {target_date}")
+            else:
+                target_date = datetime.now(jst).date()
+                logger.debug(f"target_datetimeなし、現在日付を使用: {target_date}")
+            
+            target_hours = [9, 12, 15, 18]
+            
+            logger.debug(f"天気安定性チェック開始: 対象日={target_date}")
+            logger.debug(f"  予報データ数: {len(forecast_collection.forecasts)}")
+            
+            next_day_forecasts = []
+            for forecast in forecast_collection.forecasts:
+                forecast_dt = forecast.datetime
+                if forecast_dt.tzinfo is None:
+                    forecast_dt = jst.localize(forecast_dt)
+                
+                if forecast_dt.date() == target_date and forecast_dt.hour in target_hours:
+                    next_day_forecasts.append(forecast)
+                    logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
+            
+            return next_day_forecasts
+        except Exception as e:
+            logger.error(f"予報データ抽出エラー: {e}")
+            return []
 
     def _analyze_weather_type_changes(self, weather_type_sequence: List[str]) -> Tuple[set, int]:
         """天気タイプの変化を分析"""
