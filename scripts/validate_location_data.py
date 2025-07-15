@@ -22,9 +22,14 @@ def load_csv_locations(file_path: str) -> list[str] | None:
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            return [row.get('location_name', row.get('地点名', '')) 
-                   for row in reader if row]
+            # Chiten.csvは単純なテキストファイル
+            if 'Chiten.csv' in file_path:
+                return [line.strip() for line in f if line.strip()]
+            # location_coordinates.csvはCSVファイル
+            else:
+                reader = csv.DictReader(f)
+                return [row.get('location_name', row.get('地点名', '')) 
+                       for row in reader if row]
     except Exception as e:
         print(f"エラー: {file_path} の読み込みに失敗: {e}")
         return None
