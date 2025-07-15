@@ -127,9 +127,11 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_info = _format_weather_info(weather_data, location_name, target_datetime)
         
         # 統合プロンプトの構築
+        # パフォーマンス最適化のため候補数を5に制限
+        OPTIMIZED_CANDIDATE_LIMIT = 5
         unified_prompt = _build_unified_prompt(
-            weather_comments[:COMMENT.CANDIDATE_LIMIT],  # 候補数を制限
-            advice_comments[:COMMENT.CANDIDATE_LIMIT],   # 候補数を制限
+            weather_comments[:OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
+            advice_comments[:OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
             weather_info,
             weather_data,
             is_continuous_rain
@@ -260,31 +262,15 @@ def _build_unified_prompt(weather_comments: List[PastComment],
         for i, c in enumerate(advice_comments)
     ])
     
-    prompt = f"""あなたは天気コメント生成の専門家です。
-以下の天気情報と候補から、最適なコメントペアを選択し、自然な最終コメントを生成してください。
+    prompt = f"""天気情報と候補から最適なコメントを選択してください。
 
-【天気情報】
-{weather_info}
+【天気情報】{weather_info}
 
 【天気コメント候補】
 {weather_candidates}
 
 【アドバイスコメント候補】
 {advice_candidates}
-
-【タスク】
-1. 天気情報に最も適した天気コメントを1つ選択（インデックス番号）
-2. 状況に最も適したアドバイスコメントを1つ選択（インデックス番号）
-3. 選択した2つのコメントを「　」で結合して最終コメントを生成
-
-【重要】
-- 必ず上記の候補リストから選択してください
-- 新しいコメントを創作しないでください
-- generated_commentは選択したコメントを「　」で結合したものにしてください
-- 天気が「雨」の場合は、必ず雨に関するコメントを選択してください
-- 天気と関係ないコメントは絶対に選択しないでください
-- 天気コメントとアドバイスコメントで意味が重複するものは絶対に選ばないでください
-  （例：両方に「傘」が含まれる、両方に「暑さ」が含まれる等）
 
 【選択基準】
 1. 天気条件との一致度（最優先）- 実際の天気と異なる内容のコメントは選択禁止
@@ -305,13 +291,10 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 
 必ず以下のJSON形式で回答してください：
 {{
-    "weather_index": 選択した天気コメントのインデックス番号(0から始まる整数),
-    "advice_index": 選択したアドバイスコメントのインデックス番号(0から始まる整数),
-    "generated_comment": "選択したコメントを「　」で結合したもの（新規作成禁止）"
-}}
-
-例：weather_index=1, advice_index=2の場合
-generated_comment: "天気コメント候補の1番　アドバイスコメント候補の2番" """
+    "weather_index": 天気コメントのインデックス(0-4),
+    "advice_index": アドバイスコメントのインデックス(0-4),
+    "generated_comment": "選択したコメントを「　」で結合"
+}}"""
     
     # 連続雨の場合の追加指示
     if is_continuous_rain:

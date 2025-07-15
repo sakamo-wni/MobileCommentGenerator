@@ -8,7 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from src.apis.wxtech import WxTechAPIClient
+from src.apis.wxtech.cached_client import CachedWxTechAPIClient
 from src.nodes.weather_forecast.services import WeatherAPIService
 from src.nodes.weather_forecast.service_factory import WeatherForecastServiceFactory
 from src.config import get_config
@@ -51,7 +51,7 @@ class AsyncBatchProcessor:
         location_service = service_factory.get_location_service()
         
         # 真の非同期クライアントを使用
-        async with WxTechAPIClient(api_key) as client:
+        async with CachedWxTechAPIClient(api_key) as client:
             # 非同期タスクのリストを作成
             tasks = []
             location_map = {}

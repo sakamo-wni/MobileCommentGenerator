@@ -3,8 +3,81 @@
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union, TypedDict
 from math import radians, sin, cos, sqrt, atan2
+from functools import lru_cache
+import os
+
+# キャッシュサイズを環境変数から取得（デフォルト: 4096）
+_CACHE_SIZE = int(os.environ.get('LEVENSHTEIN_CACHE_SIZE', '4096'))
+
+@lru_cache(maxsize=_CACHE_SIZE)
+def cached_levenshtein_distance(s1: str, s2: str) -> int:
+    """キャッシュ付きレーベンシュタイン距離（編集距離）計算
+    
+    Args:
+        s1: 文字列1
+        s2: 文字列2
+        
+    Returns:
+        編集距離
+    """
+    if len(s1) < len(s2):
+        return cached_levenshtein_distance(s2, s1)
+    
+    if len(s2) == 0:
+        return len(s1)
+    
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            # 文字が同じ場合はコスト0、異なる場合はコスト1
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    
+    return previous_row[-1]
+
+
+class CacheInfo(TypedDict):
+    """レーベンシュタイン距離キャッシュの統計情報"""
+    hits: int
+    misses: int
+    maxsize: int
+    currsize: int
+    hit_rate: float
+
+
+def get_levenshtein_cache_info() -> CacheInfo:
+    """レーベンシュタイン距離計算のキャッシュ情報を取得
+    
+    Returns:
+        キャッシュ情報の辞書:
+            - hits (int): キャッシュヒット数
+            - misses (int): キャッシュミス数
+            - maxsize (int): 最大キャッシュサイズ
+            - currsize (int): 現在のキャッシュサイズ
+            - hit_rate (float): キャッシュヒット率
+    """
+    cache_info = cached_levenshtein_distance.cache_info()
+    total_calls = cache_info.hits + cache_info.misses
+    hit_rate = cache_info.hits / total_calls if total_calls > 0 else 0.0
+    
+    return {
+        "hits": cache_info.hits,
+        "misses": cache_info.misses,
+        "maxsize": cache_info.maxsize,
+        "currsize": cache_info.currsize,
+        "hit_rate": hit_rate
+    }
+
+
+def clear_levenshtein_cache():
+    """レーベンシュタイン距離計算のキャッシュをクリア"""
+    cached_levenshtein_distance.cache_clear()
 
 
 @dataclass
@@ -246,41 +319,26 @@ class Location:
         if fuzzy:
             # レーベンシュタイン距離による曖昧マッチング
             max_distance = max(1, len(query) // 3)  # クエリ長の1/3までの誤差を許容
-            if self._levenshtein_distance(query, name_lower) <= max_distance:
+            if cached_levenshtein_distance(query, name_lower) <= max_distance:
                 return True
-            if self._levenshtein_distance(query, normalized_lower) <= max_distance:
+            if cached_levenshtein_distance(query, normalized_lower) <= max_distance:
                 return True
 
         return False
 
     def _levenshtein_distance(self, s1: str, s2: str) -> int:
         """レーベンシュタイン距離（編集距離）を計算
-
+        
+        実際の計算はキャッシュ付きのグローバル関数に委譲
+        
         Args:
             s1: 文字列1
             s2: 文字列2
-
+            
         Returns:
             編集距離
         """
-        if len(s1) < len(s2):
-            return self._levenshtein_distance(s2, s1)
-
-        if len(s2) == 0:
-            return len(s1)
-
-        previous_row = range(len(s2) + 1)
-        for i, c1 in enumerate(s1):
-            current_row = [i + 1]
-            for j, c2 in enumerate(s2):
-                # 文字が同じ場合はコスト0、異なる場合はコスト1
-                insertions = previous_row[j + 1] + 1
-                deletions = current_row[j] + 1
-                substitutions = previous_row[j] + (c1 != c2)
-                current_row.append(min(insertions, deletions, substitutions))
-            previous_row = current_row
-
-        return previous_row[-1]
+        return cached_levenshtein_distance(s1, s2)
 
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換

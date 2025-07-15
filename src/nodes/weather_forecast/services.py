@@ -17,7 +17,7 @@ from src.data.location.manager import LocationManagerRefactored
 from src.data.weather_data import WeatherForecast, WeatherForecastCollection, WeatherCondition, WindDirection
 from src.data.forecast_cache import get_temperature_differences
 from src.apis.wxtech import WxTechAPIError
-from src.apis.wxtech.client import WxTechAPIClient
+from src.apis.wxtech.cached_client import CachedWxTechAPIClient
 from src.config.config_loader import load_config
 from src.config.config import get_weather_config
 from src.data.weather_trend import WeatherTrend
@@ -121,7 +121,7 @@ class WeatherAPIService:
     """天気予報API通信を担当するサービス"""
     
     def __init__(self, api_key: str):
-        self.client = WxTechAPIClient(api_key)
+        self.client = CachedWxTechAPIClient(api_key)
         self.max_retries = API_MAX_RETRIES
         self.initial_retry_delay = API_INITIAL_RETRY_DELAY
         self.weather_config = get_weather_config()

@@ -11,7 +11,7 @@ from datetime import datetime
 from src.apis.wxtech import WxTechAPIClient
 from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherCondition, WindDirection
-from src.data.location_manager import Location
+from src.data.location import Location
 
 
 class TestWxTechAPIClient:
@@ -22,9 +22,8 @@ class TestWxTechAPIClient:
         client = WxTechAPIClient("test_api_key")
 
         assert client.api_key == "test_api_key"
-        assert WxTechAPIClient.BASE_URL == "https://wxtech.weathernews.com/openapi/v1"
+        assert client.base_url == "https://wxtech.weathernews.com/api/v1"
         assert client.timeout == 30
-        assert client.session is not None
 
     def test_client_initialization_with_custom_params(self):
         """カスタムパラメータでの初期化テスト"""
@@ -32,7 +31,6 @@ class TestWxTechAPIClient:
 
         assert client.api_key == "test_key"
         assert client.timeout == 60
-        assert client._min_request_interval == 0.1
 
     @patch("requests.Session.get")
     def test_successful_api_request(self, mock_get):

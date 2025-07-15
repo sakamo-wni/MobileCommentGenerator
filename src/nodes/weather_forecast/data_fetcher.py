@@ -10,7 +10,8 @@ from typing import Optional, Tuple, Union
 
 import pytz
 
-from src.apis.wxtech import WxTechAPIClient, WxTechAPIError
+from src.apis.wxtech import WxTechAPIError
+from src.apis.wxtech.cached_client import CachedWxTechAPIClient
 from src.config.config import get_weather_config
 from src.data.location.models import Location
 from src.data.location.manager import LocationManagerRefactored
@@ -45,7 +46,7 @@ class WeatherDataFetcher:
             天気予報コレクション
         """
         try:
-            with WxTechAPIClient(self.api_key) as client:
+            with CachedWxTechAPIClient(self.api_key) as client:
                 if isinstance(location, str):
                     # 地点名から座標を取得
                     location_obj = self.location_manager.find_exact_match(location)
@@ -140,7 +141,7 @@ class WeatherDataFetcher:
         lat, lon = location.latitude, location.longitude
         
         # WxTech APIクライアントの初期化
-        with WxTechAPIClient(self.api_key) as client:
+        with CachedWxTechAPIClient(self.api_key) as client:
             # 天気予報の取得（翌日9, 12, 15, 18時JSTのみ）
             try:
                 if self.weather_config.use_optimized_forecast:
