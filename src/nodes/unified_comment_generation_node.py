@@ -151,6 +151,14 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_idx = result.get("weather_index", 0)
         advice_idx = result.get("advice_index", 0)
         
+        # LLMがnullを返した場合の処理
+        if weather_idx is None:
+            logger.warning("LLMがweather_indexにnullを返しました。デフォルト値0を使用します。")
+            weather_idx = 0
+        if advice_idx is None:
+            logger.warning("LLMがadvice_indexにnullを返しました。デフォルト値0を使用します。")
+            advice_idx = 0
+        
         selected_weather = weather_comments[weather_idx] if weather_idx < len(weather_comments) else weather_comments[0]
         selected_advice = advice_comments[advice_idx] if advice_idx < len(advice_comments) else advice_comments[0]
         
@@ -266,6 +274,9 @@ def _build_unified_prompt(weather_comments: List[PastComment],
         for i, c in enumerate(advice_comments)
     ])
     
+    weather_max_idx = len(weather_comments) - 1
+    advice_max_idx = len(advice_comments) - 1
+    
     prompt = f"""天気情報と候補から最適なコメントを選択してください。
 
 【天気情報】{weather_info}
@@ -295,10 +306,12 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 
 必ず以下のJSON形式で回答してください：
 {{
-    "weather_index": 天気コメントのインデックス(0-4),
-    "advice_index": アドバイスコメントのインデックス(0-4),
+    "weather_index": 天気コメントのインデックス(0-{weather_max_idx}の整数),
+    "advice_index": アドバイスコメントのインデックス(0-{advice_max_idx}の整数),
     "generated_comment": "選択したコメントを「　」で結合"
-}}"""
+}}
+
+注意: weather_indexとadvice_indexは必ず有効な整数値を指定してください。nullは許可されません。"""
     
     # 連続雨の場合の追加指示
     if is_continuous_rain:
