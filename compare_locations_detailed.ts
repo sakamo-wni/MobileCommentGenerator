@@ -1,6 +1,7 @@
 // Detailed script to compare locations across all data sources
 
 import { LOCATION_COORDINATES, REGIONS } from './shared/src/config/regions';
+import { LOCATION_CONFIG } from './shared/src/config/constants';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -74,23 +75,24 @@ function compareAllLocationSources() {
   const coordsSet = new Set(coordsLocations);
   const pythonSet = new Set(pythonLocations);
   
-  console.log('=== Location Data Comparison ===\n');
-  console.log(`TypeScript LOCATION_COORDINATES: ${tsLocations.length}`);
-  console.log(`TypeScript REGIONS: ${tsRegionsLocations.length}`);
-  console.log(`Chiten.csv locations: ${chitenLocations.length}`);
-  console.log(`location_coordinates.csv locations: ${coordsLocations.length}`);
-  console.log(`Python location_selector.py: ${pythonLocations.length}`);
+  console.log('=== 地点データ比較 ===\n');
+  console.log(`TypeScript LOCATION_COORDINATES: ${tsLocations.length}地点`);
+  console.log(`TypeScript REGIONS: ${tsRegionsLocations.length}地点`);
+  console.log(`Chiten.csv: ${chitenLocations.length}地点`);
+  console.log(`location_coordinates.csv: ${coordsLocations.length}地点`);
+  console.log(`Python location_selector.py: ${pythonLocations.length}地点`);
+  console.log(`期待される地点数: ${LOCATION_CONFIG.EXPECTED_COUNT}地点`);
   
   // Compare TypeScript sources
   const tsCoordNotInRegions = [...tsSet].filter(loc => !tsRegionsSet.has(loc));
   if (tsCoordNotInRegions.length > 0) {
-    console.log('\n⚠️  Locations in LOCATION_COORDINATES but NOT in REGIONS:');
+    console.log('\n⚠️  LOCATION_COORDINATESに存在するがREGIONSに存在しない地点:');
     console.log(tsCoordNotInRegions.sort().join(', '));
   }
   
   const tsRegionsNotInCoord = [...tsRegionsSet].filter(loc => !tsSet.has(loc));
   if (tsRegionsNotInCoord.length > 0) {
-    console.log('\n⚠️  Locations in REGIONS but NOT in LOCATION_COORDINATES:');
+    console.log('\n⚠️  REGIONSに存在するがLOCATION_COORDINATESに存在しない地点:');
     console.log(tsRegionsNotInCoord.sort().join(', '));
   }
   
@@ -106,15 +108,15 @@ function compareAllLocationSources() {
     const inSource2NotInSource1 = [...set2].filter(loc => !set1.has(loc));
     
     if (inSource1NotInSource2.length > 0) {
-      console.log(`\n=== Locations in ${source1} but NOT in ${source2} ===`);
+      console.log(`\n=== ${source1}に存在するが${source2}に存在しない地点 ===`);
       console.log(inSource1NotInSource2.sort().join(', '));
-      console.log(`Total: ${inSource1NotInSource2.length}`);
+      console.log(`合計: ${inSource1NotInSource2.length}地点`);
     }
     
     if (inSource2NotInSource1.length > 0) {
-      console.log(`\n=== Locations in ${source2} but NOT in ${source1} ===`);
+      console.log(`\n=== ${source2}に存在するが${source1}に存在しない地点 ===`);
       console.log(inSource2NotInSource1.sort().join(', '));
-      console.log(`Total: ${inSource2NotInSource1.length}`);
+      console.log(`合計: ${inSource2NotInSource1.length}地点`);
     }
   });
   
@@ -126,9 +128,9 @@ function compareAllLocationSources() {
     tsRegionsNotInCoord.length === 0;
   
   if (allSynchronized) {
-    console.log('\n✅ All location data sources are synchronized!');
+    console.log('\n✅ 検証成功: 全ての地点データが同期されています！');
   } else {
-    console.log('\n❌ Location data sources have discrepancies');
+    console.log('\n❌ 検証失敗: 地点データに不一致があります');
   }
   
   return allSynchronized ? 0 : 1;

@@ -46,11 +46,11 @@ function extractMissingLocations() {
   const missingLocations = allCSVLocations.filter(loc => !currentLocations.includes(loc as LocationName));
   
   if (missingLocations.length === 0) {
-    console.log('✅ No missing locations found. All CSV locations are in regions.ts');
+    console.log('✅ 不足地点なし: CSV内の全地点がregions.tsに存在します');
     return;
   }
   
-  console.log('Missing locations with their coordinates from CSV:\n');
+  console.log('❌ CSVに存在するがregions.tsに不足している地点:\n');
   console.log('```typescript');
   missingLocations.forEach(location => {
     const data = csvData[location];
@@ -61,7 +61,7 @@ function extractMissingLocations() {
   console.log('```');
   
   // Also create a summary by prefecture
-  console.log('\n\nSummary by prefecture:');
+  console.log('\n\n都道府県別まとめ:');
   const byPrefecture: Record<string, string[]> = {};
   missingLocations.forEach(location => {
     const data = csvData[location];
@@ -77,7 +77,7 @@ function extractMissingLocations() {
     console.log(`${prefecture}: ${locations.join(', ')}`);
   });
   
-  console.log(`\nTotal missing locations: ${missingLocations.length}`);
+  console.log(`\n不足地点総数: ${missingLocations.length}`);
 }
 
 // Execute if run directly

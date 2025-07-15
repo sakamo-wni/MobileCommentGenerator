@@ -1,6 +1,7 @@
 // Script to compare locations between CSV and regions.ts
 
 import { LOCATION_COORDINATES } from './shared/src/config/regions';
+import { LOCATION_CONFIG } from './shared/src/config/constants';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -18,7 +19,7 @@ function readCSVLocations(csvPath: string): string[] {
     }).filter(Boolean);
     return locations;
   } catch (error) {
-    console.error(`Error reading CSV file: ${error}`);
+    console.error(`❌ CSVファイルの読み込みエラー: ${error}`);
     return [];
   }
 }
@@ -38,21 +39,34 @@ function compareLocations() {
   // Find locations in regions.ts but not in CSV
   const missingInCSV = regionsLocations.filter(loc => !csvLocations.includes(loc));
   
-  console.log(`Total locations in CSV: ${csvLocations.length}`);
-  console.log(`Total locations in regions.ts: ${regionsLocations.length}`);
+  console.log(`CSVの地点数: ${csvLocations.length}`);
+  console.log(`regions.tsの地点数: ${regionsLocations.length}`);
+  console.log(`期待される地点数: ${LOCATION_CONFIG.EXPECTED_COUNT}`);
+  
+  // Check if counts match expected
+  const csvCountMismatch = csvLocations.length !== LOCATION_CONFIG.EXPECTED_COUNT;
+  const tsCountMismatch = regionsLocations.length !== LOCATION_CONFIG.EXPECTED_COUNT;
+  
+  if (csvCountMismatch) {
+    console.log(`\n⚠️  CSVの地点数が期待値と異なります: ${csvLocations.length} (期待値: ${LOCATION_CONFIG.EXPECTED_COUNT})`);
+  }
+  
+  if (tsCountMismatch) {
+    console.log(`\n⚠️  regions.tsの地点数が期待値と異なります: ${regionsLocations.length} (期待値: ${LOCATION_CONFIG.EXPECTED_COUNT})`);
+  }
   
   if (missingInRegions.length > 0) {
-    console.log(`\nLocations in CSV but not in regions.ts: ${missingInRegions.length}`);
+    console.log(`\n❌ 検証失敗: CSV内の ${missingInRegions.length} 地点が regions.ts に存在しません`);
     missingInRegions.forEach(loc => console.log(`- ${loc}`));
   }
   
   if (missingInCSV.length > 0) {
-    console.log(`\nLocations in regions.ts but not in CSV: ${missingInCSV.length}`);
+    console.log(`\n❌ 検証失敗: regions.ts内の ${missingInCSV.length} 地点が CSV に存在しません`);
     missingInCSV.forEach(loc => console.log(`- ${loc}`));
   }
   
-  if (missingInRegions.length === 0 && missingInCSV.length === 0) {
-    console.log('\n✅ All locations are synchronized between CSV and regions.ts');
+  if (missingInRegions.length === 0 && missingInCSV.length === 0 && !csvCountMismatch && !tsCountMismatch) {
+    console.log('\n✅ 検証成功: CSVとregions.tsの全地点が同期されています');
   }
   
   // Return exit code based on validation result
