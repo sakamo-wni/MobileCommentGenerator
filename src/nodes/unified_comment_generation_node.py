@@ -17,11 +17,17 @@ from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.nodes.helpers.comment_safety import check_and_fix_weather_comment_safety
 from src.nodes.helpers.ng_words import check_ng_words
 from src.constants.content_constants import FORBIDDEN_PHRASES
+from src.constants.weather_constants import (
+    HEATSTROKE_THRESHOLD_TEMP,
+    PRECIPITATION_THRESHOLD_HEAVY,
+    PRECIPITATION_THRESHOLD_LIGHT_RAIN,
+    PRECIPITATION_THRESHOLD_LIGHT,
+    COMMENT_CANDIDATE_LIMIT,
+    COMMENT_MAX_LENGTH,
+    CONTINUOUS_RAIN_THRESHOLD_HOURS
+)
 
 logger = logging.getLogger(__name__)
-
-# 連続雨判定の閾値（時間）
-CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
 
 
 def unified_comment_generation_node(state: CommentGenerationState) -> CommentGenerationState:
@@ -66,9 +72,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         
         # 温度に応じたコメントのフィルタリング
         temperature = getattr(weather_data, 'temperature', 0)
-        if temperature < 35.0:
-            # 35度未満では熱中症関連のコメントを除外
-            logger.info(f"温度が{temperature}°C（35°C未満）のため、熱中症関連コメントを除外")
+        if temperature < HEATSTROKE_THRESHOLD_TEMP:
+            # 熱中症閾値未満では熱中症関連のコメントを除外
+            logger.info(f"温度が{temperature}°C（{HEATSTROKE_THRESHOLD_TEMP}°C未満）のため、熱中症関連コメントを除外")
             weather_comments = [c for c in weather_comments if "熱中症" not in c.comment_text]
             advice_comments = [c for c in advice_comments if "熱中症" not in c.comment_text]
         
@@ -80,12 +86,12 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             # 降水量に応じて適切なコメントを選択
             original_weather_comments = weather_comments.copy()  # フィルタリング前のリストを保存
             
-            if precipitation >= 10.0:  # 10mm以上は大雨
+            if precipitation >= PRECIPITATION_THRESHOLD_HEAVY:  # 大雨閾値以上
                 logger.info("大雨のため、大雨・豪雨関連のコメントを優先")
                 weather_comments = [c for c in original_weather_comments if c.weather_condition in ['大雨', '嵐', '雷']]
                 if not weather_comments:  # 大雨コメントがない場合は通常の雨コメントも含める
                     weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '大雨', '嵐', '雷']]
-            elif precipitation >= 1.0:  # 1mm以上は通常の雨
+            elif precipitation >= PRECIPITATION_THRESHOLD_LIGHT_RAIN:  # 軽い雨閾値以上
                 logger.info("通常の雨のため、雨関連のコメントを選択")
                 weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '大雨', '雷']]
             else:  # 1mm未満は小雨
@@ -110,7 +116,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
             # アドバイスコメントの内容を確認
             logger.debug("フィルタリング前のアドバイスコメント:")
-            for i, comment in enumerate(advice_comments[:10]):
+            for i, comment in enumerate(advice_comments[:COMMENT_CANDIDATE_LIMIT]):
                 logger.debug(f"  {i}: {comment.comment_text}")
             
             weather_comments = _filter_shower_comments(weather_comments)
@@ -122,7 +128,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
             # フィルタリング後のアドバイスコメントの内容を確認
             logger.debug("フィルタリング後のアドバイスコメント:")
-            for i, comment in enumerate(advice_comments[:10]):
+            for i, comment in enumerate(advice_comments[:COMMENT_CANDIDATE_LIMIT]):
                 logger.debug(f"  {i}: {comment.comment_text}")
         
         # 天気情報のフォーマット
@@ -130,8 +136,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         
         # 統合プロンプトの構築
         unified_prompt = _build_unified_prompt(
-            weather_comments[:10],  # 上位10件に制限
-            advice_comments[:10],   # 上位10件に制限
+            weather_comments[:COMMENT_CANDIDATE_LIMIT],  # 候補数を制限
+            advice_comments[:COMMENT_CANDIDATE_LIMIT],   # 候補数を制限
             weather_info,
             weather_data,
             is_continuous_rain
@@ -291,9 +297,9 @@ def _build_unified_prompt(weather_comments: List[PastComment],
 【選択基準】
 1. 天気条件との一致度（最優先）- 実際の天気と異なる内容のコメントは選択禁止
 2. 降水量に応じた選択:
-   - 降水量10mm以上: 「傘が必須」「傘は必須」など強い表現を優先
-   - 降水量1-10mm: 「傘が活躍」「傘の用意」など通常の雨表現
-   - 降水量0.1-1mm: 「にわか雨」「軽い雨」など（連続雨でない場合のみ）
+   - 降水量{str(PRECIPITATION_THRESHOLD_HEAVY)}mm以上: 「傘が必須」「傘は必須」など強い表現を優先
+   - 降水量{str(PRECIPITATION_THRESHOLD_LIGHT_RAIN)}-{str(PRECIPITATION_THRESHOLD_HEAVY)}mm: 「傘が活躍」「傘の用意」など通常の雨表現
+   - 降水量{str(PRECIPITATION_THRESHOLD_LIGHT)}-{str(PRECIPITATION_THRESHOLD_LIGHT_RAIN)}mm: 「にわか雨」「軽い雨」など（連続雨でない場合のみ）
 3. 使用回数が少ないものを優先
 4. 組み合わせの自然さ
 5. 重複・冗長性の回避:
@@ -302,7 +308,7 @@ def _build_unified_prompt(weather_comments: List[PastComment],
    - 例: 「強い雨」（天気）と「雨脚が強い」（アドバイス）は重複なので不可
 
 【制約】
-- 最終コメントは15文字以内
+- 最終コメントは{str(COMMENT_MAX_LENGTH)}文字以内
 - 「　」で天気とアドバイスを区切る
 
 必ず以下のJSON形式で回答してください：
@@ -371,7 +377,7 @@ def _check_continuous_rain(state: CommentGenerationState) -> bool:
     for f in period_forecasts:
         if hasattr(f, 'weather') and '雨' in f.weather:
             rain_hours += 1
-        elif hasattr(f, 'precipitation') and f.precipitation >= 0.1:
+        elif hasattr(f, 'precipitation') and f.precipitation >= PRECIPITATION_THRESHOLD_LIGHT:
             rain_hours += 1
     
     is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS

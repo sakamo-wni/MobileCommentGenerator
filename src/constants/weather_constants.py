@@ -33,3 +33,11 @@ WIND_DIRECTION_MAX_DEGREES = 360
 
 # Special weather priority threshold
 SPECIAL_WEATHER_PRIORITY_THRESHOLD = 4
+
+# Comment generation constants
+COMMENT_MAX_LENGTH = 15  # Maximum comment length in characters
+COMMENT_CANDIDATE_LIMIT = 10  # Number of candidates to pass to LLM
+CONTINUOUS_RAIN_THRESHOLD_HOURS = 4  # Hours for continuous rain detection
+
+# Temperature thresholds for heatstroke warnings
+HEATSTROKE_THRESHOLD_TEMP = 35.0  # Temperature for heatstroke warnings (Celsius)

@@ -11,7 +11,7 @@ import re
 import logging
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Iterator
+from typing import Dict, List, Optional, Any
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from functools import lru_cache
