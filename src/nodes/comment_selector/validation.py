@@ -41,8 +41,12 @@ class CommentValidator:
             try:
                 self.llm_validator = LLMDuplicationValidator(api_key)
                 logger.debug("LLM重複検証バリデータを初期化しました")
+            except ImportError as e:
+                logger.warning(f"LLM重複検証バリデータのインポートエラー: {e}")
+                self.llm_validator = None
             except Exception as e:
                 logger.warning(f"LLMバリデータの初期化に失敗: {e}")
+                self.llm_validator = None
         else:
             logger.warning("APIキーが設定されていないため、LLM重複検証は無効です")
     
@@ -329,6 +333,9 @@ class CommentValidator:
                     logger.debug(f"  翌日の予報: {forecast_dt.strftime('%H:%M')} - {forecast.weather_description}")
             
             return next_day_forecasts
+        except pytz.exceptions.AmbiguousTimeError as e:
+            logger.error(f"タイムゾーン変換エラー: {e}")
+            return []
         except AttributeError as e:
             logger.error(f"予報データ構造エラー: {e}")
             return []
@@ -451,6 +458,9 @@ class CommentValidator:
                 logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
                 # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
                 return False
+            except FileNotFoundError as e:
+                logger.error(f"制限設定ファイルが見つかりません: {e}")
+                return False
             except Exception as e:
                 logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
                 return False
@@ -519,7 +529,13 @@ class CommentValidator:
                     return True
             
             return False
-            
+        
+        except KeyError as e:
+            logger.error(f"必要なデータが見つかりません: {e}")
+            return False
+        except TypeError as e:
+            logger.error(f"データ型エラー: {e}")
+            return False    
         except Exception as e:
             logger.warning(f"YAML設定チェック中にエラー: {e}")
             return False
@@ -553,6 +569,9 @@ class CommentValidator:
             except yaml.YAMLError as e:
                 logger.error(f"comment_restrictions.yaml のパースエラー: {e}")
                 # YAMLパースエラーは重要なので、デフォルト動作として制限なしで続行
+                return False
+            except FileNotFoundError as e:
+                logger.error(f"制限設定ファイルが見つかりません: {e}")
                 return False
             except Exception as e:
                 logger.warning(f"設定ファイル読み込み時の予期しないエラー: {e}")
@@ -590,7 +609,13 @@ class CommentValidator:
                         return True
             
             return False
-            
+        
+        except KeyError as e:
+            logger.error(f"必要なデータが見つかりません: {e}")
+            return False
+        except TypeError as e:
+            logger.error(f"データ型エラー: {e}")
+            return False    
         except Exception as e:
             logger.warning(f"YAML設定チェック中にエラー: {e}")
             return False
