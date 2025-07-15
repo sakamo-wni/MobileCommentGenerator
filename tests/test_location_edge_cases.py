@@ -7,7 +7,8 @@
 import pytest
 import time
 from unittest.mock import patch, mock_open
-from src.data.location_manager import Location, LocationManager
+from src.data.location import Location
+from src.data.location.manager import LocationManagerRefactored as LocationManager
 
 
 class TestErrorHandling:

@@ -12,13 +12,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.data.location_manager import (
-    Location,
-    LocationManager,
-    get_location_manager,
-    search_location,
-    get_location_by_name,
-)
+from src.data.location import Location
+from src.data.location.manager import LocationManagerRefactored
 
 
 def demo_basic_usage():
@@ -26,7 +21,7 @@ def demo_basic_usage():
     print("=== 基本的な使用方法 ===")
 
     # LocationManagerの初期化
-    manager = get_location_manager()
+    manager = LocationManagerRefactored()
 
     # 統計情報の表示
     stats = manager.get_statistics()
@@ -39,23 +34,25 @@ def demo_search_functionality():
     """検索機能のデモ"""
     print("=== 検索機能デモ ===")
 
+    manager = LocationManagerRefactored()
+
     # 完全一致検索
     print("1. 完全一致検索")
-    results = search_location("東京", fuzzy=False)
+    results = manager.search_location("東京", fuzzy=False)
     for result in results[:3]:
         print(f"  - {result.name} ({result.prefecture}, {result.region})")
     print()
 
     # 部分一致検索
     print("2. 部分一致検索（「大」を含む地点）")
-    results = search_location("大", fuzzy=False)
+    results = manager.search_location("大", fuzzy=False)
     for result in results[:5]:
         print(f"  - {result.name} ({result.prefecture})")
     print()
 
     # あいまい検索
     print("3. あいまい検索（「おおさか」）")
-    results = search_location("おおさか", fuzzy=True)
+    results = manager.search_location("おおさか", fuzzy=True)
     for result in results[:3]:
         print(f"  - {result.name} ({result.prefecture})")
     print()
@@ -65,8 +62,10 @@ def demo_location_details():
     """地点詳細情報のデモ"""
     print("=== 地点詳細情報 ===")
 
+    manager = LocationManagerRefactored()
+
     # 特定の地点を取得
-    tokyo = get_location_by_name("東京")
+    tokyo = manager.get_location_by_name("東京")
     if tokyo:
         print("東京の詳細情報:")
         location_dict = tokyo.to_dict()
@@ -75,7 +74,7 @@ def demo_location_details():
         print()
 
     # 札幌の情報
-    sapporo = get_location_by_name("札幌")
+    sapporo = manager.get_location_by_name("札幌")
     if sapporo:
         print("札幌の詳細情報:")
         print(f"  名前: {sapporo.name}")
@@ -89,7 +88,7 @@ def demo_regional_filtering():
     """地方・都道府県別フィルタリングのデモ"""
     print("=== 地方・都道府県別フィルタリング ===")
 
-    manager = get_location_manager()
+    manager = LocationManagerRefactored()
 
     # 関東地方の地点
     print("1. 関東地方の地点:")
@@ -135,7 +134,7 @@ def demo_statistics():
     """統計情報のデモ"""
     print("=== 統計情報 ===")
 
-    manager = get_location_manager()
+    manager = LocationManagerRefactored()
     stats = manager.get_statistics()
 
     print(f"総地点数: {stats['total_locations']}")
@@ -156,7 +155,7 @@ def demo_advanced_search():
     """高度な検索のデモ"""
     print("=== 高度な検索機能 ===")
 
-    manager = get_location_manager()
+    manager = LocationManagerRefactored()
 
     # 複数の検索条件
     search_queries = ["京", "川", "山", "田"]
@@ -173,11 +172,13 @@ def demo_location_matching():
     """地点マッチング機能のデモ"""
     print("=== 地点マッチング機能 ===")
 
+    manager = LocationManagerRefactored()
+
     # 異なる表記での検索テスト
     test_queries = ["東京", "とうきょう", "Tokyo", "大阪", "おおさか", "Osaka", "札幌", "さっぽろ"]
 
     for query in test_queries:
-        results = search_location(query, max_results=1, fuzzy=True)
+        results = manager.search_location(query, max_results=1, fuzzy=True)
         if results:
             result = results[0]
             print(f"「{query}」 → {result.name} ({result.prefecture})")
@@ -190,17 +191,19 @@ def demo_error_handling():
     """エラーハンドリングのデモ"""
     print("=== エラーハンドリング ===")
 
+    manager = LocationManagerRefactored()
+
     # 存在しない地点の検索
-    result = get_location_by_name("存在しない地点")
+    result = manager.get_location_by_name("存在しない地点")
     print(f"存在しない地点の検索: {result}")
 
     # 空文字列での検索
-    results = search_location("")
+    results = manager.search_location("")
     print(f"空文字列での検索結果: {len(results)}件")
 
     # 非常に長い文字列での検索
     long_query = "あ" * 100
-    results = search_location(long_query)
+    results = manager.search_location(long_query)
     print(f"長い文字列での検索結果: {len(results)}件")
     print()
 
@@ -211,7 +214,7 @@ def demo_performance():
 
     import time
 
-    manager = get_location_manager()
+    manager = LocationManagerRefactored()
 
     # 検索性能テスト
     queries = ["東京", "大阪", "名古屋", "札幌", "福岡"]

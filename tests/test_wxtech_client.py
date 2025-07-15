@@ -11,7 +11,7 @@ from datetime import datetime
 from src.apis.wxtech import WxTechAPIClient
 from src.apis.wxtech.errors import WxTechAPIError
 from src.data.weather_data import WeatherCondition, WindDirection
-from src.data.location_manager import Location
+from src.data.location import Location
 
 
 class TestWxTechAPIClient:
