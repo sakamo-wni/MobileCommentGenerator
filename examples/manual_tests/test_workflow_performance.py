@@ -3,6 +3,10 @@
 統一されたワークフローの動作確認と実行時間を測定します。
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
 import time
 from datetime import datetime
 

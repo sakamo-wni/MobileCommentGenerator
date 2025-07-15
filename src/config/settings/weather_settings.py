@@ -129,8 +129,8 @@ class WeatherConstants:
     validation: DataValidationRanges = field(default_factory=DataValidationRanges)
     
     # その他の天気定数
-    HEATSTROKE_WARNING_TEMP: float = 34.0  # 熱中症警戒開始温度
-    HEATSTROKE_SEVERE_TEMP: float = 35.0   # 熱中症厳重警戒温度
+    HEATSTROKE_WARNING_TEMP: float = 35.0  # 熱中症警戒開始温度
+    HEATSTROKE_SEVERE_TEMP: float = 37.0   # 熱中症厳重警戒温度
     COLD_WARNING_TEMP: float = 15.0        # 防寒対策が不要になる温度
     WEATHER_CHANGE_THRESHOLD: int = 2       # 「変わりやすい」と判定する変化回数の閾値
     
