@@ -216,4 +216,4 @@ def generate_env_template() -> str:
 
 if __name__ == "__main__":
     # 環境変数テンプレートを生成
-    print(generate_env_template())
+    logger.info(generate_env_template())
