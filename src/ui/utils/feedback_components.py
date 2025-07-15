@@ -275,7 +275,7 @@ def create_feedback_form(
     form_id: str = "feedback_form",
     include_rating: bool = True,
     include_comment: bool = True,
-    callback: Callable[[dict[str, Any | None], None]] = None
+    callback: Callable[[dict[str, Any | None]], None] | None = None
 ) -> dict[str, Any | None]:
     """
     フィードバックフォームを作成
