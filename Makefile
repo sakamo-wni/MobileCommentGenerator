@@ -138,7 +138,6 @@ run-frontend:
 
 demo:
 	@echo "🎮 デモスクリプトを実行中..."
-	python examples/location_manager_demo.py
 	python examples/workflow_integration_demo.py
 
 # 🧹 メンテナンス

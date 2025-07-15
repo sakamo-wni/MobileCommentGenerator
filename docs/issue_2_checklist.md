@@ -77,9 +77,7 @@
 
 #### 📁 ファイル構成
 - [x] **メイン実装**: `src/data/location_manager.py`
-- [x] **テストスイート**: `tests/test_location_manager.py`
-- [x] **デモプログラム**: `examples/location_manager_demo.py`
-- [x] **ドキュメント**: `docs/location_manager_README.md`
+- [x] **テストスイート**: `tests/test_location.py`
 
 ### 🧪 テスト実装
 
