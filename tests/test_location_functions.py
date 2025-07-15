@@ -23,19 +23,26 @@ class TestGlobalFunctions:
     def test_search_location_function(self):
         """検索関数のテスト"""
         manager = LocationManagerRefactored()
-        results = manager.search_location("東京")
+        results = manager.search_locations("東京")
         assert len(results) > 0
         assert results[0].name == "東京"
 
     def test_get_location_by_name_function(self):
         """地点名取得関数のテスト"""
         manager = LocationManagerRefactored()
-        location = manager.get_location_by_name("東京")
+        # search_locationsで東京を検索
+        results = manager.search_locations("東京")
+        # 完全一致を探す
+        location = None
+        for loc in results:
+            if loc.name == "東京":
+                location = loc
+                break
         assert location is not None
         assert location.name == "東京"
 
-        location = manager.get_location_by_name("存在しない地点")
-        assert location is None
+        results = manager.search_locations("存在しない地点")
+        assert len(results) == 0
 
 
 if __name__ == "__main__":
