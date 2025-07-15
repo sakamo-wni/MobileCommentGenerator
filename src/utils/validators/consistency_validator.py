@@ -1,15 +1,14 @@
 """一貫性バリデータ - コメントペアの一貫性を検証"""
 
 import logging
-import re
 from typing import Tuple, List
 
 from src.config.config import get_weather_constants
+from src.constants.validation_constants import SIMILARITY_THRESHOLD
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
-from .base_validator import BaseValidator
 from src.utils.validators.duplication_checker import DuplicationChecker
-from src.constants.validation_constants import SIMILARITY_THRESHOLD
+from .base_validator import BaseValidator
 
 # 定数を取得
 _weather_const = get_weather_constants()
@@ -18,9 +17,6 @@ COLD_WARNING_TEMP = _weather_const.COLD_WARNING_TEMP
 SUNNY_WEATHER_KEYWORDS = _weather_const.SUNNY_WEATHER_KEYWORDS
 
 logger = logging.getLogger(__name__)
-
-# 正規表現パターンのプリコンパイル（パフォーマンス最適化）
-PUNCTUATION_PATTERN = re.compile(r'[。、！？\s　]')
 
 
 class ConsistencyValidator(BaseValidator):

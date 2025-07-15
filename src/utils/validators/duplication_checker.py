@@ -1,13 +1,19 @@
 """重複チェック共通ユーティリティ"""
 
 import logging
-import re
 from typing import Tuple, Set
 
-logger = logging.getLogger(__name__)
+from src.constants.validation_constants import (
+    PUNCTUATION_PATTERN,
+    REPETITIVE_PATTERNS,
+    DUPLICATE_KEYWORDS,
+    CRITICAL_DUPLICATE_KEYWORDS,
+    UMBRELLA_EXPRESSIONS,
+    CONTRADICTION_PATTERNS,
+    SIMILARITY_PATTERNS
+)
 
-# 定数
-PUNCTUATION_PATTERN = re.compile(r'[、。・！？｢｣「」『』（）［］【】\s]+')
+logger = logging.getLogger(__name__)
 
 
 class DuplicationChecker:
@@ -15,32 +21,17 @@ class DuplicationChecker:
     
     @staticmethod
     def check_repetitive_concepts(weather_text: str, advice_text: str) -> bool:
-        """同じ概念の繰り返しをチェック"""
-        repetitive_patterns = [
-            {
-                "concept": "気温差",
-                "expressions": ["気温差大", "寒暖差大", "温度差大", "朝昼の気温差", 
-                              "朝晩と昼間の気温差", "朝と夜の気温差", "日中と朝晩の気温差",
-                              "気温差に注意", "寒暖差に注意", "温度差に注意"]
-            },
-            {
-                "concept": "雨注意",
-                "expressions": ["雨が降りやすく", "急な雨に注意", "雨に注意", "雨具を持参",
-                              "傘を持参", "傘が必要", "傘を忘れずに", "雨対策を"]
-            },
-            {
-                "concept": "暑さ注意",
-                "expressions": ["暑さに注意", "熱中症に注意", "暑さ対策", "暑さを避け",
-                              "暑さが心配", "暑さに警戒", "熱中症対策", "暑さに備え"]
-            },
-            {
-                "concept": "日差し注意",
-                "expressions": ["日差しに注意", "紫外線対策", "UV対策", "日焼け対策",
-                              "日差しが強い", "紫外線が強い", "日差しを避け"]
-            }
-        ]
+        """
+        同じ概念の繰り返しをチェック
         
-        for pattern in repetitive_patterns:
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            
+        Returns:
+            重複が検出された場合True
+        """
+        for pattern in REPETITIVE_PATTERNS:
             concept = pattern["concept"]
             expressions = pattern["expressions"]
             
@@ -55,7 +46,16 @@ class DuplicationChecker:
 
     @staticmethod
     def check_text_similarity(weather_text: str, advice_text: str) -> bool:
-        """テキストの類似性をチェック（完全一致・ほぼ一致）"""
+        """
+        テキストの類似性をチェック（完全一致・ほぼ一致）
+        
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            
+        Returns:
+            類似性が高い場合True
+        """
         # 完全一致
         if weather_text == advice_text:
             return True
@@ -80,18 +80,20 @@ class DuplicationChecker:
 
     @staticmethod
     def check_keyword_duplication(weather_text: str, advice_text: str) -> bool:
-        """重要キーワードの重複をチェック"""
-        duplicate_keywords = [
-            "にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑",
-            "注意", "警戒", "対策", "気をつけ", "備え", "準備",
-            "傘",  # 傘関連の重複を防ぐ
-            "気温差", "寒暖差", "温度差"  # 気温差関連の重複を防ぐ
-        ]
+        """
+        重要キーワードの重複をチェック
         
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            
+        Returns:
+            重要キーワードの重複が検出された場合True
+        """
         weather_keywords = []
         advice_keywords = []
         
-        for keyword in duplicate_keywords:
+        for keyword in DUPLICATE_KEYWORDS:
             if keyword in weather_text:
                 weather_keywords.append(keyword)
             if keyword in advice_text:
@@ -99,8 +101,7 @@ class DuplicationChecker:
         
         common_keywords = set(weather_keywords) & set(advice_keywords)
         if common_keywords:
-            critical_duplicates = {"にわか雨", "熱中症", "紫外線", "雷", "強風", "大雨", "猛暑", "酷暑"}
-            if any(keyword in critical_duplicates for keyword in common_keywords):
+            if any(keyword in CRITICAL_DUPLICATE_KEYWORDS for keyword in common_keywords):
                 logger.debug(f"重複キーワード検出: {common_keywords}")
                 return True
         
@@ -108,23 +109,17 @@ class DuplicationChecker:
 
     @staticmethod
     def check_semantic_contradiction(weather_text: str, advice_text: str) -> bool:
-        """意味的矛盾パターンをチェック"""
-        contradiction_patterns = [
-            # 日差し・太陽関連の矛盾
-            (["日差しの活用", "日差しを楽しん", "陽射しを活用", "太陽を楽しん", "日光浴", "日向"], 
-             ["紫外線対策", "日焼け対策", "日差しに注意", "陽射しに注意", "UV対策", "日陰"]),
-            # 外出関連の矛盾  
-            (["外出推奨", "お出かけ日和", "散歩日和", "外出には絶好", "外で過ごそう"], 
-             ["外出時は注意", "外出を控え", "屋内にいよう", "外出は危険"]),
-            # 暑さ関連の矛盾
-            (["暑さを楽しん", "夏を満喫", "暑いけど気持ち"], 
-             ["暑さに注意", "熱中症対策", "暑さを避け"]),
-            # 雨関連の矛盾
-            (["雨を楽しん", "雨音が心地", "恵みの雨"], 
-             ["雨に注意", "濡れないよう", "雨対策"])
-        ]
+        """
+        意味的矛盾パターンをチェック
         
-        for positive_patterns, negative_patterns in contradiction_patterns:
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            
+        Returns:
+            意味的矛盾が検出された場合True
+        """
+        for positive_patterns, negative_patterns in CONTRADICTION_PATTERNS:
             has_positive = any(pattern in weather_text for pattern in positive_patterns)
             has_negative = any(pattern in advice_text for pattern in negative_patterns)
             
@@ -140,20 +135,17 @@ class DuplicationChecker:
 
     @staticmethod
     def check_similar_expressions(weather_text: str, advice_text: str) -> bool:
-        """類似表現パターンをチェック"""
-        similarity_patterns = [
-            (["雨が心配", "雨に注意"], ["雨", "注意"]),
-            (["暑さが心配", "暑さに注意"], ["暑", "注意"]),
-            (["風が強い", "風に注意"], ["風", "注意"]),
-            (["紫外線が強い", "紫外線対策"], ["紫外線"]),
-            (["雷が心配", "雷に注意"], ["雷", "注意"]),
-            (["傘が必須", "傘を忘れずに", "傘をお忘れなく"], ["傘", "必要", "お守り", "安心"]),
-            (["傘がお守り", "傘が安心"], ["傘", "必要", "必須", "忘れずに"]),
-            (["気温差大", "寒暖差大", "朝昼の気温差", "朝晩と昼間の気温差"], 
-             ["気温差", "寒暖差", "温度差", "朝晩", "昼間", "注意"]),
-        ]
+        """
+        類似表現パターンをチェック
         
-        for weather_patterns, advice_patterns in similarity_patterns:
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            
+        Returns:
+            類似表現が検出された場合True
+        """
+        for weather_patterns, advice_patterns in SIMILARITY_PATTERNS:
             weather_match = any(pattern in weather_text for pattern in weather_patterns)
             advice_match = any(pattern in advice_text for pattern in advice_patterns)
             if weather_match and advice_match:
@@ -164,15 +156,18 @@ class DuplicationChecker:
 
     @staticmethod
     def check_umbrella_duplication(weather_text: str, advice_text: str) -> bool:
-        """傘関連の重複を特別チェック"""
-        umbrella_expressions = [
-            "傘が必須", "傘がお守り", "傘を忘れずに", "傘をお忘れなく",
-            "傘の準備", "傘が活躍", "折り畳み傘", "傘があると安心",
-            "傘をお持ちください", "傘の携帯"
-        ]
+        """
+        傘関連の重複を特別チェック
         
-        weather_has_umbrella = any(expr in weather_text for expr in umbrella_expressions) or "傘" in weather_text
-        advice_has_umbrella = any(expr in advice_text for expr in umbrella_expressions) or "傘" in advice_text
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            
+        Returns:
+            傘関連の重複が検出された場合True
+        """
+        weather_has_umbrella = any(expr in weather_text for expr in UMBRELLA_EXPRESSIONS) or "傘" in weather_text
+        advice_has_umbrella = any(expr in advice_text for expr in UMBRELLA_EXPRESSIONS) or "傘" in advice_text
         
         if weather_has_umbrella and advice_has_umbrella:
             logger.debug(f"傘関連の重複候補検出: 天気='{weather_text}', アドバイス='{advice_text}'")
@@ -193,7 +188,17 @@ class DuplicationChecker:
 
     @staticmethod
     def check_character_similarity(weather_text: str, advice_text: str, threshold: float = 0.7) -> bool:
-        """短いテキストの文字列類似度をチェック"""
+        """
+        短いテキストの文字列類似度をチェック
+        
+        Args:
+            weather_text: 天気コメントテキスト
+            advice_text: アドバイステキスト
+            threshold: 類似度の闾値（デフォルト: 0.7）
+            
+        Returns:
+            類似度が闾値を超えた場合True
+        """
         if len(weather_text) <= 10 and len(advice_text) <= 10:
             min_length = min(len(weather_text), len(advice_text))
             if min_length == 0:

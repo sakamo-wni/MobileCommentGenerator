@@ -1,29 +1,25 @@
 """コメントバリデーションロジック"""
 
 import logging
-import re
 import os
 from pathlib import Path
 from typing import Optional, Tuple, List
 from dotenv import load_dotenv
 
+from src.config.config import get_weather_constants
+from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+from src.constants.validation_constants import SIMILARITY_THRESHOLD
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
-from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
-from src.config.config import get_weather_constants
 from src.utils.validators.pollen_validator import PollenValidator
 from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
 from src.utils.validators.duplication_checker import DuplicationChecker
-from src.constants.validation_constants import SIMILARITY_THRESHOLD
 
 # 定数を取得
 WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
-
-# 正規表現パターンのプリコンパイル
-PUNCTUATION_PATTERN = re.compile(r'[。、！？\s　]')
 
 logger = logging.getLogger(__name__)
 
