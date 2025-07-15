@@ -11,7 +11,7 @@ from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.utils.weather_comment_validator import WeatherCommentValidator
-from src.utils.common_utils import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
+from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_PHRASES
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
 from src.config.config import get_weather_constants
 from src.utils.validators.pollen_validator import PollenValidator
@@ -364,7 +364,7 @@ class CommentValidator:
             if month == 6:
                 patterns.extend(["盛夏", "真夏日", "猛暑日", "酷暑"])
             elif month == 7:
-                patterns.extend(["初夏", "残暑"])
+                patterns.extend(["初夏", "残暑", "晩夏", "秋"])
             return patterns
         elif month == 9:
             return ["真夏", "盛夏", "初夏", "梅雨"]

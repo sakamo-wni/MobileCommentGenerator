@@ -7,9 +7,8 @@ aiohttpを使用した真の非同期実装
 import asyncio
 import logging
 import os
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 from datetime import datetime, timedelta
-from functools import wraps
 
 import aiohttp
 import pytz

@@ -203,19 +203,6 @@ class CommentGenerationState:
             "generation_metadata": dict(self.generation_metadata),  # Convert TypedDict to regular dict
         }
 
-    def _calculate_execution_time(self) -> int | None:
-        """実行時間を計算（ミリ秒）"""
-        start_time_str = self.generation_metadata.get("workflow_started_at")
-        end_time_str = self.generation_metadata.get("completed_at")
-
-        if start_time_str and end_time_str:
-            try:
-                start_time = datetime.fromisoformat(start_time_str)
-                end_time = datetime.fromisoformat(end_time_str)
-                return int((end_time - start_time).total_seconds() * 1000)
-            except ValueError:
-                return None
-        return None
 
     def _format_selected_comments(self) -> list[SelectedCommentInfo]:
         """選択された過去コメントをフォーマット"""
@@ -326,8 +313,3 @@ def create_initial_state(
     )
 
 
-def create_test_state() -> CommentGenerationState:
-    """テスト用の状態を作成"""
-    return create_initial_state(
-        location_name="稚内", target_datetime=datetime(2024, 6, 5, 9, 0, 0), llm_provider="openai"
-    )
