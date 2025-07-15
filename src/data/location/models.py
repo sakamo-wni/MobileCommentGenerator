@@ -3,12 +3,15 @@
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
+import os
 
+# キャッシュサイズを環境変数から取得（デフォルト: 4096）
+_CACHE_SIZE = int(os.environ.get('LEVENSHTEIN_CACHE_SIZE', '4096'))
 
-@lru_cache(maxsize=4096)
+@lru_cache(maxsize=_CACHE_SIZE)
 def cached_levenshtein_distance(s1: str, s2: str) -> int:
     """キャッシュ付きレーベンシュタイン距離（編集距離）計算
     
@@ -39,11 +42,16 @@ def cached_levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
-def get_levenshtein_cache_info() -> Dict[str, Any]:
+def get_levenshtein_cache_info() -> Dict[str, Union[int, float]]:
     """レーベンシュタイン距離計算のキャッシュ情報を取得
     
     Returns:
-        キャッシュ情報（ヒット数、ミス数、キャッシュサイズなど）
+        キャッシュ情報の辞書:
+            - hits (int): キャッシュヒット数
+            - misses (int): キャッシュミス数
+            - maxsize (int): 最大キャッシュサイズ
+            - currsize (int): 現在のキャッシュサイズ
+            - hit_rate (float): キャッシュヒット率
     """
     return {
         "hits": cached_levenshtein_distance.cache_info().hits,

@@ -6,6 +6,7 @@
 
 from typing import Dict, Any, Optional
 import logging
+import os
 
 from src.data.weather_data import WeatherForecastCollection
 from src.data.location.models import Location
@@ -21,19 +22,30 @@ class CachedWxTechAPIClient(WxTechAPIClient):
     WxTechAPIClientにTTLキャッシュ機能を追加
     """
     
-    def __init__(self, api_key: str, timeout: int = 30, cache_ttl: int = 300):
+    def __init__(self, api_key: str, timeout: int = 30, cache_ttl: Optional[int] = None, cache_size: Optional[int] = None):
         """キャッシュ付きクライアントを初期化
         
         Args:
             api_key: WxTech API キー
             timeout: タイムアウト秒数（デフォルト: 30秒）
-            cache_ttl: キャッシュの有効期限（秒）（デフォルト: 300秒）
+            cache_ttl: キャッシュの有効期限（秒）（デフォルト: 環境変数または300秒）
+            cache_size: キャッシュサイズ（デフォルト: 環境変数または100）
+        
+        Note:
+            LRU（Least Recently Used）アルゴリズムにより、キャッシュが満杯になった場合は
+            最も使用されていないエントリが自動的に削除されます。
         """
-        super().__init__(api_key, timeout, enable_cache=False)
+        super().__init__(api_key, timeout)
+        
+        # 環境変数から設定を取得
+        if cache_ttl is None:
+            cache_ttl = int(os.environ.get('WXTECH_CACHE_TTL', '300'))
+        if cache_size is None:
+            cache_size = int(os.environ.get('WXTECH_CACHE_SIZE', '100'))
         
         # キャッシュを初期化
-        self._cache = TTLCache(maxsize=100, ttl=cache_ttl)
-        logger.info(f"キャッシュを初期化しました（TTL: {cache_ttl}秒）")
+        self._cache = TTLCache(maxsize=cache_size, ttl=cache_ttl)
+        logger.info(f"キャッシュを初期化しました（TTL: {cache_ttl}秒, サイズ: {cache_size}）")
     
     @cached_method(cache_attr="_cache")
     def get_forecast(self, lat: float, lon: float, forecast_hours: int = 72) -> WeatherForecastCollection:
