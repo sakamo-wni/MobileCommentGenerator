@@ -15,10 +15,10 @@ from src.constants.content_constants import SEVERE_WEATHER_PATTERNS, FORBIDDEN_P
 from src.utils.weather_classifier import classify_weather_type, count_weather_type_changes
 from src.config.config import get_weather_constants
 from src.utils.validators.pollen_validator import PollenValidator
+from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
 
 # 定数を取得
 WEATHER_CHANGE_THRESHOLD = get_weather_constants().WEATHER_CHANGE_THRESHOLD
-from src.utils.validators.llm_duplication_validator import LLMDuplicationValidator
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +57,9 @@ class CommentValidator:
         advice_valid, advice_reason = self.validator.validate_comment(advice_comment, weather_data)
         
         if not weather_valid or not advice_valid:
-            logger.critical("個別バリデーション失敗:")
-            logger.critical(f"  天気コメント: '{weather_comment.comment_text}' - {weather_reason}")
-            logger.critical(f"  アドバイス: '{advice_comment.comment_text}' - {advice_reason}")
+            logger.warning("個別バリデーション失敗:")
+            logger.warning(f"  天気コメント: '{weather_comment.comment_text}' - {weather_reason}")
+            logger.warning(f"  アドバイス: '{advice_comment.comment_text}' - {advice_reason}")
             return False
         
         # 包括的一貫性チェック（新機能）
@@ -394,7 +394,7 @@ class CommentValidator:
         
         return False
     
-    def _extract_next_day_forecasts(self, state: Optional[CommentGenerationState]) -> list:
+    def _extract_next_day_forecasts(self, state: Optional[CommentGenerationState]) -> List[WeatherForecast]:
         """翌日の予報データを抽出"""
         if not state:
             return []
@@ -435,13 +435,13 @@ class CommentValidator:
         
         return next_day_forecasts
 
-    def _analyze_weather_type_changes(self, weather_type_sequence: list) -> tuple[set, int]:
+    def _analyze_weather_type_changes(self, weather_type_sequence: List[str]) -> Tuple[set, int]:
         """天気タイプの変化を分析"""
         weather_types = set(weather_type_sequence)
         type_changes = count_weather_type_changes(weather_type_sequence)
         return weather_types, type_changes
     
-    def _check_weather_stability_pattern(self, weather_type_sequence: list, weather_types: set, type_changes: int) -> bool:
+    def _check_weather_stability_pattern(self, weather_type_sequence: List[str], weather_types: set, type_changes: int) -> Optional[bool]:
         """天気パターンの安定性をチェック"""
         if type_changes >= WEATHER_CHANGE_THRESHOLD:
             logger.debug(f"翌日の天気が頻繁に変化: {weather_type_sequence}, 変化回数: {type_changes}")
@@ -464,7 +464,7 @@ class CommentValidator:
         
         return None  # 単一天気タイプの場合は判定継続
 
-    def _check_single_weather_type_stability(self, weather_type: str, next_day_forecasts: list) -> bool:
+    def _check_single_weather_type_stability(self, weather_type: str, next_day_forecasts: List[WeatherForecast]) -> bool:
         """単一天気タイプの安定性をチェック"""
         if weather_type == "sunny":
             logger.debug("翌日は終日晴天で安定")
