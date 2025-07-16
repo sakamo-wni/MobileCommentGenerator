@@ -9,6 +9,7 @@
 - [🎨 フロントエンド](docs/frontend-guide.md) - Nuxt.js/React実装ガイド
 - [📡 API](docs/api-guide.md) - API設定と使用方法
 - [🛠️ 開発](docs/development.md) - 開発ツールとテスト
+- [⚡ パフォーマンス](docs/PERFORMANCE_IMPROVEMENTS.md) - パフォーマンス最適化ガイド
 
 ## 🌟 主要特徴
 
@@ -53,9 +54,24 @@ MAX_LLM_WORKERS=8
 
 # 評価リトライ回数を減らす（デフォルト: 3）
 MAX_EVALUATION_RETRIES=2
+
+# --- 新しいパフォーマンス設定 ---
+# 並列コメント生成の設定
+MAX_PARALLEL_WORKERS=4        # 並列ワーカー数（デフォルト: 4）
+COMMENT_TIMEOUT_SECONDS=30    # コメント生成タイムアウト（デフォルト: 30秒）
+MAX_PARALLEL_LOCATIONS=20     # 並列処理する最大地点数（デフォルト: 20）
+
+# キャッシュの設定
+MEMORY_CACHE_SIZE=500         # インメモリキャッシュサイズ（デフォルト: 500）
+MEMORY_CACHE_TTL=300          # キャッシュTTL秒数（デフォルト: 300）
+ENABLE_SPATIAL_CACHE=true     # 空間キャッシュ有効化（デフォルト: true）
+
+# メモリ監視（psutilインストール時のみ有効）
+MEMORY_WARNING_THRESHOLD=80   # メモリ警告閾値％（デフォルト: 80）
+MEMORY_CRITICAL_THRESHOLD=90  # メモリ危険閾値％（デフォルト: 90）
 ```
 
-これらの設定により、処理時間を最大80%削減できます。
+これらの設定により、処理時間を最大80%削減できます。詳細は[パフォーマンス改善ガイド](docs/PERFORMANCE_IMPROVEMENTS.md)を参照してください。
 
 ### 3. 実行
 ```bash
