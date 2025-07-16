@@ -49,8 +49,8 @@ class WeatherAPIService:
             WeatherForecastCollection
             
         Raises:
-            WxTechAPIError: API通信エラー
-            ValueError: データ取得失敗
+            WxTechAPIError: API通信エラー（ネットワークエラー、タイムアウト、サーバーエラー等）
+            ValueError: データ取得失敗（空のデータ、無効な地点名等）
         """
         
         retry_delay = self.initial_retry_delay
@@ -117,8 +117,8 @@ class WeatherAPIService:
             WeatherForecastCollection
             
         Raises:
-            WxTechAPIError: API通信エラー
-            ValueError: データ取得失敗
+            WxTechAPIError: API通信エラー（ネットワークエラー、タイムアウト、サーバーエラー等）
+            ValueError: データ取得失敗（空のデータ、無効な地点名等）
         """
         
         retry_delay = self.initial_retry_delay

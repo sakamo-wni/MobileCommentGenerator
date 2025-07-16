@@ -118,7 +118,8 @@ class CommentSelector:
         # ペア作成前の最終バリデーション
         if not self.comment_validator.validate_comment_pair(best_weather, best_advice, weather_data, state):
             # 重複回避のための代替選択を試行
-            alternative_pair = AlternativeSelectionStrategy.select_alternative_non_duplicate_pair(
+            alternative_strategy = AlternativeSelectionStrategy()
+            alternative_pair = alternative_strategy.select_alternative_non_duplicate_pair(
                 filtered_weather, filtered_advice, weather_data, location_name, target_datetime,
                 self.utils, self.validator, self.comment_validator, state
             )

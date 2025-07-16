@@ -70,7 +70,7 @@ class LocationService:
             Location オブジェクト
             
         Raises:
-            ValueError: 地点が見つからない場合
+            ValueError: 地点が見つからない場合（LocationManagerに登録されておらず、かつ座標が提供されていない場合）
         """
         location = self.location_manager.get_location(location_name)
         

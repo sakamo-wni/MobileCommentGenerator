@@ -27,7 +27,8 @@ def format_weather_info(weather_data: Any,
         フォーマットされた天気情報文字列
         
     Raises:
-        ValueError: 天気データが不正な場合
+        ValueError: 天気データが不正な場合（Noneまたは気温データが欠落）
+        AttributeError: weather_dataに必要な属性が存在しない場合
     """
     try:
         if not weather_data:

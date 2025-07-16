@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 class AlternativeSelectionStrategy:
     """代替選択戦略（重複回避）"""
     
-    @staticmethod
     def select_alternative_non_duplicate_pair(
+        self,
         weather_comments: list[PastComment],
         advice_comments: list[PastComment],
         weather_data: WeatherForecast,
