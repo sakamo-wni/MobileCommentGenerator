@@ -4,11 +4,20 @@
 
 Weather Comment GeneratorをAWS Lambda上で動作させるためのサーバーレスアーキテクチャ設計案です。Lambda関数とDynamoDBを中心に、スケーラブルで高可用性を持つシステムを構築します。
 
+### 最新コードベースとの統合
+本設計は、最新のmainブランチ（2024年1月）で実装された以下の機能を完全に統合します：
+- **並列コメント生成** (`parallel_comment_generator.py`) - Lambda関数での並列処理に最適
+- **マルチレベルキャッシング** (`multilevel_comment_cache.py`) - DynamoDBとメモリキャッシュの併用
+- **空間キャッシング** (`spatial_cache.py`) - 既に設計に組み込み済み
+- **メモリ監視** (`memory_monitor.py`) - CloudWatchカスタムメトリクスと統合
+- **キャッシュウォーマー** (`cache_warmer.py`) - EventBridge定期実行Lambda関数として実装
+
 ### 主要な設計方針
 - **サーバーレスファースト**: 運用負荷を最小化し、自動スケーリングを実現
 - **非同期処理**: SQSを介した疎結合なアーキテクチャ
 - **マルチレベルキャッシング**: パフォーマンス最適化とコスト削減
 - **Infrastructure as Code**: SAMによる再現可能なデプロイメント
+- **既存実装の活用**: 現在のコードベースの機能を最大限活用
 
 ## 2. システムアーキテクチャ
 
@@ -137,20 +146,25 @@ def lambda_handler(event, context):
 - メモリ: 1024MB
 - タイムアウト: 300秒（5分）
 - 予約済み同時実行数: 20
+- エフェメラルストレージ: 512MB（キャッシュ用）
 
-**主な処理**:
+**主な処理**（既存実装を活用）:
 ```python
 def lambda_handler(event, context):
-    # 1. SQSメッセージの処理
-    # 2. キャッシュチェック
-    # 3. 天気データ取得（Step Functions経由）
-    # 4. LLM APIコール
-    # 5. 結果をDynamoDBに保存
+    # 1. SQSメッセージの処理（バッチ対応）
+    # 2. 並列処理の初期化（parallel_comment_generator.py）
+    # 3. マルチレベルキャッシュチェック
+    # 4. 天気データ取得（Step Functions経由）
+    # 5. LLM APIコール（並列実行）
+    # 6. 結果をDynamoDBに保存
+    # 7. メモリ使用量の監視（memory_monitor.py）
 ```
 
 **環境変数**:
 - `DYNAMODB_COMMENTS_TABLE`: コメントテーブル名
 - `SECRETS_ARN`: APIキー格納先
+- `MAX_PARALLEL_WORKERS`: 並列ワーカー数（デフォルト: 4）
+- `MEMORY_WARNING_THRESHOLD`: メモリ警告閾値（デフォルト: 80%）
 
 ### 3.3 Weather Fetcher Lambda
 
@@ -328,15 +342,21 @@ GlobalSecondaryIndexes:
 
 ### 6.1 キャッシング戦略
 
-**3層キャッシング**:
-1. **L1キャッシュ**: 完全一致（地点+時間+季節）
+**3層キャッシング**（既存実装を活用）:
+1. **L1キャッシュ**: 完全一致（地点+時間+季節）- `multilevel_comment_cache.py`
 2. **L2キャッシュ**: 部分一致（地点+時間）
 3. **L3キャッシュ**: 地点のみ
 
-**空間キャッシング**:
-- Haversine距離計算による近隣地点検索
+**メモリキャッシング**（新規追加）:
+- Lambda関数内でLRUメモリキャッシュを使用（`memory_cache.py`）
+- /tmp ディレクトリに一時キャッシュファイル
+- Lambda Layerでキャッシュロジックを共有
+
+**空間キャッシング**（既存実装を活用）:
+- Haversine距離計算による近隣地点検索（`spatial_cache.py`）
 - 10km以内の地点データを活用
 - 最大5地点までの平均化
+- DynamoDBの空間インデックスと連携
 
 ### 6.2 Lambda最適化
 
@@ -410,11 +430,28 @@ Cache Warmer: 512MB      # バッチ処理
 - コメント生成成功率
 - 平均生成時間
 - LLMプロバイダー別使用率
+- 並列処理効率（parallel_processed/total_processed）
 
 **システムメトリクス**:
 - Lambda実行時間
 - エラー率
 - 同時実行数
+- メモリ使用率（memory_monitor.pyから収集）
+- キャッシュヒット率（L1/L2/L3/空間）
+
+**カスタムメトリクス**（CloudWatch埋め込み）:
+```python
+from aws_lambda_powertools import Metrics
+from src.utils.memory_monitor import MemoryMonitor
+
+metrics = Metrics()
+monitor = MemoryMonitor()
+
+# メモリ使用量をメトリクスに記録
+memory_info = monitor.get_memory_info()
+metrics.add_metric("MemoryUsedPercent", memory_info["percent"])
+metrics.add_metric("CacheHitRate", cache_hit_rate)
+```
 
 ### 8.2 ログ管理
 
@@ -598,7 +635,76 @@ jobs:
 - 予約済み同時実行数の調整
 - DynamoDBのプロビジョンドキャパシティ設定
 
-## 13. まとめ
+## 13. 実装例：既存コードのLambda統合
+
+### 13.1 Comment Processor Lambdaの実装例
+
+```python
+import json
+from aws_lambda_powertools import Logger, Tracer, Metrics
+from aws_lambda_powertools.metrics import MetricUnit
+
+from src.controllers.parallel_comment_generator import ParallelCommentGenerator
+from src.repositories.multilevel_comment_cache import MultiLevelCommentCache
+from src.utils.memory_monitor import MemoryMonitor
+
+logger = Logger()
+tracer = Tracer()
+metrics = Metrics()
+
+# グローバルに初期化（コールドスタート最適化）
+parallel_generator = ParallelCommentGenerator(
+    max_workers=int(os.environ.get('MAX_PARALLEL_WORKERS', '4'))
+)
+cache = MultiLevelCommentCache()
+memory_monitor = MemoryMonitor()
+
+@logger.inject_lambda_context
+@tracer.capture_lambda_handler
+@metrics.log_metrics
+def lambda_handler(event, context):
+    # メモリ監視開始
+    memory_info = memory_monitor.get_memory_info()
+    metrics.add_metric("MemoryUsedPercent", memory_info["percent"], unit=MetricUnit.Percent)
+    
+    # SQSバッチメッセージの処理
+    results = []
+    for record in event['Records']:
+        message = json.loads(record['body'])
+        location_ids = message.get('location_ids', [])
+        
+        # 並列処理で複数地点のコメント生成
+        batch_result = parallel_generator.generate_batch(
+            location_ids=location_ids,
+            progress_callback=lambda p: logger.info(f"Progress: {p}")
+        )
+        
+        results.extend(batch_result.results)
+    
+    return {
+        'statusCode': 200,
+        'processedCount': len(results)
+    }
+```
+
+### 13.2 Lambda Layerの構成
+
+```
+layers/
+├── dependencies/
+│   ├── requirements.txt
+│   └── python/
+│       ├── lib/
+│       └── site-packages/
+└── shared_code/
+    └── python/
+        └── src/  # 共通コードをコピー
+            ├── controllers/
+            ├── repositories/
+            └── utils/
+```
+
+## 14. まとめ
 
 この設計により、以下のメリットが得られます：
 
@@ -607,5 +713,6 @@ jobs:
 ✅ **コスト効率**: 使用量に応じた課金
 ✅ **運用負荷削減**: サーバーレスによる管理不要
 ✅ **開発効率**: CI/CDによる迅速なデプロイ
+✅ **既存資産の活用**: 現在のコードベースをそのまま使用可能
 
-本設計は、将来的な機能拡張や負荷増大にも柔軟に対応可能な、モダンでスケーラブルなアーキテクチャとなっています。
+本設計は、将来的な機能拡張や負荷増大にも柔軟に対応可能な、モダンでスケーラブルなアーキテクチャとなっています。最新のコードベースの機能（並列処理、マルチレベルキャッシング、メモリ監視など）を完全に活用し、さらなるパフォーマンス向上を実現します。
