@@ -5,6 +5,7 @@ WxTech API クライアント(後方互換性のためのラッパー)
 新しいコードでは src.apis.wxtech モジュールを直接インポートしてください。
 """
 
+from __future__ import annotations
 import warnings
 
 # 後方互換性のためのインポート

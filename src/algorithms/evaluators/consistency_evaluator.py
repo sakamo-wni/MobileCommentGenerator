@@ -4,6 +4,7 @@
 コメント間の一貫性と整合性を評価する
 """
 
+from __future__ import annotations
 from typing import Any
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext

@@ -5,6 +5,7 @@
 新しいコードではsrc.config.configを使用してください。
 """
 
+from __future__ import annotations
 import warnings
 from typing import Any
 

@@ -4,6 +4,7 @@
 環境変数の一覧、型、デフォルト値を管理
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 from enum import Enum

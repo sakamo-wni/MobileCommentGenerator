@@ -4,6 +4,7 @@
 天気予報データの変換・加工・集計機能を提供
 """
 
+from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from typing import Any

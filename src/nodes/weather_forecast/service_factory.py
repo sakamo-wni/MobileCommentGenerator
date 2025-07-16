@@ -4,6 +4,7 @@ Weather forecast service factory
 サービスの依存性注入を管理するファクトリークラス
 """
 
+from __future__ import annotations
 from src.nodes.weather_forecast.services import (
     LocationService,
     WeatherAPIService,

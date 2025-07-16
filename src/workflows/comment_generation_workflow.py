@@ -4,6 +4,7 @@
 パフォーマンスを最適化したワークフローです。
 """
 
+from __future__ import annotations
 from typing import Any
 from datetime import datetime, timedelta
 import time

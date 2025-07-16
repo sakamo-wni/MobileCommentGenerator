@@ -1,5 +1,6 @@
 """Unified API response types for type safety"""
 
+from __future__ import annotations
 from typing import TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 from datetime import datetime

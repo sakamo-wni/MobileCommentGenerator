@@ -1,5 +1,6 @@
 """地点選択コンポーネント"""
 
+from __future__ import annotations
 import streamlit as st
 from typing import Any
 from src.ui.streamlit_utils import load_locations, filter_locations, sort_locations_by_order

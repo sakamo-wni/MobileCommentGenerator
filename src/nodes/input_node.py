@@ -4,6 +4,7 @@
 ユーザー入力を受け取り、初期状態を設定するLangGraphノード
 """
 
+from __future__ import annotations
 from typing import Any
 import logging
 from datetime import datetime, timedelta

@@ -4,6 +4,7 @@ LangGraph統合機能の設定管理
 LangGraph関連の設定を管理する
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any

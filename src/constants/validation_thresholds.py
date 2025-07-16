@@ -1,6 +1,8 @@
 """Validation threshold constants."""
 
 # Temperature thresholds for symptom checks (Celsius)
+
+from __future__ import annotations
 HEATSTROKE_WARNING_TEMP = 35.0  # 熱中症警告温度
 COLD_PREVENTION_TEMP = 15.0     # 防寒対策推奨温度
 COMFORTABLE_HIGH_TEMP = 30.0     # 快適上限温度

@@ -1,7 +1,8 @@
 """統一されたエラーハンドリング"""
 
+from __future__ import annotations
 import logging
-from typing import Any, Callable, TypeVar 
+from typing import Any, TypeVar
 from functools import wraps
 from dataclasses import dataclass
 import traceback

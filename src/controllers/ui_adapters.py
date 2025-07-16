@@ -1,5 +1,6 @@
 """UIフレームワークアダプター"""
 
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.controllers.ui_interfaces import (

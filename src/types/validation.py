@@ -4,6 +4,7 @@
 Protocolを使用して、型の一貫性を保証
 """
 
+from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 

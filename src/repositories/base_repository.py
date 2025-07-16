@@ -1,5 +1,6 @@
 """リポジトリの基底クラスとインターフェース定義"""
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 from datetime import datetime

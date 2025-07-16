@@ -1,5 +1,6 @@
 """過去コメントのコレクション管理"""
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 from collections import Counter

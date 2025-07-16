@@ -1,5 +1,6 @@
 """Standardized error types and error handling for the application"""
 
+from __future__ import annotations
 from enum import Enum
 from typing import Any
 

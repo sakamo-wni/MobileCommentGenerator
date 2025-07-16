@@ -4,6 +4,7 @@ WxTech API クライアント
 高レベルのAPI操作インターフェースを提供
 """
 
+from __future__ import annotations
 from typing import Any
 import asyncio
 from concurrent.futures import ThreadPoolExecutor

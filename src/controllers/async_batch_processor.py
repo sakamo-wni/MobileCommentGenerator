@@ -3,9 +3,11 @@
 複数地点の天気予報を並列で非同期取得する最適化版
 """
 
+from __future__ import annotations
 import asyncio
 import logging
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 from datetime import datetime
 
 from src.apis.wxtech.cached_client import CachedWxTechAPIClient

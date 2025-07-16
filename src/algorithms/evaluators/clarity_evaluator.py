@@ -4,6 +4,7 @@
 コメントの明確性と具体性を評価する
 """
 
+from __future__ import annotations
 import re
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext

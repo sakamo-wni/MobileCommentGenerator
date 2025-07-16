@@ -1,5 +1,6 @@
 """ベースバリデータクラス - 共通の検証機能を提供"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from abc import ABC, abstractmethod

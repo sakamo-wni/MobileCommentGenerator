@@ -4,6 +4,7 @@ WxTech API 天気コードマッピング
 天気コードと風向きの変換定義を管理
 """
 
+from __future__ import annotations
 from src.data.weather_data import WeatherCondition, WindDirection
 
 

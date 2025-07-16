@@ -4,6 +4,7 @@
 aiohttpを使用した真の非同期実装
 """
 
+from __future__ import annotations
 import asyncio
 import logging
 import os

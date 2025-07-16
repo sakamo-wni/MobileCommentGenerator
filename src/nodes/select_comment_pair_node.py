@@ -1,5 +1,6 @@
 """コメントペア選択ノード - LLMを使用して適切なコメントペアを選択"""
 
+from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from typing import Any

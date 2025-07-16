@@ -1,6 +1,8 @@
 """天気関連の定数定義"""
 
 # 気温閾値 (°C)
+
+from __future__ import annotations
 class TemperatureThresholds:
     """気温閾値の定数"""
     HOT_WEATHER = 30.0          # 暑い天気の閾値

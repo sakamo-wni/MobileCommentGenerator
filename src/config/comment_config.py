@@ -1,5 +1,6 @@
 """コメント生成に関する設定"""
 
+from __future__ import annotations
 from dataclasses import dataclass
 
 from src.data.weather_data import WeatherCondition

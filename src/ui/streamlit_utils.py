@@ -6,6 +6,8 @@ Streamlit UIユーティリティ関数
 """
 
 # 後方互換性のために全ての関数を再エクスポート
+
+from __future__ import annotations
 from .utils import (
     # Location utilities
     get_location_order,

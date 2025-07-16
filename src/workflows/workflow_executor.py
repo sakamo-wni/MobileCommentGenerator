@@ -3,6 +3,7 @@
 巨大なrun_comment_generation関数を分割し、責務を明確化。
 """
 
+from __future__ import annotations
 import json
 import logging
 from typing import Any

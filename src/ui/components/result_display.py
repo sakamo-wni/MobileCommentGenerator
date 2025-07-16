@@ -1,5 +1,6 @@
 """結果表示コンポーネント"""
 
+from __future__ import annotations
 import streamlit as st
 from typing import Any
 from datetime import datetime

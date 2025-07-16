@@ -6,6 +6,7 @@ WxTech API で発生するエラーの定義と処理を管理
 
 
 
+from __future__ import annotations
 class WxTechAPIError(Exception):
     """WxTech API エラー
     

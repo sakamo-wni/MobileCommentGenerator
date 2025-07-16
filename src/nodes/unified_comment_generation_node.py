@@ -4,6 +4,7 @@
 単一のLLM呼び出しで実行することで、パフォーマンスを向上させます。
 """
 
+from __future__ import annotations
 import json
 import logging
 from typing import Any

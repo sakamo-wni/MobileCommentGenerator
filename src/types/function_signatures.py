@@ -1,5 +1,6 @@
 """Standardized function signatures for consistency across the codebase"""
 
+from __future__ import annotations
 from typing import Protocol, Any 
 from datetime import datetime
 

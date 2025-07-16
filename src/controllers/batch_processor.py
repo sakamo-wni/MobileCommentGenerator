@@ -1,8 +1,9 @@
 """バッチ処理モジュール"""
 
+from __future__ import annotations
 import asyncio
 import logging
-from typing import Callable
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.types import LocationResult, BatchGenerationResult

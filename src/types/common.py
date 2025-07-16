@@ -1,5 +1,6 @@
 """共通の型定義"""
 
+from __future__ import annotations
 from typing import TypedDict, Any, Literal
 from datetime import datetime
 from dataclasses import dataclass

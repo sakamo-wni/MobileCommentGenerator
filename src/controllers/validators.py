@@ -1,5 +1,6 @@
 """バリデーションモジュール"""
 
+from __future__ import annotations
 from typing import Any
 from src.config.app_config import AppConfig
 

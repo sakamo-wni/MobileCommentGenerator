@@ -1,5 +1,6 @@
 """地点データモデル - Locationデータクラスの定義"""
 
+from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field

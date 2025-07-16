@@ -6,6 +6,7 @@
     python -m src.config.validate
 """
 
+from __future__ import annotations
 import sys
 import json
 import logging

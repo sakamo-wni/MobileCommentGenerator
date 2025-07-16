@@ -1,5 +1,6 @@
 """コメント安全性チェックモジュール"""
 
+from __future__ import annotations
 from typing import Any
 import logging
 from src.data.comment_generation_state import CommentGenerationState

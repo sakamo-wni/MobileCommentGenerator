@@ -1,5 +1,6 @@
 """天気タイプ分類ユーティリティ"""
 
+from __future__ import annotations
 from src.config.config import get_weather_constants
 
 # 定数を取得

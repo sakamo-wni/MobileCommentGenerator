@@ -4,8 +4,10 @@
 ユーザーフレンドリーなエラーメッセージと対処法を提供
 """
 
+from __future__ import annotations
 import streamlit as st
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 from enum import Enum
 import logging
 import json

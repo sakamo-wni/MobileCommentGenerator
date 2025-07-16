@@ -1,5 +1,6 @@
 """温度条件バリデーター - 温度条件に基づいてコメントの適切性を検証"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from src.config.config import get_weather_constants

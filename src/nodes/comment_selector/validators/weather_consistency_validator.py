@@ -1,5 +1,6 @@
 """天気の一貫性チェックバリデーター"""
 
+from __future__ import annotations
 import logging
 
 from src.config.config import get_weather_constants

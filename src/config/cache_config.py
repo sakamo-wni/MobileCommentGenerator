@@ -4,6 +4,7 @@
 環境変数または設定ファイルからキャッシュパラメータを読み込む
 """
 
+from __future__ import annotations
 import os
 from typing import Any
 

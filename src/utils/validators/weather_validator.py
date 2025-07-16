@@ -1,5 +1,6 @@
 """天気条件バリデータ - 天気状態に基づくコメント検証"""
 
+from __future__ import annotations
 import logging
 from typing import TypedDict
 

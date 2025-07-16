@@ -4,6 +4,7 @@
 天気条件やセマンティック類似度を計算する機能
 """
 
+from __future__ import annotations
 import math
 from typing import Any
 from datetime import datetime

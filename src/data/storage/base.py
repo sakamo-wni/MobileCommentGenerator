@@ -4,6 +4,7 @@
 DynamoDBとローカルストレージの両方に対応できる基底クラス
 """
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 from datetime import datetime

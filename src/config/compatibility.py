@@ -4,6 +4,7 @@
 既存の設定クラスから新しい統一設定への移行を支援
 """
 
+from __future__ import annotations
 import warnings
 import logging
 from typing import Any

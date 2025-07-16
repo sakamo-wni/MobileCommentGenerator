@@ -1,5 +1,6 @@
 """気温差分析モジュール"""
 
+from __future__ import annotations
 from typing import Any
 import logging
 from src.config.weather_config import get_config

@@ -4,6 +4,7 @@
 コメントの品質を多角的に評価する機能
 """
 
+from __future__ import annotations
 from typing import Any
 import re
 import logging

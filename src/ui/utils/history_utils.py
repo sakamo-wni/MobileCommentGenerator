@@ -4,6 +4,7 @@
 生成結果の保存、読み込み、エクスポートなど
 """
 
+from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any

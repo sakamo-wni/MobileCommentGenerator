@@ -3,6 +3,7 @@
 CommentGenerationControllerから履歴管理の責務を分離。
 """
 
+from __future__ import annotations
 import logging
 from typing import Any
 from src.ui.streamlit_utils import load_history, save_to_history

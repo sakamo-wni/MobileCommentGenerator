@@ -4,6 +4,7 @@
 地点の順序管理、フィルタリング、読み込みなど
 """
 
+from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 import streamlit as st

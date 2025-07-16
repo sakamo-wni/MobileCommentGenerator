@@ -1,5 +1,6 @@
 """重複チェック共通ユーティリティ"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from src.constants.validation_constants import (

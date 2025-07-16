@@ -4,6 +4,7 @@
 最終結果を整形してJSON形式で出力するLangGraphノード
 """
 
+from __future__ import annotations
 from typing import Any
 import logging
 from datetime import datetime

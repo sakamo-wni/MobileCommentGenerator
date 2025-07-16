@@ -4,6 +4,7 @@
 コメントの独自性と新規性を評価する
 """
 
+from __future__ import annotations
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext
 from src.data.comment_pair import CommentPair

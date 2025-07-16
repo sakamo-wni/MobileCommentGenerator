@@ -1,5 +1,6 @@
 """コメント選択のユーティリティ関数"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from functools import lru_cache

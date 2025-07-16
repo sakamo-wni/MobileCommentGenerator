@@ -5,6 +5,7 @@
 効果的な天気コメント生成用プロンプトを構築します。
 """
 
+from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass

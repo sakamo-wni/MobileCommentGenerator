@@ -4,6 +4,7 @@
 既存のワークフローと完全な互換性を保ちます。
 """
 
+from __future__ import annotations
 from typing import Any
 from datetime import datetime, timedelta
 import time

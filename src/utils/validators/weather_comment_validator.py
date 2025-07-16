@@ -1,5 +1,6 @@
 """天気コメント検証システム - メインバリデータ"""
 
+from __future__ import annotations
 import logging
 from typing import Any, TypedDict
 from datetime import datetime

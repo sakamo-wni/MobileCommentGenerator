@@ -5,6 +5,8 @@
 """
 
 # 温度差閾値設定（気象学的根拠に基づく）
+
+from __future__ import annotations
 TEMP_DIFF_THRESHOLD_PREVIOUS_DAY = 5.0  # 前日比5℃: 人体が明確に体感できる温度差
 TEMP_DIFF_THRESHOLD_12HOURS = 3.0  # 12時間前比3℃: 体調管理に影響する可能性がある基準値
 DAILY_TEMP_RANGE_THRESHOLD_LARGE = 15.0  # 日較差15℃: 健康影響リスクが高まる閾値

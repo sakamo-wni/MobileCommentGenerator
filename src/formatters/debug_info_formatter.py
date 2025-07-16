@@ -4,6 +4,7 @@ Debug Info Formatter
 デバッグ情報を作成する
 """
 
+from __future__ import annotations
 from typing import Any
 import logging
 

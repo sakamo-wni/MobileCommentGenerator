@@ -1,5 +1,6 @@
 """花粉関連のコメント検証"""
 
+from __future__ import annotations
 import logging
 from datetime import datetime
 

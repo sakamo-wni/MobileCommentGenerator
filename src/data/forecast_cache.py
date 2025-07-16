@@ -5,6 +5,7 @@
 前日との気温差や日較差の比較を可能にする
 """
 
+from __future__ import annotations
 import ast
 import csv
 import re

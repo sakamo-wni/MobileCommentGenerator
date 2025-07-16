@@ -4,6 +4,7 @@
 関連する定数はクラスでグループ化されており、保守性と可読性を向上させています。
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 
 

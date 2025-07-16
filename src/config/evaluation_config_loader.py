@@ -1,5 +1,6 @@
 """評価設定ローダー"""
 
+from __future__ import annotations
 import yaml
 from typing import Any
 from pathlib import Path

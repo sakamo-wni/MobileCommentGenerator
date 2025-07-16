@@ -5,6 +5,7 @@ LangGraphノードとして天気予報データの取得・処理を行う
 巨大な関数を責務ごとのサービスに分割
 """
 
+from __future__ import annotations
 import asyncio
 import logging
 import os

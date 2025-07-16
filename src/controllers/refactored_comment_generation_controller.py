@@ -3,9 +3,11 @@
 単一責任原則に従い、責務を適切に分離。
 """
 
+from __future__ import annotations
 import asyncio
 import logging
-from typing import Callable, Any
+from typing import Any
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.types import LocationResult, BatchGenerationResult

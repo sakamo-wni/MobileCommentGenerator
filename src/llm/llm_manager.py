@@ -3,6 +3,7 @@
 複数のLLMプロバイダーを統一的に管理するマネージャークラス。
 """
 
+from __future__ import annotations
 import os
 from typing import Any
 import logging

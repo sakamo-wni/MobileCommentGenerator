@@ -3,6 +3,7 @@
 並列処理のワーカー数を環境に応じて最適化する。
 """
 
+from __future__ import annotations
 import os
 import logging
 
