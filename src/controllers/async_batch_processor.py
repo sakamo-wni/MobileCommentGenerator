@@ -91,7 +91,16 @@ class AsyncBatchProcessor:
             # 結果を辞書に格納
             for i, (location_name, location, _) in enumerate(tasks):
                 if isinstance(results[i], Exception):
-                    logger.error(f"天気予報取得エラー: {location_name} - {results[i]}")
+                    error = results[i]
+                    # エラーの種類に応じた詳細な処理
+                    if isinstance(error, asyncio.TimeoutError):
+                        logger.error(f"天気予報取得タイムアウト: {location_name} - APIレスポンスが遅い可能性があります")
+                    elif isinstance(error, ConnectionError):
+                        logger.error(f"天気予報取得接続エラー: {location_name} - ネットワーク接続を確認してください")
+                    elif hasattr(error, 'response') and hasattr(error.response, 'status_code'):
+                        logger.error(f"天気予報取得APIエラー: {location_name} - ステータスコード: {error.response.status_code}")
+                    else:
+                        logger.error(f"天気予報取得エラー: {location_name} - {type(error).__name__}: {error}")
                     weather_data[location_name] = None
                 else:
                     # キャッシュに保存

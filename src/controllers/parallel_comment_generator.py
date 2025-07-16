@@ -15,6 +15,7 @@ import threading
 from src.workflows.comment_generation_workflow import run_comment_generation
 from src.types import LocationResult, BatchGenerationResult
 from src.utils.error_handler import ErrorHandler
+from src.config.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +28,24 @@ class ParallelCommentGenerator:
     """
     
     def __init__(self, 
-                 max_workers: int = 4,
-                 timeout_per_location: int = 30):
+                 max_workers: Optional[int] = None,
+                 timeout_per_location: Optional[int] = None,
+                 max_parallel_locations: Optional[int] = None):
         """初期化
         
         Args:
-            max_workers: 最大ワーカー数
+            max_workers: 最大ワーカー数（Noneの場合は設定から取得）
             timeout_per_location: 地点ごとのタイムアウト（秒）
+            max_parallel_locations: 並列処理の最大地点数
         """
-        self.max_workers = max_workers
-        self.timeout_per_location = timeout_per_location
-        self._lock = threading.Lock()
+        config = get_config()
+        
+        # 設定値の取得（指定がない場合はデフォルト値を使用）
+        self.max_workers = max_workers or getattr(config.generation, 'max_parallel_workers', 4)
+        self.timeout_per_location = timeout_per_location or getattr(config.generation, 'comment_timeout_seconds', 30)
+        self.max_parallel_locations = max_parallel_locations or getattr(config.generation, 'max_parallel_locations', 20)
+        
+        self._lock = threading.RLock()  # RLockに変更してリエントラントを許可
         self._stats = {
             "parallel_processed": 0,
             "serial_processed": 0,
@@ -64,7 +72,7 @@ class ParallelCommentGenerator:
         completed_count = 0
         
         # バッチサイズを決定（大量の地点の場合は制限）
-        use_parallel = len(locations_with_weather) > 1 and len(locations_with_weather) <= 20
+        use_parallel = len(locations_with_weather) > 1 and len(locations_with_weather) <= self.max_parallel_locations
         
         if use_parallel:
             logger.info(f"🚀 {len(locations_with_weather)}地点のコメントを並列生成開始（最大{self.max_workers}並列）")

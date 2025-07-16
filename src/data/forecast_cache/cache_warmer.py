@@ -7,12 +7,16 @@ Cache warmer for popular locations
 from __future__ import annotations
 import logging
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable, Awaitable, TYPE_CHECKING
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from pathlib import Path
 import json
 from zoneinfo import ZoneInfo
+
+if TYPE_CHECKING:
+    from src.data.weather_data import WeatherForecast
+    from .manager import ForecastCache
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +144,9 @@ class CacheWarmer:
         except Exception as e:
             logger.error(f"人気地点リストの保存エラー: {e}")
     
-    async def warm_cache_async(self, forecast_fetcher, forecast_cache) -> Dict[str, Any]:
+    async def warm_cache_async(self, 
+                             forecast_fetcher: Callable[[str, float, float, datetime], Awaitable['WeatherForecast']], 
+                             forecast_cache: 'ForecastCache') -> Dict[str, Any]:
         """キャッシュを非同期で温める
         
         Args:

@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from src.data.weather_data import WeatherForecast
 from src.config.weather_config import get_config
+from src.utils.memory_monitor import MemoryMonitor
 from .models import ForecastCacheEntry
 from .utils import ensure_jst
 from .memory_cache import ForecastMemoryCache
@@ -66,6 +67,12 @@ class ForecastCache:
                 max_neighbors=5
             )
         
+        # メモリモニターの初期化
+        self._memory_monitor = MemoryMonitor(
+            warning_threshold_percent=80.0,
+            critical_threshold_percent=90.0
+        )
+        
         # CSVのヘッダー定義
         self.csv_headers = [
             "location_name",
@@ -113,12 +120,16 @@ class ForecastCache:
             
             logger.info(f"予報データをキャッシュに保存: {location_name} at {weather_forecast.datetime}")
             
-            # メモリキャッシュにも追加
-            self._memory_cache.put(location_name, weather_forecast.datetime, cache_entry)
-            
-            # 空間キャッシュにも追加
-            if self._spatial_cache:
-                self._spatial_cache.put(location_name, weather_forecast.datetime, cache_entry)
+            # 複数のキャッシュへの書き込みをトランザクション的に実行
+            try:
+                # メモリキャッシュにも追加
+                self._memory_cache.put(location_name, weather_forecast.datetime, cache_entry)
+                
+                # 空間キャッシュにも追加
+                if self._spatial_cache:
+                    self._spatial_cache.put(location_name, weather_forecast.datetime, cache_entry)
+            except Exception as e:
+                logger.warning(f"キャッシュ更新エラー（データは保存済み）: {e}")
             
             # 古いデータのクリーンアップ（設定から保持日数を取得）
             config = get_config()
@@ -190,11 +201,16 @@ class ForecastCache:
                     f"キャッシュ保存時刻: {best_entry.cached_at.strftime('%Y-%m-%d %H:%M')}, "
                     f"同時刻エントリ数: {len(same_time_entries)}"
                 )
-                # メモリキャッシュに追加
-                self._memory_cache.put(location_name, target_datetime, best_entry)
-                # 空間キャッシュにも追加
-                if self._spatial_cache:
-                    self._spatial_cache.put(location_name, target_datetime, best_entry)
+                # 複数のキャッシュへの書き込みをトランザクション的に実行
+                try:
+                    # メモリキャッシュに追加
+                    self._memory_cache.put(location_name, target_datetime, best_entry)
+                    # 空間キャッシュにも追加
+                    if self._spatial_cache:
+                        self._spatial_cache.put(location_name, target_datetime, best_entry)
+                except Exception as e:
+                    logger.warning(f"キャッシュ更新エラー: {e}")
+                    # エラーが発生してもデータは返す
                 return best_entry
             
             return None
@@ -352,6 +368,22 @@ class ForecastCache:
         
         if self._spatial_cache:
             stats["spatial_cache"] = self._spatial_cache.get_stats()
+        
+        # メモリ使用量情報を追加
+        memory_info = self._memory_monitor.get_memory_info()
+        stats["memory"] = memory_info
+        
+        # キャッシュのメモリ使用量を推定
+        cache_sizes = {
+            "memory_cache": len(self._memory_cache._cache),
+            "spatial_cache": len(self._spatial_cache._cache) if self._spatial_cache else 0
+        }
+        stats["cache_memory_estimate"] = self._memory_monitor.get_cache_memory_estimate(cache_sizes)
+        
+        # メモリ使用量チェック
+        warning_needed, warning_msg = self._memory_monitor.check_memory_usage()
+        if warning_needed:
+            stats["memory_warning"] = warning_msg
         
         return stats
 
