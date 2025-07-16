@@ -218,8 +218,8 @@ class CacheWarmer:
     async def _warm_single_location(self, 
                                   location: PopularLocation,
                                   target_time: datetime,
-                                  forecast_fetcher,
-                                  forecast_cache,
+                                  forecast_fetcher: Callable[[str, float, float, datetime], Awaitable['WeatherForecast']],
+                                  forecast_cache: 'ForecastCache',
                                   semaphore: asyncio.Semaphore) -> str:
         """単一地点・時刻のキャッシュを温める"""
         async with semaphore:

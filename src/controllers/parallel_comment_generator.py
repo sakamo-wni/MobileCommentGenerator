@@ -7,7 +7,7 @@ Parallel comment generation processor
 from __future__ import annotations
 import asyncio
 import logging
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Callable
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -56,7 +56,7 @@ class ParallelCommentGenerator:
     def generate_parallel(self,
                          locations_with_weather: Dict[str, Any],
                          llm_provider: str = "gemini",
-                         progress_callback: Optional[callable] = None) -> BatchGenerationResult:
+                         progress_callback: Optional[Callable[[int, int, Optional[str]], None]] = None) -> BatchGenerationResult:
         """複数地点のコメントを並列生成
         
         Args:
@@ -243,7 +243,7 @@ class ParallelCommentGenerator:
     async def generate_parallel_async(self,
                                     locations_with_weather: Dict[str, Any],
                                     llm_provider: str = "gemini",
-                                    progress_callback: Optional[callable] = None) -> BatchGenerationResult:
+                                    progress_callback: Optional[Callable[[int, int, Optional[str]], None]] = None) -> BatchGenerationResult:
         """非同期インターフェース（内部では同期処理）
         
         asyncioイベントループ内から呼び出すためのラッパー
