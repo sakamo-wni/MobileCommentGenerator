@@ -17,7 +17,7 @@ from src.llm.llm_manager import LLMManager
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.nodes.helpers.comment_safety import check_and_fix_weather_comment_safety
 from src.nodes.helpers.ng_words import check_ng_words
-from src.constants.weather_constants import TEMP, PRECIP
+from src.constants.weather_constants import TEMP, PRECIP, COMMENT
 from src.nodes.unified_comment_generation import (
     format_weather_info,
     build_unified_prompt,

@@ -37,7 +37,6 @@ class CommentSelector:
         self.llm_selector = LLMCommentSelector(llm_manager)
         self.comment_validator = CommentValidator(validator, self.severe_config)
         self.utils = CommentUtils()
-        self.alternative_strategy = AlternativeSelectionStrategy(self.utils, self.validator, self.comment_validator)
     
     def select_optimal_comment_pair(
         self, 
@@ -120,8 +119,9 @@ class CommentSelector:
         # ペア作成前の最終バリデーション
         if not self.comment_validator.validate_comment_pair(best_weather, best_advice, weather_data, state):
             # 重複回避のための代替選択を試行
-            alternative_pair = self.alternative_strategy.select_alternative_non_duplicate_pair(
-                filtered_weather, filtered_advice, weather_data, location_name, target_datetime, state
+            alternative_pair = AlternativeSelectionStrategy.select_alternative_non_duplicate_pair(
+                filtered_weather, filtered_advice, weather_data, location_name, target_datetime,
+                self.utils, self.validator, self.comment_validator, state
             )
             if alternative_pair:
                 return alternative_pair

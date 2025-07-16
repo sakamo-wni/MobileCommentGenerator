@@ -10,11 +10,9 @@ import logging
 from src.data.past_comment import PastComment
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
+from src.constants.weather_constants import COMMENT
 
 logger = logging.getLogger(__name__)
-
-# 連続雨判定の閾値（時間）
-CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
 
 
 class RainCommentStrategy:
@@ -43,7 +41,7 @@ class RainCommentStrategy:
             rain_hours = sum(1 for f in period_forecasts 
                            if (hasattr(f, 'weather') and f.weather == "雨") or 
                               (hasattr(f, 'precipitation') and f.precipitation >= 0.1))
-            is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+            is_continuous_rain = rain_hours >= COMMENT.CONTINUOUS_RAIN_HOURS
             
             if is_continuous_rain:
                 logger.info(f"連続雨を検出: {rain_hours}時間の雨（9,12,15,18時）")
@@ -116,7 +114,7 @@ class RainCommentStrategy:
                 rain_hours = sum(1 for f in period_forecasts 
                                if (hasattr(f, 'weather') and f.weather == "雨") or 
                                   (hasattr(f, 'precipitation') and f.precipitation >= 0.1))
-                is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+                is_continuous_rain = rain_hours >= COMMENT.CONTINUOUS_RAIN_HOURS
         
         for comment in comments:
             if any(keyword in comment.comment_text for keyword in rain_keywords):
