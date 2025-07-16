@@ -17,8 +17,17 @@ from src.llm.llm_manager import LLMManager
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.nodes.helpers.comment_safety import check_and_fix_weather_comment_safety
 from src.nodes.helpers.ng_words import check_ng_words
-from src.constants.content_constants import FORBIDDEN_PHRASES
-from src.constants.weather_constants import TEMP, PRECIP, COMMENT
+from src.constants.weather_constants import TEMP, PRECIP
+from src.nodes.unified_comment_generation import (
+    format_weather_info,
+    build_unified_prompt,
+    parse_unified_response,
+    check_continuous_rain,
+    filter_shower_comments,
+    filter_mild_umbrella_comments,
+    filter_forbidden_phrases,
+    filter_seasonal_inappropriate_comments
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +59,13 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         advice_comments = [c for c in past_comments if c.comment_type == CommentType.ADVICE]
         
         # 禁止フレーズを含むコメントをフィルタリング
-        weather_comments = _filter_forbidden_phrases(weather_comments)
-        advice_comments = _filter_forbidden_phrases(advice_comments)
+        weather_comments = filter_forbidden_phrases(weather_comments)
+        advice_comments = filter_forbidden_phrases(advice_comments)
         
         # 季節性に矛盾するコメントをフィルタリング
         month = target_datetime.month
-        weather_comments = _filter_seasonal_inappropriate_comments(weather_comments, month)
-        advice_comments = _filter_seasonal_inappropriate_comments(advice_comments, month)
+        weather_comments = filter_seasonal_inappropriate_comments(weather_comments, month)
+        advice_comments = filter_seasonal_inappropriate_comments(advice_comments, month)
         
         if not weather_comments or not advice_comments:
             raise ValueError("適切なコメントタイプが見つかりません")
@@ -103,10 +112,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             if not weather_comments:
                 logger.warning("適切な雨関連のコメントが見つかりません。全コメントを使用します。")
                 weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
-                weather_comments = _filter_forbidden_phrases(weather_comments)
+                weather_comments = filter_forbidden_phrases(weather_comments)
         
         # 連続雨判定
-        is_continuous_rain = _check_continuous_rain(state)
+        is_continuous_rain = check_continuous_rain(state)
         
         # 連続雨の場合、「にわか雨」を含むコメントをフィルタリング
         if is_continuous_rain:
@@ -121,8 +130,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             for i, comment in enumerate(advice_comments[:COMMENT.CANDIDATE_LIMIT]):
                 logger.debug(f"  {i}: {comment.comment_text}")
             
-            weather_comments = _filter_shower_comments(weather_comments)
-            advice_comments = _filter_mild_umbrella_comments(advice_comments)
+            weather_comments = filter_shower_comments(weather_comments)
+            advice_comments = filter_mild_umbrella_comments(advice_comments)
             
             # フィルタリング後のログ
             logger.info(f"フィルタリング後 - 天気コメント数: {len(weather_comments)}")
@@ -134,12 +143,16 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                 logger.debug(f"  {i}: {comment.comment_text}")
         
         # 天気情報のフォーマット
-        weather_info = _format_weather_info(weather_data, location_name, target_datetime)
+        weather_info = format_weather_info(
+            weather_data, 
+            state.generation_metadata.get('temperature_differences') if state.generation_metadata else None,
+            state.generation_metadata.get('weather_trend') if state.generation_metadata else None
+        )
         
         # 統合プロンプトの構築
         # パフォーマンス最適化のため候補数を5に制限
         OPTIMIZED_CANDIDATE_LIMIT = 5
-        unified_prompt = _build_unified_prompt(
+        unified_prompt = build_unified_prompt(
             weather_comments[:OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
             advice_comments[:OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
             weather_info,
@@ -151,7 +164,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         response = llm_manager.generate(unified_prompt)
         
         # レスポンスの解析
-        result = _parse_unified_response(response)
+        result = parse_unified_response(response)
         
         # 選択されたコメントペアを取得
         weather_idx = result.get("weather_index", 0)
@@ -229,259 +242,4 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         state.errors = state.errors or []
         state.errors.append(f"UnifiedCommentGenerationNode: {str(e)}")
         state.is_candidate_suitable = False
-        return state
-
-
-def _format_weather_info(weather_data: Any, 
-                        location_name: str, 
-                        target_datetime: datetime) -> str:
-    """天気情報を文字列にフォーマット"""
-    # WeatherForecastオブジェクトとdictの両方に対応
-    if hasattr(weather_data, 'weather_description'):
-        # WeatherForecastオブジェクトの場合
-        weather_desc = weather_data.weather_description or '不明'
-        temp = weather_data.temperature or 0
-        humidity = weather_data.humidity or 0
-        wind_speed = weather_data.wind_speed or 0
-        precipitation = weather_data.precipitation if hasattr(weather_data, 'precipitation') else 0
-    else:
-        # dictの場合
-        weather_desc = weather_data.get('weather_description', '不明')
-        temp = weather_data.get('temperature', 0)
-        humidity = weather_data.get('humidity', 0)
-        wind_speed = weather_data.get('wind_speed', 0)
-        precipitation = weather_data.get('precipitation', 0)
-    
-    result = (f"{location_name}の{target_datetime.strftime('%Y-%m-%d %H:%M')}の天気: "
-              f"{weather_desc}、気温: {temp}°C、湿度: {humidity}%、風速: {wind_speed}m/s")
-    
-    # 降水量情報を追加（雨の場合のみ）
-    if precipitation > 0:
-        result += f"、降水量: {precipitation}mm"
-    
-    return result
-
-
-def _build_unified_prompt(weather_comments: list[PastComment],
-                         advice_comments: list[PastComment],
-                         weather_info: str,
-                         weather_data: Any,
-                         is_continuous_rain: bool = False) -> str:
-    """統合プロンプトの構築"""
-    
-    # 候補のフォーマット
-    weather_candidates = "\n".join([
-        f"{i}. {c.comment_text} (天気条件: {c.weather_condition or '不明'}, 使用回数: {getattr(c, 'usage_count', c.raw_data.get('count', 0))})"
-        for i, c in enumerate(weather_comments)
-    ])
-    
-    advice_candidates = "\n".join([
-        f"{i}. {c.comment_text} (使用回数: {getattr(c, 'usage_count', c.raw_data.get('count', 0))})"
-        for i, c in enumerate(advice_comments)
-    ])
-    
-    weather_max_idx = len(weather_comments) - 1
-    advice_max_idx = len(advice_comments) - 1
-    
-    prompt = f"""天気情報と候補から最適なコメントを選択してください。
-
-【天気情報】{weather_info}
-
-【天気コメント候補】
-{weather_candidates}
-
-【アドバイスコメント候補】
-{advice_candidates}
-
-【選択基準】
-1. 天気条件との一致度（最優先）- 実際の天気と異なる内容のコメントは選択禁止
-2. 降水量に応じた選択:
-   - 降水量{str(PRECIP.HEAVY)}mm以上: 「傘が必須」「傘は必須」など強い表現を優先
-   - 降水量{str(PRECIP.LIGHT_RAIN)}-{str(PRECIP.HEAVY)}mm: 「傘が活躍」「傘の用意」など通常の雨表現
-   - 降水量{str(PRECIP.LIGHT)}-{str(PRECIP.LIGHT_RAIN)}mm: 「にわか雨」「軽い雨」など（連続雨でない場合のみ）
-3. 使用回数が少ないものを優先
-4. 組み合わせの自然さ
-5. 重複・冗長性の回避:
-   - 天気コメントとアドバイスコメントで同じ意味の内容を避ける
-   - 例: 「傘が必須」（天気）と「傘があると安心」（アドバイス）は重複なので不可
-   - 例: 「強い雨」（天気）と「雨脚が強い」（アドバイス）は重複なので不可
-
-【制約】
-- 最終コメントは{str(COMMENT.MAX_LENGTH)}文字以内
-- 「　」で天気とアドバイスを区切る
-
-必ず以下のJSON形式で回答してください：
-{{
-    "weather_index": 天気コメントのインデックス(0-{weather_max_idx}の整数),
-    "advice_index": アドバイスコメントのインデックス(0-{advice_max_idx}の整数),
-    "generated_comment": "選択したコメントを「　」で結合"
-}}
-
-注意: weather_indexとadvice_indexは必ず有効な整数値を指定してください。nullは許可されません。"""
-    
-    # 連続雨の場合の追加指示
-    if is_continuous_rain:
-        prompt += """
-
-【重要な追加指示】
-現在、4時間以上の連続した雨が予測されています。以下の点に特に注意してください：
-- 「にわか雨」「一時的な雨」「急な雨」などの表現は避けてください
-- 「傘があると安心」のような控えめな表現ではなく、「傘は必須」のような明確な表現を使用してください
-- 雨が長時間続くことを前提としたコメントを生成してください"""
-    
-    return prompt
-
-
-def _parse_unified_response(response: str) -> dict[str, Any]:
-    """統合レスポンスの解析"""
-    try:
-        # JSON部分を抽出
-        json_start = response.find('{')
-        json_end = response.rfind('}') + 1
-        
-        if json_start >= 0 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            result = json.loads(json_str)
-            
-            # 必須フィールドの確認
-            if all(key in result for key in ["weather_index", "advice_index"]):
-                return result
-                
-    except json.JSONDecodeError as e:
-        logger.error(f"JSONパースエラー: {e}")
-    except Exception as e:
-        logger.error(f"レスポンス解析エラー: {e}")
-    
-    # フォールバック
-    logger.warning("統合レスポンスの解析に失敗。デフォルト値を使用")
-    return {
-        "weather_index": 0,
-        "advice_index": 0,
-        "generated_comment": ""
-    }
-
-
-def _check_continuous_rain(state: CommentGenerationState) -> bool:
-    """連続雨かどうかを判定"""
-    if not state or not hasattr(state, 'generation_metadata') or not state.generation_metadata:
-        return False
-        
-    period_forecasts = state.generation_metadata.get('period_forecasts', [])
-    if not period_forecasts:
-        return False
-    
-    # 天気が「雨」または降水量が0.1mm以上の時間をカウント
-    rain_hours = 0
-    for f in period_forecasts:
-        if hasattr(f, 'weather') and '雨' in f.weather:
-            rain_hours += 1
-        elif hasattr(f, 'precipitation') and f.precipitation is not None and f.precipitation >= PRECIP.LIGHT:
-            rain_hours += 1
-    
-    is_continuous_rain = rain_hours >= COMMENT.CONTINUOUS_RAIN_HOURS
-    
-    if is_continuous_rain:
-        logger.info(f"連続雨を検出: {rain_hours}時間の雨")
-        # デバッグ情報
-        for f in period_forecasts:
-            if hasattr(f, 'datetime') and hasattr(f, 'weather'):
-                time_str = f.datetime.strftime('%H時')
-                weather = f.weather
-                precip = f.precipitation if hasattr(f, 'precipitation') else 0
-                logger.debug(f"  {time_str}: {weather}, 降水量{precip}mm")
-    
-    return is_continuous_rain
-
-
-def _filter_shower_comments(comments: list[PastComment]) -> list[PastComment]:
-    """にわか雨表現を含むコメントをフィルタリング"""
-    # 連続雨時に不適切な「一時的」「急な」「にわか」表現のみをフィルタリング
-    temporary_rain_expressions = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨"]
-    
-    filtered = []
-    for comment in comments:
-        if not any(expr in comment.comment_text for expr in temporary_rain_expressions):
-            filtered.append(comment)
-        else:
-            logger.debug(f"連続雨のためフィルタリング: {comment.comment_text}")
-    
-    # フィルタリング後にコメントがなくなった場合は元のリストを返す
-    if not filtered:
-        logger.warning("すべてのコメントがフィルタリングされました。元のリストを使用します。")
-        return comments
-    
-    return filtered
-
-
-def _filter_mild_umbrella_comments(comments: list[PastComment]) -> list[PastComment]:
-    """控えめな傘表現とにわか雨表現を含むコメントをフィルタリング"""
-    # にわか雨が心配も含める
-    mild_umbrella_expressions = ["傘があると安心", "傘がお守り", "念のため傘", "折りたたみ傘", "傘をお忘れなく", "にわか雨が心配", "にわか雨", "急な雨"]
-    
-    filtered = []
-    for comment in comments:
-        if not any(expr in comment.comment_text for expr in mild_umbrella_expressions):
-            filtered.append(comment)
-        else:
-            logger.debug(f"連続雨のためフィルタリング: {comment.comment_text}")
-    
-    # フィルタリング後にコメントがなくなった場合は元のリストを返す
-    if not filtered:
-        logger.warning("すべてのアドバイスがフィルタリングされました。元のリストを使用します。")
-        return comments
-    
-    return filtered
-
-
-def _filter_forbidden_phrases(comments: list[PastComment]) -> list[PastComment]:
-    """禁止フレーズを含むコメントをフィルタリング"""
-    filtered = []
-    for comment in comments:
-        if not any(phrase in comment.comment_text for phrase in FORBIDDEN_PHRASES):
-            filtered.append(comment)
-        else:
-            logger.debug(f"禁止フレーズのためフィルタリング: {comment.comment_text}")
-    
-    # フィルタリング後にコメントがなくなった場合は元のリストを返す
-    if not filtered:
-        logger.warning("すべてのコメントが禁止フレーズでフィルタリングされました。元のリストを使用します。")
-        return comments
-    
-    return filtered
-
-
-def _filter_seasonal_inappropriate_comments(comments: list[PastComment], month: int) -> list[PastComment]:
-    """季節性に矛盾するコメントをフィルタリング"""
-    # 月別の不適切な表現を定義
-    inappropriate_patterns = {
-        6: ["残暑", "晩夏", "秋", "初秋", "秋めく", "秋の気配", "盛夏", "真夏日", "猛暑日"],
-        7: ["残暑", "初夏", "晩夏", "秋", "初秋", "秋めく", "秋の気配"],
-        8: ["残暑", "初夏", "春"],
-        9: ["真夏", "盛夏", "初夏", "梅雨", "春"],
-        1: ["残暑", "夏", "梅雨", "台風", "秋"],
-        2: ["残暑", "夏", "梅雨", "台風", "秋"],
-        3: ["残暑", "夏", "真夏", "盛夏", "酷暑", "猛暑"],
-        4: ["真夏", "盛夏", "酷暑", "猛暑", "残暑"],
-        5: ["真夏", "盛夏", "酷暑", "猛暑", "残暑", "秋", "冬"],
-        10: ["真夏", "盛夏", "初夏", "梅雨", "春", "酷暑", "猛暑"],
-        11: ["夏", "真夏", "盛夏", "梅雨", "台風", "春", "酷暑", "猛暑"],
-        12: ["夏", "真夏", "盛夏", "梅雨", "台風", "春", "秋", "酷暑", "猛暑"]
-    }
-    
-    patterns = inappropriate_patterns.get(month, [])
-    if not patterns:
-        return comments
-    
-    filtered = []
-    for comment in comments:
-        if not any(pattern in comment.comment_text for pattern in patterns):
-            filtered.append(comment)
-        else:
-            logger.debug(f"{month}月に不適切な表現のためフィルタリング: {comment.comment_text}")
-    
-    # フィルタリング後にコメントがなくなった場合は元のリストを返す
-    if not filtered:
-        logger.warning(f"{month}月の季節フィルタリングですべてのコメントが除外されました。元のリストを使用します。")
-        return comments
-    
-    return filtered
+        return state 
