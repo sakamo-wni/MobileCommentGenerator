@@ -28,16 +28,23 @@ logger = logging.getLogger(__name__)
 class CommentValidator:
     """コメントバリデーションクラス（リファクタリング版）"""
     
-    def __init__(self, validator: WeatherCommentValidator, severe_config):
+    def __init__(self, validator: WeatherCommentValidator, severe_config, validators=None):
         self.validator = validator
         self.severe_config = severe_config
         
-        # 各種バリデーターの初期化
-        self.duplication_validator = DuplicationValidator()
-        self.weather_consistency_validator = WeatherConsistencyValidator()
-        self.seasonal_validator = SeasonalValidator()
-        self.yaml_config_validator = YamlConfigValidator()
-        self.pollen_validator = PollenValidator()
+        # 各種バリデーターの初期化（依存性注入パターン）
+        if validators:
+            self.duplication_validator = validators.get('duplication', DuplicationValidator())
+            self.weather_consistency_validator = validators.get('weather_consistency', WeatherConsistencyValidator())
+            self.seasonal_validator = validators.get('seasonal', SeasonalValidator())
+            self.yaml_config_validator = validators.get('yaml_config', YamlConfigValidator())
+            self.pollen_validator = validators.get('pollen', PollenValidator())
+        else:
+            self.duplication_validator = DuplicationValidator()
+            self.weather_consistency_validator = WeatherConsistencyValidator()
+            self.seasonal_validator = SeasonalValidator()
+            self.yaml_config_validator = YamlConfigValidator()
+            self.pollen_validator = PollenValidator()
         
         # LLMバリデータの初期化（APIキーが利用可能な場合のみ）
         self.llm_validator = None

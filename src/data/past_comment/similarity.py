@@ -1,5 +1,7 @@
 """過去コメントの類似度計算"""
 
+from src.config.similarity_config import get_similarity_config
+
 
 def matches_weather_condition(comment_weather: str, target_condition: str, fuzzy: bool = True) -> bool:
     """天気状況がマッチするか確認
@@ -68,27 +70,28 @@ def calculate_similarity_score(
     Returns:
         0.0〜1.0の類似度スコア
     """
+    config = get_similarity_config()
     score = 0.0
     weight_sum = 0.0
     
-    # 天気状況の類似度（重み: 0.5）
+    # 天気状況の類似度
     if matches_weather_condition(comment_weather_condition, target_weather_condition):
-        score += 0.5
-    weight_sum += 0.5
+        score += config.weather_condition_weight
+    weight_sum += config.weather_condition_weight
     
-    # 気温の類似度（重み: 0.3）
+    # 気温の類似度
     if comment_temperature is not None and target_temperature is not None:
         temp_diff = abs(comment_temperature - target_temperature)
-        temp_score = max(0, 1 - (temp_diff / 10))  # 10度差で0
-        score += temp_score * 0.3
-        weight_sum += 0.3
+        temp_score = max(0, 1 - (temp_diff / config.temperature_diff_threshold))
+        score += temp_score * config.temperature_weight
+        weight_sum += config.temperature_weight
     
-    # 湿度の類似度（重み: 0.2）
+    # 湿度の類似度
     if comment_humidity is not None and target_humidity is not None:
         humidity_diff = abs(comment_humidity - target_humidity)
-        humidity_score = max(0, 1 - (humidity_diff / 50))  # 50%差で0
-        score += humidity_score * 0.2
-        weight_sum += 0.2
+        humidity_score = max(0, 1 - (humidity_diff / config.humidity_diff_threshold))
+        score += humidity_score * config.humidity_weight
+        weight_sum += config.humidity_weight
     
     # 重み付き平均
     return score / weight_sum if weight_sum > 0 else 0.0

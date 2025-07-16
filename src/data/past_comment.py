@@ -11,13 +11,18 @@ from src.data.past_comment.collection import PastCommentCollection
 from src.data.past_comment.similarity import matches_weather_condition, calculate_similarity_score
 
 # 後方互換性のため、PastCommentクラスにメソッドを追加
-PastComment.matches_weather_condition = lambda self, target, fuzzy=True: matches_weather_condition(
-    self.weather_condition, target, fuzzy
-)
-PastComment.calculate_similarity_score = lambda self, target_weather, target_temp=None, target_humidity=None: calculate_similarity_score(
-    self.weather_condition, self.temperature, self.humidity,
-    target_weather, target_temp, target_humidity
-)
+# 注意: 循環インポートを避けるため、lambdaの使用は避け、通常の関数として定義
+def _matches_weather_condition(self, target, fuzzy=True):
+    return matches_weather_condition(self.weather_condition, target, fuzzy)
+
+def _calculate_similarity_score(self, target_weather, target_temp=None, target_humidity=None):
+    return calculate_similarity_score(
+        self.weather_condition, self.temperature, self.humidity,
+        target_weather, target_temp, target_humidity
+    )
+
+PastComment.matches_weather_condition = _matches_weather_condition
+PastComment.calculate_similarity_score = _calculate_similarity_score
 
 __all__ = [
     "PastComment",
