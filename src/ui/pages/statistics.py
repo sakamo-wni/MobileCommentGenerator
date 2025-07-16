@@ -65,7 +65,7 @@ def show_key_metrics(stats: dict[str, Any]):
                 latest_dt = datetime.fromisoformat(latest.replace("Z", "+00:00"))
                 hours_ago = int((datetime.now() - latest_dt).total_seconds() / 3600)
                 st.metric("最新生成", f"{hours_ago}時間前")
-            except:
+            except (ValueError, TypeError):
                 st.metric("最新生成", "不明")
         else:
             st.metric("最新生成", "なし")

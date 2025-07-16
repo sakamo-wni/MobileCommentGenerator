@@ -81,7 +81,7 @@ def get_statistics(history: list[dict[str, Any]]) -> dict[str, Any]:
             else:
                 period = "night"
             time_periods.append(period)
-        except:
+        except (ValueError, TypeError, AttributeError):
             pass
     time_counter = Counter(time_periods)
 
@@ -100,7 +100,7 @@ def get_statistics(history: list[dict[str, Any]]) -> dict[str, Any]:
             # 今日のカウント
             if date_str == today_str:
                 today_count += 1
-        except:
+        except (ValueError, TypeError, AttributeError):
             pass
     
     # 最新生成日時
@@ -115,7 +115,7 @@ def get_statistics(history: list[dict[str, Any]]) -> dict[str, Any]:
             )
             if sorted_history:
                 latest_generation = sorted_history[0].get("timestamp")
-        except:
+        except (ValueError, TypeError, AttributeError):
             pass
 
     return {

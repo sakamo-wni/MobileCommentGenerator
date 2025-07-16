@@ -70,7 +70,7 @@ def generation_history_display(history: list[dict[str, Any]]) -> None:
                 item_date = datetime.fromisoformat(item['timestamp'].replace('Z', '+00:00')).date()
                 if not (start_date <= item_date <= end_date):
                     continue
-            except:
+            except (ValueError, TypeError, AttributeError):
                 pass
         
         filtered_history.append(item)
@@ -131,7 +131,7 @@ def format_timestamp(timestamp: str) -> str:
         jst = pytz.timezone('Asia/Tokyo')
         dt_jst = dt.astimezone(jst)
         return dt_jst.strftime('%m/%d %H:%M')
-    except:
+    except (ValueError, TypeError, AttributeError):
         return timestamp
 
 
