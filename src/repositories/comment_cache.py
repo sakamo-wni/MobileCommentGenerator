@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 import logging
-from typing import Any
+from typing import Any, Optional
 from datetime import datetime, timedelta
 
-from src.data.past_comment import PastComment
+from src.data.past_comment import PastComment, CommentType
 from src.repositories.lru_comment_cache import LRUCommentCache
+from src.repositories.multilevel_comment_cache import MultiLevelCommentCache
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ class CommentCache:
     """コメントのキャッシュを管理
     
     互換性のため既存のインターフェースを維持しながら、
-    内部でLRUキャッシュを使用して効率を改善。
+    内部でLRUキャッシュとマルチレベルキャッシュを使用して効率を改善。
     """
     
     DEFAULT_CACHE_KEY = "__all_comments__"
@@ -32,6 +33,13 @@ class CommentCache:
             max_size=max_size,
             cache_ttl_minutes=cache_ttl_minutes,
             max_memory_mb=max_memory_mb
+        )
+        
+        # マルチレベルキャッシュを追加
+        self._multilevel_cache = MultiLevelCommentCache(
+            max_size_per_level=max_size // 3,  # 各レベルで1/3ずつ割り当て
+            cache_ttl_minutes=cache_ttl_minutes,
+            max_memory_mb_per_level=max_memory_mb / 3
         )
         
         # 互換性のため統計情報を転送
@@ -83,6 +91,58 @@ class CommentCache:
     def cleanup_expired(self) -> int:
         """期限切れのエントリをクリーンアップ"""
         return self._lru_cache.cleanup_expired()
+    
+    # マルチレベルキャッシュのメソッドを追加
+    def get_by_type_season_region(self,
+                                  comment_type: Optional[CommentType] = None,
+                                  season: Optional[str] = None,
+                                  region: Optional[str] = None) -> Optional[list[PastComment]]:
+        """タイプ・季節・地域でコメントを取得（マルチレベルキャッシュ使用）
+        
+        Args:
+            comment_type: コメントタイプ
+            season: 季節
+            region: 地域
+            
+        Returns:
+            キャッシュされたコメントリスト（見つからない場合はNone）
+        """
+        return self._multilevel_cache.get(comment_type, season, region)
+    
+    def set_by_type_season_region(self,
+                                 comments: list[PastComment],
+                                 comment_type: Optional[CommentType] = None,
+                                 season: Optional[str] = None,
+                                 region: Optional[str] = None) -> None:
+        """タイプ・季節・地域でコメントを設定（マルチレベルキャッシュ使用）
+        
+        Args:
+            comments: コメントリスト
+            comment_type: コメントタイプ
+            season: 季節
+            region: 地域
+        """
+        self._multilevel_cache.set(comments, comment_type, season, region)
+    
+    def invalidate_multilevel(self,
+                            comment_type: Optional[CommentType] = None,
+                            season: Optional[str] = None,
+                            region: Optional[str] = None) -> int:
+        """マルチレベルキャッシュの無効化
+        
+        Args:
+            comment_type: コメントタイプ
+            season: 季節
+            region: 地域
+            
+        Returns:
+            無効化されたエントリ数
+        """
+        return self._multilevel_cache.invalidate(comment_type, season, region)
+    
+    def get_multilevel_stats(self) -> dict[str, Any]:
+        """マルチレベルキャッシュの統計情報を取得"""
+        return self._multilevel_cache.get_stats()
 
 
 class SeasonalCommentFilter:
