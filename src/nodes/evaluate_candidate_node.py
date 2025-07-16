@@ -4,7 +4,7 @@
 選択されたコメントペアを評価し、品質を検証するLangGraphノード
 """
 
-from typing import Dict, Any, Optional, Union
+from typing import Any
 import logging
 from datetime import datetime
 
@@ -192,7 +192,7 @@ def _restore_comment_pair(pair_data: Any) -> CommentPair:
     raise TypeError(f"Expected CommentPair or dict, got {type(pair_data)}")
 
 
-def _restore_weather_data(weather_data: Union[WeatherForecast, Dict[str, Any]]) -> WeatherForecast:
+def _restore_weather_data(weather_data: WeatherForecast | dict[str, Any]) -> WeatherForecast:
     """
     辞書データまたはWeatherForecastオブジェクトからWeatherForecastオブジェクトを復元
     """
@@ -240,8 +240,8 @@ def _restore_weather_data(weather_data: Union[WeatherForecast, Dict[str, Any]]) 
 
 
 def _get_custom_weights(
-    user_preferences: Dict[str, Any],
-) -> Optional[Dict[EvaluationCriteria, float]]:
+    user_preferences: dict[str, Any],
+) -> dict[EvaluationCriteria, float | None]:
     """
     ユーザー設定からカスタム評価重みを取得
     """

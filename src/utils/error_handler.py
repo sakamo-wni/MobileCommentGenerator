@@ -1,7 +1,7 @@
 """統一されたエラーハンドリング"""
 
 import logging
-from typing import Optional, Dict, Any, Callable, TypeVar, Union
+from typing import Any, Callable, TypeVar 
 from functools import wraps
 from dataclasses import dataclass
 import traceback
@@ -23,13 +23,13 @@ class ErrorResponse:
     success: bool = False
     error_type: str = ""
     error_message: str = ""
-    error_details: Optional[Dict[str, Any]] = None
+    error_details: dict[str, Any | None] = None
     user_message: str = ""
-    hint: Optional[str] = None
+    hint: str | None = None
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換"""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "success": self.success,
             "error": self.error_message
         }
@@ -43,7 +43,7 @@ class ErrorResponse:
 # Legacy AppError for backward compatibility
 class AppError(AppException):
     """アプリケーション共通エラー基底クラス (Legacy)"""
-    def __init__(self, message: str, error_type: str = "AppError", hint: Optional[str] = None):
+    def __init__(self, message: str, error_type: str = "AppError", hint: str | None = None):
         # Map legacy error type to new ErrorType
         error_type_enum = ErrorType.UNKNOWN_ERROR
         if error_type == "APIKeyError":
@@ -123,7 +123,7 @@ class ErrorHandler:
         )
     
     @staticmethod
-    def create_error_result(location: str, error: Union[str, Exception]) -> Dict[str, Any]:
+    def create_error_result(location: str, error: str | Exception) -> dict[str, Any]:
         """エラー結果の統一フォーマットを作成"""
         if isinstance(error, Exception):
             error_response = ErrorHandler.handle_error(error)

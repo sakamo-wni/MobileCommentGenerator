@@ -5,7 +5,7 @@
 """
 
 import streamlit as st
-from typing import Optional, List, Tuple, Any
+from typing import Any
 from .security_utils import sanitize_html, sanitize_css_value
 
 
@@ -129,9 +129,9 @@ def apply_responsive_styles():
 
 
 def create_responsive_columns(
-    ratios: List[float],
+    ratios: list[float],
     gap: str = "medium"
-) -> List[Any]:
+) -> list[Any]:
     """
     レスポンシブ対応のカラムを作成
     
@@ -163,8 +163,8 @@ def create_responsive_columns(
 def create_card(
     title: str,
     content: str,
-    icon: Optional[str] = None,
-    color: Optional[str] = None
+    icon: str | None = None,
+    color: str | None = None
 ):
     """
     カード風のUIコンポーネントを作成
@@ -195,7 +195,7 @@ def create_card(
 def create_progress_indicator(
     current: int,
     total: int,
-    label: Optional[str] = None
+    label: str | None = None
 ):
     """
     視覚的に分かりやすいプログレスインジケーターを作成
@@ -287,7 +287,7 @@ def get_device_type() -> str:
     return st.session_state.get("device_type", "desktop")
 
 
-def optimize_for_device(device_type: Optional[str] = None):
+def optimize_for_device(device_type: str | None = None):
     """
     デバイスタイプに応じた最適化を適用
     

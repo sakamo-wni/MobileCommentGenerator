@@ -1,8 +1,7 @@
 """一貫性バリデータ - コメントペアの一貫性を検証"""
 
 import logging
-from typing import Tuple, List
-
+from typing import Any
 from src.config.config import get_weather_constants
 from src.constants.validation_constants import SIMILARITY_THRESHOLD
 from src.data.weather_data import WeatherForecast
@@ -25,7 +24,7 @@ class ConsistencyValidator(BaseValidator):
     def __init__(self):
         super().__init__()
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """単一コメントの検証（ConsistencyValidatorでは実装しない）"""
         # ConsistencyValidatorはペアの一貫性をチェックするため、
         # 単一コメントの検証は常にTrueを返す
@@ -36,7 +35,7 @@ class ConsistencyValidator(BaseValidator):
         weather_comment: str, 
         advice_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         天気コメントとアドバイスの一貫性を包括的にチェック
         
@@ -91,7 +90,7 @@ class ConsistencyValidator(BaseValidator):
         self, 
         weather_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """天気の現実と表現の矛盾をチェック"""
         weather_desc = weather_data.weather_description.lower()
         temp = weather_data.temperature
@@ -132,7 +131,7 @@ class ConsistencyValidator(BaseValidator):
         weather_comment: str, 
         advice_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """温度と症状・対策の矛盾をチェック"""
         temp = weather_data.temperature
         
@@ -162,7 +161,7 @@ class ConsistencyValidator(BaseValidator):
         self, 
         weather_comment: str, 
         advice_comment: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """コンテンツの重複をより厳格にチェック"""
         # 既存の_is_duplicate_contentをベースに拡張
         if self._is_duplicate_content(weather_comment, advice_comment):
@@ -199,7 +198,7 @@ class ConsistencyValidator(BaseValidator):
         weather_comment: str, 
         advice_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """天気コメントとアドバイスのトーン・態度の矛盾をチェック"""
         # 空の状態と外出推奨の矛盾
         unstable_weather_phrases = [
@@ -243,7 +242,7 @@ class ConsistencyValidator(BaseValidator):
         self, 
         weather_comment: str, 
         advice_comment: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """傘関連表現の重複を特別にチェック"""
         # 傘関連キーワードの検出
         umbrella_keywords = ["傘", "雨具", "レインコート", "カッパ"]
@@ -290,7 +289,7 @@ class ConsistencyValidator(BaseValidator):
         weather_comment: str,
         advice_comment: str,
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """時間帯に関する温度の矛盾をチェック"""
         combined_text = weather_comment + " " + advice_comment
         

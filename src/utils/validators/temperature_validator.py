@@ -1,8 +1,7 @@
 """温度条件バリデータ - 気温に基づくコメント検証"""
 
 import logging
-from typing import Tuple, Dict, List
-
+from typing import Any
 from src.config.config import get_weather_constants
 
 # 定数を取得
@@ -66,7 +65,7 @@ class TemperatureValidator(BaseValidator):
             }
         }
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """温度条件に基づいてコメントを検証"""
         return self._check_temperature_conditions(
             comment.comment_text, 
@@ -74,7 +73,7 @@ class TemperatureValidator(BaseValidator):
         )
     
     def _check_temperature_conditions(self, comment_text: str, 
-                                    weather_data: WeatherForecast) -> Tuple[bool, str]:
+                                    weather_data: WeatherForecast) -> tuple[bool, str]:
         """温度条件に基づく検証（詳細な温度範囲）"""
         temp = weather_data.temperature
         
@@ -110,7 +109,7 @@ class TemperatureValidator(BaseValidator):
     
     def _check_temperature_symptom_contradiction(self, weather_comment: str, 
                                                advice_comment: str,
-                                               temperature: float) -> Tuple[bool, str]:
+                                               temperature: float) -> tuple[bool, str]:
         """温度と症状の矛盾をチェック"""
         # 高温時の体調不良表現
         if temperature >= HEATSTROKE_WARNING_TEMP:

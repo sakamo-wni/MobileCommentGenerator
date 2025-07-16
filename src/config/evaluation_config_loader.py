@@ -1,7 +1,7 @@
 """評価設定ローダー"""
 
 import yaml
-from typing import Dict, Any, List
+from typing import Any
 from pathlib import Path
 import logging
 
@@ -23,7 +23,7 @@ class EvaluationConfigLoader:
         self.config_path = Path(config_path)
         self._config = None
     
-    def load_config(self) -> Dict[str, Any]:
+    def load_config(self) -> dict[str, Any]:
         """設定を読み込む"""
         if self._config is None:
             try:
@@ -37,7 +37,7 @@ class EvaluationConfigLoader:
         
         return self._config
     
-    def get_inappropriate_patterns(self, mode: str = "relaxed") -> List[str]:
+    def get_inappropriate_patterns(self, mode: str = "relaxed") -> list[str]:
         """不適切表現パターンを取得"""
         config = self.load_config()
         patterns = []
@@ -57,7 +57,7 @@ class EvaluationConfigLoader:
         
         return patterns
     
-    def get_contradiction_patterns(self, mode: str = "relaxed") -> List[Dict[str, List[str]]]:
+    def get_contradiction_patterns(self, mode: str = "relaxed") -> list[dict[str, list[str]]]:
         """矛盾パターンを取得"""
         config = self.load_config()
         mode_config = config.get("evaluation_modes", {}).get(mode, {})
@@ -80,29 +80,29 @@ class EvaluationConfigLoader:
         
         return []
     
-    def _flatten_contradiction_patterns(self, patterns: Dict) -> List[Dict[str, List[str]]]:
+    def _flatten_contradiction_patterns(self, patterns: dict) -> list[dict[str, list[str]]]:
         """矛盾パターンをフラット化"""
         result = []
         for category, items in patterns.items():
             result.extend(items)
         return result
     
-    def get_mode_config(self, mode: str = "relaxed") -> Dict[str, Any]:
+    def get_mode_config(self, mode: str = "relaxed") -> dict[str, Any]:
         """モード別設定を取得"""
         config = self.load_config()
         return config.get("evaluation_modes", {}).get(mode, {})
     
-    def get_positive_expressions(self) -> List[str]:
+    def get_positive_expressions(self) -> list[str]:
         """ポジティブ表現を取得"""
         config = self.load_config()
         return config.get("evaluation_patterns", {}).get("positive_expressions", [])
     
-    def get_engagement_elements(self) -> List[str]:
+    def get_engagement_elements(self) -> list[str]:
         """エンゲージメント要素を取得"""
         config = self.load_config()
         return config.get("evaluation_patterns", {}).get("engagement_elements", [])
     
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """デフォルト設定を返す"""
         return {
             "evaluation_patterns": {

@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Any
 from datetime import datetime
 
 from src.data.past_comment import PastComment
@@ -28,7 +28,7 @@ class CommentPair:
     advice_comment: PastComment
     similarity_score: float
     selection_reason: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """初期化後の検証"""
@@ -55,7 +55,7 @@ class CommentPair:
             raise ValueError(f"advice_commentのタイプが不正です: {advice_type}")
 
     @property
-    def average_temperature(self) -> Optional[float]:
+    def average_temperature(self) -> float | None:
         """ペアの平均気温を取得"""
         temps = []
         if self.weather_comment.temperature is not None:
@@ -66,13 +66,13 @@ class CommentPair:
         return sum(temps) / len(temps) if temps else None
 
     @property
-    def common_weather_condition(self) -> Optional[str]:
+    def common_weather_condition(self) -> str | None:
         """共通の天気条件を取得"""
         if self.weather_comment.weather_condition == self.advice_comment.weather_condition:
             return self.weather_comment.weather_condition
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換"""
         return {
             "weather_comment": self.weather_comment.to_dict(),

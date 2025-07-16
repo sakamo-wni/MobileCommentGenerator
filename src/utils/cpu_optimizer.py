@@ -5,7 +5,6 @@
 
 import os
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ class CPUOptimizer:
     
     @staticmethod
     def get_optimal_workers(
-        task_count: Optional[int] = None,
+        task_count: int | None = None,
         min_workers: int = DEFAULT_MIN_WORKERS,
         max_workers: int = DEFAULT_MAX_WORKERS,
         workers_per_core: float = DEFAULT_WORKERS_PER_CORE
@@ -58,7 +57,7 @@ class CPUOptimizer:
     
     @staticmethod
     def get_io_bound_workers(
-        task_count: Optional[int] = None,
+        task_count: int | None = None,
         min_workers: int = DEFAULT_MIN_WORKERS,
         max_workers: int = 16
     ) -> int:
@@ -95,7 +94,7 @@ class CPUOptimizer:
     
     @staticmethod
     def get_cpu_bound_workers(
-        task_count: Optional[int] = None,
+        task_count: int | None = None,
         reserve_cores: int = 1
     ) -> int:
         """CPUバウンドタスク用の最適なワーカー数を計算

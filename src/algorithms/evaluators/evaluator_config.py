@@ -5,8 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
-
+from typing import Any
 
 @dataclass
 class EvaluatorConfig:
@@ -14,16 +13,16 @@ class EvaluatorConfig:
     評価器の共通設定
     """
     evaluation_mode: str = "relaxed"
-    enabled_checks: List[str] = field(default_factory=lambda: ["extreme_inappropriate"])
+    enabled_checks: list[str] = field(default_factory=lambda: ["extreme_inappropriate"])
     
     # パターン設定
-    inappropriate_patterns: List[str] = field(default_factory=list)
-    contradiction_patterns: List[Dict[str, List[str]]] = field(default_factory=list)
-    positive_expressions: List[str] = field(default_factory=list)
-    engagement_elements: List[str] = field(default_factory=list)
+    inappropriate_patterns: list[str] = field(default_factory=list)
+    contradiction_patterns: list[dict[str, list[str]]] = field(default_factory=list)
+    positive_expressions: list[str] = field(default_factory=list)
+    engagement_elements: list[str] = field(default_factory=list)
     
     # 閾値設定
-    thresholds: Dict[str, float] = field(default_factory=lambda: {
+    thresholds: dict[str, float] = field(default_factory=lambda: {
         "total_score": 0.3,
         "appropriateness": 0.2,
         "consistency": 0.2

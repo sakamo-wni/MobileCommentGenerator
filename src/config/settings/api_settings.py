@@ -2,8 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
-
+from typing import Any
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -37,7 +36,7 @@ class APIConfig:
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", self.gemini_api_key)
         self.api_timeout = int(os.getenv("API_TIMEOUT", str(self.api_timeout)))
     
-    def get_llm_key(self, provider: str) -> Optional[str]:
+    def get_llm_key(self, provider: str) -> str | None:
         """LLMプロバイダーに対応するAPIキーを取得"""
         provider_map = {
             "openai": self.openai_api_key,
@@ -46,7 +45,7 @@ class APIConfig:
         }
         return provider_map.get(provider.lower(), "")
     
-    def validate_keys(self) -> Dict[str, bool]:
+    def validate_keys(self) -> dict[str, bool]:
         """APIキーの存在を検証"""
         return {
             "openai": bool(self.openai_api_key),
@@ -55,7 +54,7 @@ class APIConfig:
             "wxtech": bool(self.wxtech_api_key)
         }
     
-    def mask_sensitive_data(self) -> Dict[str, Any]:
+    def mask_sensitive_data(self) -> dict[str, Any]:
         """機密データをマスクした設定を返す"""
         return {
             "wxtech_api_key": "***" if self.wxtech_api_key else "",

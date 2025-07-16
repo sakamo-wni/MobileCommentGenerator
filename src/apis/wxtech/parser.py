@@ -4,7 +4,7 @@ WxTech API データパーサー
 APIレスポンスをドメインモデルに変換する処理を管理
 """
 
-from typing import Dict, Any, List
+from typing import Any
 import warnings
 from datetime import datetime
 
@@ -17,7 +17,7 @@ from src.apis.wxtech.mappings import (
 
 
 def parse_forecast_response(
-    raw_data: Dict[str, Any], location_name: str
+    raw_data: dict[str, Any], location_name: str
 ) -> WeatherForecastCollection:
     """API レスポンスを WeatherForecastCollection に変換
     
@@ -59,7 +59,7 @@ def parse_forecast_response(
 
 
 def parse_single_forecast(
-    data: Dict[str, Any], location_name: str, is_hourly: bool = True
+    data: dict[str, Any], location_name: str, is_hourly: bool = True
 ) -> WeatherForecast:
     """単一の予報データを WeatherForecast に変換
     
@@ -120,7 +120,7 @@ def parse_single_forecast(
     )
 
 
-def analyze_response_patterns(test_results: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_response_patterns(test_results: dict[str, Any]) -> dict[str, Any]:
     """レスポンスパターンを分析して特定時刻指定の効果を確認する"""
     
     analysis = {

@@ -1,6 +1,6 @@
 """コメント安全性チェックモジュール"""
 
-from typing import List, Optional, Tuple
+from typing import Any
 import logging
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.weather_data import WeatherForecast
@@ -36,7 +36,7 @@ def check_and_fix_weather_comment_safety(
     weather_comment: str,
     advice_comment: str,
     state: CommentGenerationState
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """コメントの安全性をチェックし、必要に応じて修正する
     
     Args:
@@ -101,8 +101,8 @@ def check_and_fix_weather_comment_safety(
 
 def _find_alternative_weather_comment(
     weather_data: WeatherForecast,
-    past_comments: Optional[List[PastComment]],
-    changeable_patterns: List[str]
+    past_comments: list[PastComment | None],
+    changeable_patterns: list[str]
 ) -> str:
     """晴天時の代替天気コメントを検索"""
     if not past_comments:
@@ -174,7 +174,7 @@ def _find_alternative_weather_comment(
     return weather_comment
 
 
-def _find_rain_advice(past_comments: Optional[List[PastComment]], current_advice: str) -> str:
+def _find_rain_advice(past_comments: list[PastComment | None], current_advice: str) -> str:
     """雨天時の代替アドバイスを検索"""
     if not past_comments:
         return current_advice
@@ -198,7 +198,7 @@ def _find_rain_advice(past_comments: Optional[List[PastComment]], current_advice
     return current_advice
 
 
-def _find_storm_weather_comment(past_comments: Optional[List[PastComment]], current_comment: str) -> str:
+def _find_storm_weather_comment(past_comments: list[PastComment | None], current_comment: str) -> str:
     """悪天候時の代替天気コメントを検索"""
     if not past_comments:
         return current_comment
@@ -222,7 +222,7 @@ def _find_storm_weather_comment(past_comments: Optional[List[PastComment]], curr
     return current_comment
 
 
-def _find_rain_weather_comment(past_comments: Optional[List[PastComment]], 
+def _find_rain_weather_comment(past_comments: list[PastComment | None], 
                               current_comment: str,
                               weather_data: WeatherForecast,
                               avoid_shower: bool = False) -> str:

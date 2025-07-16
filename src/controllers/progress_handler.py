@@ -6,7 +6,7 @@
 """
 
 import asyncio
-from typing import List, Callable, Optional, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 from concurrent.futures import Future
 
 import streamlit as st
@@ -52,7 +52,7 @@ class ProgressHandler:
         total: int,
         location: str,
         results_container: "DeltaGenerator",
-        all_results: List[LocationResult],
+        all_results: list[LocationResult],
         view: "ICommentGenerationView"
     ) -> None:
         """進捗を更新"""
@@ -74,7 +74,7 @@ class ProgressHandler:
         self,
         future: Future,
         location: str,
-        all_results: List[LocationResult],
+        all_results: list[LocationResult],
         results_container: "DeltaGenerator",
         view: "ICommentGenerationView"
     ) -> LocationResult:
@@ -98,7 +98,7 @@ class ProgressHandler:
         return location_result
     
     @staticmethod
-    def aggregate_results(all_results: List[LocationResult], locations: List[str]) -> BatchGenerationResult:
+    def aggregate_results(all_results: list[LocationResult], locations: list[str]) -> BatchGenerationResult:
         """結果を集計"""
         success_count = sum(1 for r in all_results if r['success'])
         errors = [r for r in all_results if not r['success']]

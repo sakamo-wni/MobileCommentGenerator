@@ -5,7 +5,7 @@
 """
 
 import streamlit as st
-from typing import Optional, Dict, Any, Callable
+from typing import Any, Callable
 from enum import Enum
 import logging
 import json
@@ -34,9 +34,9 @@ class ErrorType(Enum):
 
 class ErrorMessage:
     """エラーメッセージとその対処法"""
-    def __init__(self, title: str, description: str, solution: Optional[str] = None,
-                 title_key: Optional[str] = None, description_key: Optional[str] = None,
-                 solution_key: Optional[str] = None):
+    def __init__(self, title: str, description: str, solution: str | None = None,
+                 title_key: str | None = None, description_key: str | None = None,
+                 solution_key: str | None = None):
         self.title = title
         self.description = description
         self.solution = solution
@@ -47,7 +47,7 @@ class ErrorMessage:
 
 
 # エラータイプごとのメッセージ定義（i18n対応）
-def _get_error_messages() -> Dict[ErrorType, ErrorMessage]:
+def _get_error_messages() -> dict[ErrorType, ErrorMessage]:
     """i18n対応のエラーメッセージを取得"""
     return {
         ErrorType.API_KEY_MISSING: ErrorMessage(
@@ -116,7 +116,7 @@ def _get_error_messages() -> Dict[ErrorType, ErrorMessage]:
 ERROR_MESSAGES = _get_error_messages()
 
 
-def load_error_messages_from_config(config_path: Optional[str] = None) -> Optional[Dict[ErrorType, ErrorMessage]]:
+def load_error_messages_from_config(config_path: str | None = None) -> dict[ErrorType, ErrorMessage | None]:
     """
     設定ファイルからエラーメッセージを読み込む（将来的な拡張用）
     
@@ -171,9 +171,9 @@ update_error_messages()
 
 def show_error(
     error_type: ErrorType,
-    details: Optional[str] = None,
+    details: str | None = None,
     show_details: bool = True,
-    callback: Optional[Callable] = None
+    callback: Callable | None = None
 ):
     """
     ユーザーフレンドリーなエラーメッセージを表示
@@ -211,7 +211,7 @@ def show_error(
 def show_warning(
     title: str,
     description: str,
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 ):
     """
     警告メッセージを表示
@@ -231,8 +231,8 @@ def show_warning(
 
 def show_success(
     title: str,
-    description: Optional[str] = None,
-    details: Optional[Dict[str, Any]] = None
+    description: str | None = None,
+    details: dict[str, Any | None] = None
 ):
     """
     成功メッセージを表示
@@ -296,8 +296,8 @@ def get_error_type_from_exception(exception: Exception) -> ErrorType:
 
 def handle_exception(
     exception: Exception,
-    context: Optional[str] = None,
-    callback: Optional[Callable] = None
+    context: str | None = None,
+    callback: Callable | None = None
 ):
     """
     例外を処理してユーザーフレンドリーなメッセージを表示

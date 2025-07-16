@@ -1,13 +1,12 @@
 """天気タイプ分類ユーティリティ"""
 
-from typing import Optional
 from src.config.config import get_weather_constants
 
 # 定数を取得
 WEATHER_TYPE_KEYWORDS = get_weather_constants().WEATHER_TYPE_KEYWORDS
 
 
-def classify_weather_type(weather_desc: str) -> Optional[str]:
+def classify_weather_type(weather_desc: str) -> str | None:
     """
     天気説明文から天気タイプを分類
     
@@ -30,7 +29,7 @@ def classify_weather_type(weather_desc: str) -> Optional[str]:
     return None
 
 
-def count_weather_type_changes(weather_types: list[Optional[str]]) -> int:
+def count_weather_type_changes(weather_types: list[str | None]) -> int:
     """
     天気タイプの変化回数をカウント
     
@@ -51,7 +50,7 @@ def count_weather_type_changes(weather_types: list[Optional[str]]) -> int:
     return changes
 
 
-def is_morning_only_change(weather_types: list[Optional[str]]) -> bool:
+def is_morning_only_change(weather_types: list[str | None]) -> bool:
     """
     朝だけ天気が違って、その後同じ天気が続くパターンかチェック
     

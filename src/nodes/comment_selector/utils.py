@@ -1,7 +1,7 @@
 """コメント選択のユーティリティ関数"""
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any
 from functools import lru_cache
 
 from src.data.past_comment import PastComment
@@ -37,13 +37,13 @@ class CommentUtils:
     
     def prepare_weather_candidates(
         self, 
-        comments: List[PastComment], 
+        comments: list[PastComment], 
         weather_data: WeatherForecast,
         weather_validator,
         comment_validator,
         target_datetime,
-        state: Optional[CommentGenerationState] = None
-    ) -> List[Dict[str, Any]]:
+        state: CommentGenerationState | None = None
+    ) -> list[dict[str, Any]]:
         """天気コメント候補を準備"""
         candidates = []
         severe_matched = []
@@ -207,12 +207,12 @@ class CommentUtils:
     
     def prepare_advice_candidates(
         self, 
-        comments: List[PastComment], 
+        comments: list[PastComment], 
         weather_data: WeatherForecast,
         weather_validator,
         comment_validator,
         target_datetime
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """アドバイスコメント候補を準備"""
         candidates = []
         
@@ -272,7 +272,7 @@ class CommentUtils:
         
         return candidates
     
-    def _create_candidate_dict(self, index: int, comment: PastComment, original_index: int) -> Dict[str, Any]:
+    def _create_candidate_dict(self, index: int, comment: PastComment, original_index: int) -> dict[str, Any]:
         """候補辞書を作成"""
         return {
             'index': index,

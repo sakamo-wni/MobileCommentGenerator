@@ -1,7 +1,6 @@
 """地域特性バリデーター - 地域特性に基づいてコメントの適切性を検証"""
 
 import logging
-from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ class RegionalSpecificsValidator:
         self, 
         comment_text: str, 
         location: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """地域特性に基づく検証（改善版）"""
         # 地域判定の改善：都道府県と市町村の適切な判定
         location_lower = location.lower()

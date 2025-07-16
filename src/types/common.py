@@ -1,6 +1,6 @@
 """共通の型定義"""
 
-from typing import TypedDict, Optional, List, Dict, Any, Union, Literal
+from typing import TypedDict, Any, Literal
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -17,9 +17,9 @@ class WeatherData(TypedDict):
     """天気データの型定義"""
     temperature: float
     weather_condition: WeatherCondition
-    wind_speed: Optional[float]
-    humidity: Optional[float]
-    precipitation: Optional[float]
+    wind_speed: float | None
+    humidity: float | None
+    precipitation: float | None
     forecast_time: str
     location: str
 
@@ -29,33 +29,33 @@ class GenerationMetadata(TypedDict, total=False):
     execution_time_ms: int
     temperature: float
     weather_condition: WeatherCondition
-    wind_speed: Optional[float]
-    humidity: Optional[float]
+    wind_speed: float | None
+    humidity: float | None
     forecast_time: str
     retry_count: int
     llm_provider: LLMProvider
-    validation_score: Optional[float]
-    weather_timeline: Optional[Dict[str, Any]]
-    selected_past_comments: Optional[List[Dict[str, str]]]
-    selection_metadata: Optional[Dict[str, Any]]
+    validation_score: float | None
+    weather_timeline: dict[str, Any | None]
+    selected_past_comments: list[dict[str, str | None]]
+    selection_metadata: dict[str, Any | None]
 
 
 class GenerationResult(TypedDict):
     """生成結果の型定義"""
     success: bool
-    final_comment: Optional[str]
-    error: Optional[str]
-    generation_metadata: Optional[GenerationMetadata]
+    final_comment: str | None
+    error: str | None
+    generation_metadata: GenerationMetadata | None
 
 
 class LocationResult(TypedDict):
     """地点別結果の型定義"""
     location: str
-    result: Optional[GenerationResult]
+    result: GenerationResult | None
     success: bool
     comment: str
-    error: Optional[str]
-    source_files: Optional[List[str]]
+    error: str | None
+    source_files: list[str | None]
 
 
 class BatchGenerationResult(TypedDict):
@@ -63,9 +63,9 @@ class BatchGenerationResult(TypedDict):
     success: bool
     total_locations: int
     success_count: int
-    results: List[LocationResult]
+    results: list[LocationResult]
     final_comment: str
-    errors: List[str]
+    errors: list[str]
 
 
 class HistoryItem(TypedDict):
@@ -74,8 +74,8 @@ class HistoryItem(TypedDict):
     location: str
     llm_provider: LLMProvider
     success: bool
-    final_comment: Optional[str]
-    generation_metadata: Optional[GenerationMetadata]
+    final_comment: str | None
+    generation_metadata: GenerationMetadata | None
 
 
 @dataclass
@@ -83,8 +83,8 @@ class CommentPair:
     """コメントペアのデータクラス"""
     weather_comment: str
     advice_comment: str
-    source_file: Optional[str] = None
-    score: Optional[float] = None
+    source_file: str | None = None
+    score: float | None = None
 
 
 @dataclass
@@ -92,14 +92,14 @@ class ValidationResult:
     """バリデーション結果のデータクラス"""
     is_valid: bool
     score: float
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
 
 @dataclass
 class APIResponse:
     """API応答の基本データクラス"""
     success: bool
-    data: Optional[Any] = None
-    error: Optional[str] = None
-    error_details: Optional[Dict[str, Any]] = None
+    data: Any | None = None
+    error: str | None = None
+    error_details: dict[str, Any | None] = None

@@ -4,13 +4,12 @@
 地点の順序管理、フィルタリング、読み込みなど
 """
 
-from typing import List
 from pathlib import Path
 import pandas as pd
 import streamlit as st
 
 
-def get_location_order() -> List[str]:
+def get_location_order() -> list[str]:
     """
     地点の表示順序を定義した配列を返す
     
@@ -92,7 +91,7 @@ def get_location_order() -> List[str]:
     ]
 
 
-def sort_locations_by_order(locations: List[str]) -> List[str]:
+def sort_locations_by_order(locations: list[str]) -> list[str]:
     """
     地点リストを指定された順序でソートする
     
@@ -115,7 +114,7 @@ def sort_locations_by_order(locations: List[str]) -> List[str]:
     )
 
 
-def load_locations() -> List[str]:
+def load_locations() -> list[str]:
     """
     地点データを読み込む
     
@@ -168,7 +167,7 @@ def load_locations() -> List[str]:
     return default_locations
 
 
-def filter_locations(locations: List[str], query: str) -> List[str]:
+def filter_locations(locations: list[str], query: str) -> list[str]:
     """
     クエリに基づいて地点をフィルタリング
     

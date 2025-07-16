@@ -3,8 +3,7 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict
-
+from typing import Any
 from dotenv import load_dotenv
 
 # 環境変数の読み込み
@@ -135,10 +134,10 @@ class WeatherConstants:
     WEATHER_CHANGE_THRESHOLD: int = 2       # 「変わりやすい」と判定する変化回数の閾値
     
     # 天気タイプキーワード
-    SUNNY_WEATHER_KEYWORDS: List[str] = field(default_factory=lambda: ["晴", "快晴", "晴天"])
+    SUNNY_WEATHER_KEYWORDS: list[str] = field(default_factory=lambda: ["晴", "快晴", "晴天"])
     
     # 天気タイプ分類用キーワード
-    WEATHER_TYPE_KEYWORDS: Dict[str, List[str]] = field(default_factory=lambda: {
+    WEATHER_TYPE_KEYWORDS: dict[str, list[str]] = field(default_factory=lambda: {
         'sunny': ["晴", "快晴"],
         'cloudy': ["曇", "くもり", "うすぐもり", "薄曇"],
         'rainy': ["雨", "rain"]

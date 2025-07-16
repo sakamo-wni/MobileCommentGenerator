@@ -5,7 +5,7 @@ UI関連のヘルパー関数
 """
 
 import base64
-from typing import Dict, Any, Optional, Callable
+from typing import Any, Callable
 from datetime import datetime
 import streamlit as st
 from .feedback_components import show_notification
@@ -178,7 +178,7 @@ def reset_session_state():
         st.session_state[key] = value
 
 
-def handle_error(error: Exception, context: Optional[str] = None, callback: Optional[Callable] = None) -> None:
+def handle_error(error: Exception, context: str | None = None, callback: Callable | None = None) -> None:
     """
     エラーを適切に処理してユーザーフレンドリーなメッセージを表示
 

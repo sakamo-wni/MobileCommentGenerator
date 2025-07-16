@@ -3,7 +3,7 @@
 LLMを使用して天気情報と過去コメントを基にコメントを生成する。
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any
 import logging
 from datetime import datetime
 

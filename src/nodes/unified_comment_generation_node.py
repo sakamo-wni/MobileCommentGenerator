@@ -6,7 +6,7 @@
 
 import json
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Any
 from datetime import datetime
 
 from src.data.comment_generation_state import CommentGenerationState
@@ -261,8 +261,8 @@ def _format_weather_info(weather_data: Any,
     return result
 
 
-def _build_unified_prompt(weather_comments: List[PastComment],
-                         advice_comments: List[PastComment],
+def _build_unified_prompt(weather_comments: list[PastComment],
+                         advice_comments: list[PastComment],
                          weather_info: str,
                          weather_data: Any,
                          is_continuous_rain: bool = False) -> str:
@@ -331,7 +331,7 @@ def _build_unified_prompt(weather_comments: List[PastComment],
     return prompt
 
 
-def _parse_unified_response(response: str) -> Dict[str, Any]:
+def _parse_unified_response(response: str) -> dict[str, Any]:
     """統合レスポンスの解析"""
     try:
         # JSON部分を抽出
@@ -392,7 +392,7 @@ def _check_continuous_rain(state: CommentGenerationState) -> bool:
     return is_continuous_rain
 
 
-def _filter_shower_comments(comments: List[PastComment]) -> List[PastComment]:
+def _filter_shower_comments(comments: list[PastComment]) -> list[PastComment]:
     """にわか雨表現を含むコメントをフィルタリング"""
     # 連続雨時に不適切な「一時的」「急な」「にわか」表現のみをフィルタリング
     temporary_rain_expressions = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨"]
@@ -412,7 +412,7 @@ def _filter_shower_comments(comments: List[PastComment]) -> List[PastComment]:
     return filtered
 
 
-def _filter_mild_umbrella_comments(comments: List[PastComment]) -> List[PastComment]:
+def _filter_mild_umbrella_comments(comments: list[PastComment]) -> list[PastComment]:
     """控えめな傘表現とにわか雨表現を含むコメントをフィルタリング"""
     # にわか雨が心配も含める
     mild_umbrella_expressions = ["傘があると安心", "傘がお守り", "念のため傘", "折りたたみ傘", "傘をお忘れなく", "にわか雨が心配", "にわか雨", "急な雨"]
@@ -432,7 +432,7 @@ def _filter_mild_umbrella_comments(comments: List[PastComment]) -> List[PastComm
     return filtered
 
 
-def _filter_forbidden_phrases(comments: List[PastComment]) -> List[PastComment]:
+def _filter_forbidden_phrases(comments: list[PastComment]) -> list[PastComment]:
     """禁止フレーズを含むコメントをフィルタリング"""
     filtered = []
     for comment in comments:
@@ -449,7 +449,7 @@ def _filter_forbidden_phrases(comments: List[PastComment]) -> List[PastComment]:
     return filtered
 
 
-def _filter_seasonal_inappropriate_comments(comments: List[PastComment], month: int) -> List[PastComment]:
+def _filter_seasonal_inappropriate_comments(comments: list[PastComment], month: int) -> list[PastComment]:
     """季節性に矛盾するコメントをフィルタリング"""
     # 月別の不適切な表現を定義
     inappropriate_patterns = {

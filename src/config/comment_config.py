@@ -1,7 +1,6 @@
 """コメント生成に関する設定"""
 
 from dataclasses import dataclass
-from typing import Dict
 
 from src.data.weather_data import WeatherCondition
 
@@ -18,7 +17,7 @@ class CommentConfig:
     trend_hours_ahead: int = 12  # 気象変化を分析する時間（時間）
     
     # 天気スコア（良い天気ほど高いスコア）
-    weather_scores: Dict[WeatherCondition, int] = None
+    weather_scores: dict[WeatherCondition, int] = None
     
     def __post_init__(self):
         if self.weather_scores is None:

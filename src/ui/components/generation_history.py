@@ -1,13 +1,13 @@
 """生成履歴表示コンポーネント"""
 
 import streamlit as st
-from typing import List, Dict, Any
+from typing import Any
 from datetime import datetime
 import pytz
 import json
 
 
-def generation_history_display(history: List[Dict[str, Any]]) -> None:
+def generation_history_display(history: list[dict[str, Any]]) -> None:
     """
     生成履歴表示コンポーネント
 
@@ -87,7 +87,7 @@ def generation_history_display(history: List[Dict[str, Any]]) -> None:
         export_history(filtered_history)
 
 
-def display_history_item(item: Dict[str, Any]) -> None:
+def display_history_item(item: dict[str, Any]) -> None:
     """個別の履歴項目を表示"""
     with st.expander(f"📍 {item.get('location', '不明')} - {format_timestamp(item.get('timestamp', ''))}"):
         # 基本情報
@@ -135,7 +135,7 @@ def format_timestamp(timestamp: str) -> str:
         return timestamp
 
 
-def export_history(history: List[Dict[str, Any]]) -> None:
+def export_history(history: list[dict[str, Any]]) -> None:
     """履歴をJSON形式でダウンロード"""
     if not history:
         st.warning("エクスポートする履歴がありません")

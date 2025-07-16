@@ -1,8 +1,7 @@
 """海岸地域バリデータ - 海岸/内陸に基づくコメント検証"""
 
 import logging
-from typing import Tuple, Set, Optional
-
+from typing import Any
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment
 from src.data.location.manager import LocationManagerRefactored
@@ -51,7 +50,7 @@ class CoastalValidator(BaseValidator):
         self.location_manager = LocationManagerRefactored()
         logger.info("海岸地域バリデータを初期化しました（緯度経度ベース）")
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """海岸地域に基づいてコメントを検証"""
         location = weather_data.location
         comment_text = comment.comment_text

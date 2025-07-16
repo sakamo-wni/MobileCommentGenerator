@@ -4,7 +4,7 @@
 パフォーマンスを最適化したワークフローです。
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any
 from datetime import datetime, timedelta
 import time
 import json
@@ -91,7 +91,7 @@ def parallel_fetch_data_node(state: CommentGenerationState) -> CommentGeneration
     return state
 
 
-def _fetch_weather_wrapper(state: CommentGenerationState) -> Dict[str, Any]:
+def _fetch_weather_wrapper(state: CommentGenerationState) -> dict[str, Any]:
     """天気予報取得のラッパー"""
     try:
         result = fetch_weather_forecast_node(state)
@@ -101,7 +101,7 @@ def _fetch_weather_wrapper(state: CommentGenerationState) -> Dict[str, Any]:
         return {"weather_data": None, "errors": [str(e)]}
 
 
-def _fetch_comments_wrapper(state: CommentGenerationState) -> Dict[str, Any]:
+def _fetch_comments_wrapper(state: CommentGenerationState) -> dict[str, Any]:
     """コメント取得のラッパー"""
     try:
         result = retrieve_past_comments_node(state)
@@ -205,12 +205,12 @@ def create_comment_generation_workflow() -> StateGraph:
 
 def run_comment_generation(
     location_name: str,
-    target_datetime: Optional[datetime] = None,
+    target_datetime: datetime | None = None,
     llm_provider: str = "openai",
     exclude_previous: bool = False,
     use_unified_mode: bool = True,  # デフォルトで統一モードを使用
     **kwargs,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """並列処理対応のコメント生成ワークフローを実行
     
     Args:

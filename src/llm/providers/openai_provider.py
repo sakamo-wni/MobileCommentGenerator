@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Dict, Any
+from typing import Any
 
 from openai import OpenAI
 
@@ -29,7 +29,7 @@ class OpenAIProvider(LLMProvider):
         logger.info(f"Initialized OpenAI provider with model: {model}")
 
     def generate_comment(
-        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
+        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: dict[str, Any]
     ) -> str:
         """
         OpenAI APIを使用してコメントを生成。

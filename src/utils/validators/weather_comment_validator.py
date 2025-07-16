@@ -1,7 +1,7 @@
 """天気コメント検証システム - メインバリデータ"""
 
 import logging
-from typing import List, Dict, Any, Tuple, Optional, TypedDict
+from typing import Dict, Any, TypedDict
 from datetime import datetime
 
 from src.config.config import get_weather_constants
@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 
 class RequiredKeywords(TypedDict):
     """必須キーワードの型定義"""
-    weather_comment: List[str]
-    advice: List[str]
+    weather_comment: list[str]
+    advice: list[str]
 
 
 class WeatherCommentValidator:
@@ -53,7 +53,7 @@ class WeatherCommentValidator:
             self.weather_transition_validator = None
         
         # 必須キーワード（悪天候時）
-        self.required_keywords: Dict[str, RequiredKeywords] = {
+        self.required_keywords: dict[str, RequiredKeywords] = {
             "heavy_rain": {
                 "weather_comment": ["注意", "警戒", "危険", "荒れ", "激しい", "強い", "本格的"],
                 "advice": ["傘", "雨具", "安全", "注意", "室内", "控え", "警戒", "備え", "準備"]
@@ -64,7 +64,7 @@ class WeatherCommentValidator:
             }
         }
     
-    def validate_comment(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate_comment(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """
         天気コメントの適切性を総合的に検証
         
@@ -121,7 +121,7 @@ class WeatherCommentValidator:
         return True, "検証OK"
     
     def _check_required_keywords(self, comment_text: str, comment_type: str,
-                               weather_data: WeatherForecast) -> Tuple[bool, str]:
+                               weather_data: WeatherForecast) -> tuple[bool, str]:
         """必須キーワードのチェック"""
         weather_desc = weather_data.weather_description.lower()
         temp = weather_data.temperature
@@ -153,7 +153,7 @@ class WeatherCommentValidator:
         weather_comment: str, 
         advice_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         天気コメントとアドバイスの一貫性をチェック
         
@@ -169,8 +169,8 @@ class WeatherCommentValidator:
             weather_comment, advice_comment, weather_data
         )
     
-    def filter_comments(self, comments: List[PastComment], 
-                       weather_data: WeatherForecast) -> List[PastComment]:
+    def filter_comments(self, comments: list[PastComment], 
+                       weather_data: WeatherForecast) -> list[PastComment]:
         """
         天気条件に基づいてコメントをフィルタリング
         
@@ -210,10 +210,10 @@ class WeatherCommentValidator:
         
         return valid_comments
     
-    def get_weather_appropriate_comments(self, comments: List[PastComment],
+    def get_weather_appropriate_comments(self, comments: list[PastComment],
                                        weather_data: WeatherForecast,
                                        comment_type: CommentType,
-                                       limit: int = 30) -> List[PastComment]:
+                                       limit: int = 30) -> list[PastComment]:
         """
         天気に適したコメントを優先度順に取得
         

@@ -1,7 +1,6 @@
 """花粉関連のコメント検証"""
 
 import logging
-from typing import Tuple
 from datetime import datetime
 
 from src.data.weather_data import WeatherForecast
@@ -67,7 +66,7 @@ class PollenValidator(BaseValidator):
         "花粉予報", "花粉量", "スギ花粉", "ヒノキ花粉", "シラカバ花粉"
     ]
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """
         花粉関連コメントの妥当性を検証
         
@@ -124,7 +123,7 @@ class PollenValidator(BaseValidator):
         """テキストに花粉関連表現が含まれているかチェック"""
         return any(pattern in text for pattern in self.POLLEN_PATTERNS)
     
-    def _check_seasonal_validity(self, target_datetime: datetime, location: str = None) -> Tuple[bool, str]:
+    def _check_seasonal_validity(self, target_datetime: datetime, location: str = None) -> tuple[bool, str]:
         """地域別の季節的な妥当性をチェック"""
         month = target_datetime.month
         
@@ -168,7 +167,7 @@ class PollenValidator(BaseValidator):
         
         return None
     
-    def _check_weather_validity(self, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def _check_weather_validity(self, weather_data: WeatherForecast) -> tuple[bool, str]:
         """天気条件での妥当性をチェック"""
         weather_desc = weather_data.weather_description.lower()
         
@@ -183,7 +182,7 @@ class PollenValidator(BaseValidator):
         
         return True, ""
     
-    def _check_pollen_dispersion_conditions(self, weather: WeatherForecast) -> Tuple[bool, str]:
+    def _check_pollen_dispersion_conditions(self, weather: WeatherForecast) -> tuple[bool, str]:
         """風速と湿度を考慮した花粉飛散条件の判定"""
         # 高湿度時（80%以上）は花粉が飛散しにくい
         if weather.humidity >= 80:

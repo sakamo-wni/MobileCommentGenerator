@@ -5,7 +5,7 @@
 
 import json
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
 from datetime import datetime, timedelta
 
 from src.data.comment_generation_state import CommentGenerationState
@@ -25,7 +25,7 @@ class WorkflowStateBuilder:
     @staticmethod
     def build_initial_state(
         location_name: str,
-        target_datetime: Optional[datetime] = None,
+        target_datetime: datetime | None = None,
         llm_provider: str = "openai",
         exclude_previous: bool = False,
         **kwargs
@@ -57,7 +57,7 @@ class WorkflowResultParser:
     """ワークフロー実行結果を解析するクラス"""
     
     @staticmethod
-    def parse_output_json(result: CommentGenerationState) -> tuple[Optional[str], Dict[str, Any]]:
+    def parse_output_json(result: CommentGenerationState) -> tuple[str | None, dict[str, Any]]:
         """output_jsonから結果を解析"""
         output_json_str = result.get("generation_metadata", {}).get("output_json")
         
@@ -78,7 +78,7 @@ class WorkflowResultParser:
     @staticmethod
     def calculate_execution_time(
         workflow_start_time: datetime,
-        workflow_end_time: Optional[datetime] = None
+        workflow_end_time: datetime | None = None
     ) -> float:
         """実行時間を計算（ミリ秒）"""
         end_time = workflow_end_time or datetime.now()
@@ -91,11 +91,11 @@ class WorkflowResponseBuilder:
     @staticmethod
     def build_success_response(
         final_comment: str,
-        generation_metadata: Dict[str, Any],
+        generation_metadata: dict[str, Any],
         execution_time_ms: float,
         retry_count: int,
-        warnings: List[str]
-    ) -> Dict[str, Any]:
+        warnings: list[str]
+    ) -> dict[str, Any]:
         """成功レスポンスを構築"""
         return {
             "success": True,
@@ -109,12 +109,12 @@ class WorkflowResponseBuilder:
     
     @staticmethod
     def build_error_response(
-        errors: List[str],
-        generation_metadata: Dict[str, Any],
+        errors: list[str],
+        generation_metadata: dict[str, Any],
         execution_time_ms: float,
         retry_count: int,
-        warnings: List[str]
-    ) -> Dict[str, Any]:
+        warnings: list[str]
+    ) -> dict[str, Any]:
         """エラーレスポンスを構築"""
         return {
             "success": False,
@@ -128,7 +128,7 @@ class WorkflowResponseBuilder:
         }
     
     @staticmethod
-    def build_exception_response(exception: Exception) -> Dict[str, Any]:
+    def build_exception_response(exception: Exception) -> dict[str, Any]:
         """例外レスポンスを構築"""
         error_msg = str(exception)
         app_error = WorkflowResponseBuilder._classify_error(error_msg)
@@ -170,11 +170,11 @@ class WorkflowExecutor:
     def execute(
         self,
         location_name: str,
-        target_datetime: Optional[datetime] = None,
+        target_datetime: datetime | None = None,
         llm_provider: str = "openai",
         exclude_previous: bool = False,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """ワークフローを実行"""
         # 初期状態の構築
         initial_state = self.state_builder.build_initial_state(
@@ -193,7 +193,7 @@ class WorkflowExecutor:
             logger.error(f"ワークフロー実行エラー: {str(e)}", exc_info=True)
             return self.response_builder.build_exception_response(e)
     
-    def _process_result(self, result: CommentGenerationState) -> Dict[str, Any]:
+    def _process_result(self, result: CommentGenerationState) -> dict[str, Any]:
         """実行結果を処理"""
         # 実行時間の計算
         workflow_start_time = result.get("workflow_start_time", datetime.now())

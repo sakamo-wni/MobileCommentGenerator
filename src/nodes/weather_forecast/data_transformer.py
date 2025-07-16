@@ -6,8 +6,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
-
+from typing import Any
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.weather_trend import WeatherTrend
 from src.config.config import get_weather_config
@@ -24,9 +23,9 @@ class WeatherDataTransformer:
     
     def filter_forecasts_by_hours(
         self,
-        forecasts: List[WeatherForecast],
+        forecasts: list[WeatherForecast],
         hours: int,
-    ) -> List[WeatherForecast]:
+    ) -> list[WeatherForecast]:
         """指定時間内の予報データをフィルタリング
         
         Args:
@@ -44,7 +43,7 @@ class WeatherDataTransformer:
         
         return [forecast for forecast in forecasts if forecast.datetime <= cutoff_time]
     
-    def generate_weather_summary(self, forecasts: List[WeatherForecast]) -> Dict[str, Any]:
+    def generate_weather_summary(self, forecasts: list[WeatherForecast]) -> dict[str, Any]:
         """天気概要を生成
         
         Args:
@@ -119,7 +118,7 @@ class WeatherDataTransformer:
             "recommendations": self._generate_recommendations(forecasts),
         }
     
-    def _generate_recommendations(self, forecasts: List[WeatherForecast]) -> List[str]:
+    def _generate_recommendations(self, forecasts: list[WeatherForecast]) -> list[str]:
         """天気に基づく推奨事項を生成
         
         Args:
@@ -171,7 +170,7 @@ class WeatherDataTransformer:
         
         return recommendations
     
-    def analyze_weather_trend(self, forecasts: List[WeatherForecast]) -> WeatherTrend:
+    def analyze_weather_trend(self, forecasts: list[WeatherForecast]) -> WeatherTrend:
         """気象変化傾向を分析
         
         Args:
@@ -184,10 +183,10 @@ class WeatherDataTransformer:
     
     def transform_for_state(
         self,
-        forecasts: List[WeatherForecast],
+        forecasts: list[WeatherForecast],
         location_name: str,
         generated_at: datetime,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """状態辞書用に天気データを変換
         
         Args:

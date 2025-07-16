@@ -5,7 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Any
 import re
 
 from src.data.evaluation_criteria import (
@@ -23,7 +23,7 @@ class BaseEvaluator(ABC):
     評価基準の基底クラス
     """
     
-    def __init__(self, weight: float, config: Optional[EvaluatorConfig] = None):
+    def __init__(self, weight: float, config: EvaluatorConfig | None = None):
         """
         初期化
         
@@ -70,7 +70,7 @@ class BaseEvaluator(ABC):
         """天気説明を安全に取得"""
         return getattr(weather_data, 'weather_description', '')
     
-    def safe_get_temperature(self, weather_data: WeatherForecast) -> Optional[float]:
+    def safe_get_temperature(self, weather_data: WeatherForecast) -> float | None:
         """気温を安全に取得"""
         return getattr(weather_data, 'temperature', None)
     

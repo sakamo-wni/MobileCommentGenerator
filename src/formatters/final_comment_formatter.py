@@ -2,7 +2,7 @@
 最終コメントフォーマッター
 """
 
-from typing import Optional, Any
+from typing import Any
 import logging
 import re
 
@@ -73,7 +73,7 @@ class FinalCommentFormatter:
         logger.info(f"最終コメント確定: '{final_comment}'")
         return final_comment
     
-    def _apply_safety_checks(self, final_comment: str, weather_data: Optional[Any]) -> str:
+    def _apply_safety_checks(self, final_comment: str, weather_data: Any | None) -> str:
         """最終安全チェック：特殊気象条件に対する不適切なコメント組み合わせの修正"""
         if not weather_data or not final_comment:
             return final_comment

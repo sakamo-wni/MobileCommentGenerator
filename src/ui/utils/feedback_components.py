@@ -5,7 +5,7 @@
 """
 
 import streamlit as st
-from typing import Optional, Dict, Any, List, Callable, Literal
+from typing import Any, Callable, Literal
 from datetime import datetime
 import time
 from .security_utils import sanitize_html, sanitize_id, generate_safe_id
@@ -30,9 +30,9 @@ def _inject_css_once(css_id: str, css_content: str) -> None:
 def show_operation_status(
     operation_name: str,
     status: Literal["processing", "success", "error", "warning"] = "processing",
-    message: Optional[str] = None,
-    progress: Optional[float] = None,
-    details: Optional[Dict[str, Any]] = None
+    message: str | None = None,
+    progress: float | None = None,
+    details: dict[str, Any | None] = None
 ) -> None:
     """
     操作の状態を視覚的に表示
@@ -76,7 +76,7 @@ def show_operation_status(
 
 
 def show_step_progress(
-    steps: List[Dict[str, Any]],
+    steps: list[dict[str, Any]],
     current_step: int
 ) -> None:
     """
@@ -159,7 +159,7 @@ def show_confirmation_dialog(
     confirm_label: str = "確認",
     cancel_label: str = "キャンセル",
     danger: bool = False
-) -> Optional[bool]:
+) -> bool | None:
     """
     確認ダイアログを表示
     
@@ -275,8 +275,8 @@ def create_feedback_form(
     form_id: str = "feedback_form",
     include_rating: bool = True,
     include_comment: bool = True,
-    callback: Optional[Callable[[Dict[str, Any]], None]] = None
-) -> Optional[Dict[str, Any]]:
+    callback: Callable[[dict[str, Any | None]], None] | None = None
+) -> dict[str, Any | None]:
     """
     フィードバックフォームを作成
     
@@ -360,7 +360,7 @@ def show_help_tooltip(
 
 
 def create_onboarding_tour(
-    steps: List[Dict[str, str]],
+    steps: list[dict[str, str]],
     tour_id: str = "onboarding_tour"
 ) -> None:
     """

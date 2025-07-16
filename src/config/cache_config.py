@@ -5,7 +5,7 @@
 """
 
 import os
-from typing import Dict, Any
+from typing import Any
 
 
 class CacheConfig:
@@ -62,7 +62,7 @@ class CacheConfig:
         ))
     
     @staticmethod
-    def get_all_settings() -> Dict[str, Any]:
+    def get_all_settings() -> dict[str, Any]:
         """すべてのキャッシュ設定を取得
         
         Returns:

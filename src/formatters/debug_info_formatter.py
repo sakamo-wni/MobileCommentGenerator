@@ -4,7 +4,7 @@ Debug Info Formatter
 デバッグ情報を作成する
 """
 
-from typing import Dict, Any
+from typing import Any
 import logging
 
 from src.data.comment_generation_state import CommentGenerationState
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DebugInfoFormatter:
     """デバッグ情報のフォーマッター"""
 
-    def create_debug_info(self, state: CommentGenerationState) -> Dict[str, Any]:
+    def create_debug_info(self, state: CommentGenerationState) -> dict[str, Any]:
         """
         デバッグ情報を作成
         

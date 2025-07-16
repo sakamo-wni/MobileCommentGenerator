@@ -3,8 +3,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Dict, Any, Optional, List
-
+from typing import Any
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.past_comment import CommentType, PastComment
 from src.data.weather_data import WeatherForecast
@@ -21,13 +20,13 @@ class LLMCommentSelector:
     
     def llm_select_comment(
         self,
-        candidates: List[Dict[str, Any]],
+        candidates: list[dict[str, Any]],
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
         comment_type: CommentType,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[PastComment]:
+        state: CommentGenerationState | None = None
+    ) -> PastComment | None:
         """LLMを使用してコメントを選択"""
         if not candidates:
             return None
@@ -76,13 +75,13 @@ class LLMCommentSelector:
     
     def _perform_llm_selection(
         self,
-        candidates: List[Dict[str, Any]],
+        candidates: list[dict[str, Any]],
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
         comment_type: CommentType,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[Dict[str, Any]]:
+        state: CommentGenerationState | None = None
+    ) -> dict[str, Any | None]:
         """LLMによる実際の選択処理"""
         # 候補リストを文字列として整形
         candidates_text = self._format_candidates_for_llm(candidates)
@@ -124,7 +123,7 @@ class LLMCommentSelector:
             logger.error(f"候補数: {len(candidates)}")
             return None
     
-    def _format_candidates_for_llm(self, candidates: List[Dict[str, Any]]) -> str:
+    def _format_candidates_for_llm(self, candidates: list[dict[str, Any]]) -> str:
         """候補をLLM用に整形"""
         formatted_candidates = []
         for i, candidate in enumerate(candidates):
@@ -134,7 +133,7 @@ class LLMCommentSelector:
             )
         return "\n".join(formatted_candidates)
     
-    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime, state: Optional[CommentGenerationState] = None) -> str:
+    def _format_weather_context(self, weather_data: WeatherForecast, location_name: str, target_datetime: datetime, state: CommentGenerationState | None = None) -> str:
         """天気情報をLLM用に整形（時系列分析を含む）"""
         
         # 基本天気情報
@@ -330,7 +329,7 @@ class LLMCommentSelector:
 例: 2
 """
     
-    def _extract_selected_index(self, response: str, max_index: int) -> Optional[int]:
+    def _extract_selected_index(self, response: str, max_index: int) -> int | None:
         """LLMレスポンスから選択インデックスを抽出（堅牢化）"""
         response_clean = response.strip()
         

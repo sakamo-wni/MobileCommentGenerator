@@ -5,11 +5,10 @@ APIキー検証、テーマ設定など
 """
 
 import os
-from typing import Dict
 import streamlit as st
 
 
-def validate_api_keys() -> Dict[str, bool]:
+def validate_api_keys() -> dict[str, bool]:
     """
     APIキーの存在を検証
 
@@ -23,7 +22,7 @@ def validate_api_keys() -> Dict[str, bool]:
     }
 
 
-def get_theme_colors() -> Dict[str, str]:
+def get_theme_colors() -> dict[str, str]:
     """
     アプリケーションのテーマカラーを取得
 

@@ -4,7 +4,7 @@ JSON Output Formatter
 最終結果をJSON形式で整形し、クリーンアップ処理を行う
 """
 
-from typing import Dict, Any
+from typing import Any
 import logging
 import json
 from datetime import datetime

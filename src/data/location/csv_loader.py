@@ -3,7 +3,7 @@
 import csv
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 from .models import Location
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class LocationCSVLoader:
     """地点データCSVローダー"""
     
-    def __init__(self, csv_path: Optional[str] = None, coordinates_csv_path: Optional[str] = None):
+    def __init__(self, csv_path: str | None = None, coordinates_csv_path: str | None = None):
         """初期化
         
         Args:
@@ -76,7 +76,7 @@ class LocationCSVLoader:
         logger.warning(f"location_coordinates.csvが見つかりません。デフォルトパスを使用: {default_path}")
         return default_path
     
-    def load_locations(self) -> List[Location]:
+    def load_locations(self) -> list[Location]:
         """CSVファイルから地点データを読み込む
         
         Returns:
@@ -127,7 +127,7 @@ class LocationCSVLoader:
             logger.error(f"CSV読み込みエラー: {e}")
             return self._load_default_locations()
     
-    def _parse_location_row(self, row: Dict[str, str]) -> Optional[Location]:
+    def _parse_location_row(self, row: dict[str, str]) -> Location | None:
         """CSV行から地点データを解析
         
         Args:
@@ -171,7 +171,7 @@ class LocationCSVLoader:
         
         return location
     
-    def _load_coordinates_from_csv(self) -> Dict[str, Dict[str, Any]]:
+    def _load_coordinates_from_csv(self) -> dict[str, dict[str, Any]]:
         """CSVファイルから緯度経度情報を読み込む"""
         coordinates_data = {}
         
@@ -200,7 +200,7 @@ class LocationCSVLoader:
         
         return coordinates_data
     
-    def _get_location_coordinates(self, location_name: str) -> Optional[Dict[str, Any]]:
+    def _get_location_coordinates(self, location_name: str) -> dict[str, Any | None]:
         """地点名から緯度経度情報を取得
         
         Args:
@@ -227,7 +227,7 @@ class LocationCSVLoader:
         
         return self._coordinates_cache.get(location_name)
     
-    def _load_default_locations(self) -> List[Location]:
+    def _load_default_locations(self) -> list[Location]:
         """デフォルトの地点データを返す"""
         logger.info("デフォルトの地点データをロードしています...")
         

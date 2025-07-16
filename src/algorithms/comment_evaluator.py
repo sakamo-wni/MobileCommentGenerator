@@ -4,7 +4,7 @@
 コメントの品質を多角的に評価する機能
 """
 
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Any
 import re
 import logging
 from datetime import datetime
@@ -43,7 +43,7 @@ class CommentEvaluator:
 
     def __init__(
         self, 
-        weights: Optional[Dict[EvaluationCriteria, float]] = None,
+        weights: dict[EvaluationCriteria, float | None] = None,
         evaluation_mode: str = "relaxed"
     ):
         """
@@ -185,14 +185,14 @@ class CommentEvaluator:
 
     # ヘルパーメソッド
 
-    def _calculate_total_score(self, criterion_scores: List[CriterionScore]) -> float:
+    def _calculate_total_score(self, criterion_scores: list[CriterionScore]) -> float:
         """総合スコアを計算"""
         total_weighted = sum(score.weighted_score for score in criterion_scores)
         total_weight = sum(score.weight for score in criterion_scores)
         return total_weighted / total_weight if total_weight > 0 else 0.0
 
     def _determine_validity(
-        self, criterion_scores: List[CriterionScore], total_score: float
+        self, criterion_scores: list[CriterionScore], total_score: float
     ) -> bool:
         """検証結果を判定（モードに応じた基準）"""
         # 総合スコアが閾値以上
@@ -218,8 +218,8 @@ class CommentEvaluator:
         return True
 
     def _generate_suggestions(
-        self, criterion_scores: List[CriterionScore], comment_pair: CommentPair
-    ) -> List[str]:
+        self, criterion_scores: list[CriterionScore], comment_pair: CommentPair
+    ) -> list[str]:
         """改善提案を生成"""
         suggestions = []
 
@@ -236,7 +236,7 @@ class CommentEvaluator:
 
     def _get_suggestion_for_criterion(
         self, criterion: EvaluationCriteria, score: float, comment_pair: CommentPair
-    ) -> Optional[str]:
+    ) -> str | None:
         """基準別の改善提案"""
         suggestions_map = {
             EvaluationCriteria.RELEVANCE: "天気条件や気温により適した表現を使用してください",

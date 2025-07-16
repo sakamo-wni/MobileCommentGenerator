@@ -6,7 +6,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Any
 from dotenv import load_dotenv
 
 from .config import get_system_constants, get_weather_config, get_langgraph_config, get_config as get_unified_config
@@ -39,7 +39,7 @@ class AppConfig:
         self.debug_mode = unified_config.app.debug
         self.log_level = unified_config.app.log_level
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:
@@ -118,7 +118,7 @@ def reload_config() -> AppConfig:
 
 
 # 設定検証関数
-def validate_config(config: AppConfig) -> Dict[str, List[str]]:
+def validate_config(config: AppConfig) -> dict[str, list[str]]:
     """設定の妥当性を検証
 
     Args:
@@ -127,7 +127,7 @@ def validate_config(config: AppConfig) -> Dict[str, List[str]]:
     Returns:
         検証エラーの辞書 {'category': [error_messages]}
     """
-    errors: Dict[str, List[str]] = {"weather": [], "langgraph": [], "general": []}
+    errors: dict[str, list[str]] = {"weather": [], "langgraph": [], "general": []}
 
     # 天気設定の検証
     try:

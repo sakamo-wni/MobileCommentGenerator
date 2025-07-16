@@ -6,7 +6,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any
 from enum import Enum
 import json
 
@@ -43,14 +43,14 @@ class PastComment:
     weather_condition: str
     comment_text: str
     comment_type: CommentType
-    temperature: Optional[float] = None
-    weather_code: Optional[str] = None
-    humidity: Optional[float] = None
-    wind_speed: Optional[float] = None
-    precipitation: Optional[float] = None
-    source_file: Optional[str] = None
-    raw_data: Dict[str, Any] = field(default_factory=dict)
-    usage_count: Optional[int] = None
+    temperature: float | None = None
+    weather_code: str | None = None
+    humidity: float | None = None
+    wind_speed: float | None = None
+    precipitation: float | None = None
+    source_file: str | None = None
+    raw_data: dict[str, Any] = field(default_factory=dict)
+    usage_count: int | None = None
 
     def __post_init__(self):
         """データクラス初期化後の検証処理"""
@@ -81,7 +81,7 @@ class PastComment:
             if not 0 <= self.humidity <= 100:
                 raise ValueError(f"異常な湿度値: {self.humidity}%")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:
@@ -107,7 +107,7 @@ class PastComment:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], source_file: Optional[str] = None) -> "PastComment":
+    def from_dict(cls, data: dict[str, Any], source_file: str | None = None) -> "PastComment":
         """辞書から PastComment オブジェクトを作成
 
         Args:
@@ -194,8 +194,8 @@ class PastComment:
     def calculate_similarity_score(
         self,
         target_weather_condition: str,
-        target_temperature: Optional[float] = None,
-        target_location: Optional[str] = None,
+        target_temperature: float | None = None,
+        target_location: str | None = None,
     ) -> float:
         """類似度スコアを計算
 
@@ -290,8 +290,8 @@ class PastCommentCollection:
         loaded_at: データ読み込み日時
     """
 
-    comments: List[PastComment]
-    source_period: Optional[str] = None
+    comments: list[PastComment]
+    source_period: str | None = None
     loaded_at: datetime = field(default_factory=datetime.now)
 
     def filter_by_location(
@@ -369,11 +369,11 @@ class PastCommentCollection:
     def get_similar_comments(
         self,
         target_weather_condition: str,
-        target_temperature: Optional[float] = None,
-        target_location: Optional[str] = None,
+        target_temperature: float | None = None,
+        target_location: str | None = None,
         min_similarity: float = 0.3,
         max_results: int = 10,
-    ) -> List[PastComment]:
+    ) -> list[PastComment]:
         """類似コメントを取得
 
         Args:
@@ -405,10 +405,10 @@ class PastCommentCollection:
         self,
         comment_type: CommentType,
         target_weather_condition: str,
-        target_temperature: Optional[float] = None,
-        target_location: Optional[str] = None,
+        target_temperature: float | None = None,
+        target_location: str | None = None,
         max_results: int = 5,
-    ) -> List[PastComment]:
+    ) -> list[PastComment]:
         """タイプと類似度で絞り込み
 
         Args:
@@ -429,7 +429,7 @@ class PastCommentCollection:
             target_weather_condition, target_temperature, target_location, max_results=max_results
         )
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """統計情報を取得
 
         Returns:
@@ -469,7 +469,7 @@ class PastCommentCollection:
             "loaded_at": self.loaded_at.isoformat(),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:

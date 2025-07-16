@@ -1,6 +1,6 @@
 """Unified API response types for type safety"""
 
-from typing import TypeVar, Generic, Optional, Dict, Any
+from typing import TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -11,9 +11,9 @@ T = TypeVar('T')
 class ApiResponse(BaseModel, Generic[T]):
     """Generic API response wrapper"""
     success: bool
-    data: Optional[T] = None
-    error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    data: T | None = None
+    error: str | None = None
+    metadata: dict[str, Any | None] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.now)
     
     class Config:
@@ -23,16 +23,16 @@ class ApiError(BaseModel):
     """Structured error response"""
     code: str
     message: str
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any | None] = None
     timestamp: datetime = Field(default_factory=datetime.now)
 
 # Specific response data models
 class CommentGenerationData(BaseModel):
     """Data for comment generation response"""
     location: str
-    comment: Optional[str] = None
-    advice_comment: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None  # Change to Dict to accept any metadata format
+    comment: str | None = None
+    advice_comment: str | None = None
+    metadata: dict[str, Any | None] = None  # Change to Dict to accept any metadata format
 
 class LocationData(BaseModel):
     """Data for location response"""
@@ -40,7 +40,7 @@ class LocationData(BaseModel):
 
 class HistoryData(BaseModel):
     """Data for history response"""
-    history: list[Dict[str, Any]]  # Using Dict for flexibility with history items
+    history: list[dict[str, Any]]  # Using Dict for flexibility with history items
 
 class ProviderData(BaseModel):
     """Data for provider information"""

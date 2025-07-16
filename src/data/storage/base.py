@@ -5,7 +5,7 @@ DynamoDBとローカルストレージの両方に対応できる基底クラス
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
+from typing import Any
 from datetime import datetime
 
 
@@ -16,7 +16,7 @@ class StorageInterface(ABC):
     """
     
     @abstractmethod
-    def put_item(self, table_name: str, item: Dict[str, Any]) -> None:
+    def put_item(self, table_name: str, item: dict[str, Any]) -> None:
         """アイテムを保存
         
         Args:
@@ -26,7 +26,7 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    def get_item(self, table_name: str, key: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def get_item(self, table_name: str, key: dict[str, Any]) -> dict[str, Any | None]:
         """アイテムを取得
         
         Args:
@@ -39,8 +39,8 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    def query(self, table_name: str, key_condition: Dict[str, Any], 
-              limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def query(self, table_name: str, key_condition: dict[str, Any], 
+              limit: int | None = None) -> list[dict[str, Any]]:
         """クエリ実行
         
         Args:
@@ -54,7 +54,7 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    def batch_write(self, table_name: str, items: List[Dict[str, Any]]) -> None:
+    def batch_write(self, table_name: str, items: list[dict[str, Any]]) -> None:
         """バッチ書き込み
         
         Args:
@@ -64,7 +64,7 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    def delete_item(self, table_name: str, key: Dict[str, Any]) -> None:
+    def delete_item(self, table_name: str, key: dict[str, Any]) -> None:
         """アイテムを削除
         
         Args:
@@ -74,7 +74,7 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    def create_table(self, table_name: str, schema: Dict[str, Any]) -> None:
+    def create_table(self, table_name: str, schema: dict[str, Any]) -> None:
         """テーブルを作成
         
         Args:

@@ -2,8 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Tuple
-
+from typing import Any
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.comment_pair import CommentPair
 from src.data.past_comment import CommentType, PastComment
@@ -35,15 +34,15 @@ class CommentSelector:
     
     def select_optimal_comment_pair(
         self, 
-        weather_comments: List[PastComment], 
-        advice_comments: List[PastComment], 
+        weather_comments: list[PastComment], 
+        advice_comments: list[PastComment], 
         weather_data: WeatherForecast, 
         location_name: str, 
         target_datetime: datetime,
-        state: Optional[CommentGenerationState] = None,
-        exclude_weather_comment: Optional[str] = None,
-        exclude_advice_comment: Optional[str] = None
-    ) -> Optional[CommentPair]:
+        state: CommentGenerationState | None = None,
+        exclude_weather_comment: str | None = None,
+        exclude_advice_comment: str | None = None
+    ) -> CommentPair | None:
         """最適なコメントペアを選択"""
         
         # 事前フィルタリング
@@ -118,12 +117,12 @@ class CommentSelector:
     
     def _select_best_weather_comment(
         self, 
-        comments: List[PastComment], 
+        comments: list[PastComment], 
         weather_data: WeatherForecast, 
         location_name: str, 
         target_datetime: datetime,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[PastComment]:
+        state: CommentGenerationState | None = None
+    ) -> PastComment | None:
         """天気コメントの選択"""
         if not comments:
             return None
@@ -145,12 +144,12 @@ class CommentSelector:
     
     def _select_best_advice_comment(
         self, 
-        comments: List[PastComment], 
+        comments: list[PastComment], 
         weather_data: WeatherForecast, 
         location_name: str, 
         target_datetime: datetime,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[PastComment]:
+        state: CommentGenerationState | None = None
+    ) -> PastComment | None:
         """アドバイスコメントの選択"""
         if not comments:
             return None
@@ -172,11 +171,11 @@ class CommentSelector:
     
     def _fallback_comment_selection(
         self,
-        weather_comments: List[PastComment],
-        advice_comments: List[PastComment],
+        weather_comments: list[PastComment],
+        advice_comments: list[PastComment],
         weather_data: WeatherForecast,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[CommentPair]:
+        state: CommentGenerationState | None = None
+    ) -> CommentPair | None:
         """フォールバック選択処理"""
         logger.warning("フォールバック選択を実行")
         logger.info(f"フォールバック入力 - 天気: {len(weather_comments)}件, アドバイス: {len(advice_comments)}件")
@@ -252,10 +251,10 @@ class CommentSelector:
     
     def _find_rain_appropriate_weather_comment(
         self, 
-        comments: List[PastComment],
+        comments: list[PastComment],
         weather_data: WeatherForecast,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[PastComment]:
+        state: CommentGenerationState | None = None
+    ) -> PastComment | None:
         """雨に適した天気コメントを探す（降水量に応じた表現の妥当性をチェック）"""
         rain_keywords = ["雨", "降水", "にわか雨", "傘"]
         
@@ -315,9 +314,9 @@ class CommentSelector:
     
     def _find_rain_appropriate_advice_comment(
         self, 
-        comments: List[PastComment],
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[PastComment]:
+        comments: list[PastComment],
+        state: CommentGenerationState | None = None
+    ) -> PastComment | None:
         """雨に適したアドバイスコメントを探す"""
         rain_advice_keywords = ["傘", "雨具", "濡れ", "雨対策"]
         
@@ -361,13 +360,13 @@ class CommentSelector:
     
     def _select_alternative_non_duplicate_pair(
         self,
-        weather_comments: List[PastComment],
-        advice_comments: List[PastComment],
+        weather_comments: list[PastComment],
+        advice_comments: list[PastComment],
         weather_data: WeatherForecast,
         location_name: str,
         target_datetime: datetime,
-        state: Optional[CommentGenerationState] = None
-    ) -> Optional[CommentPair]:
+        state: CommentGenerationState | None = None
+    ) -> CommentPair | None:
         """重複を回避する代替ペア選択"""
         logger.info("重複回避のための代替コメントペア選択を開始")
         
@@ -413,9 +412,9 @@ class CommentSelector:
     
     def _select_weather_with_minimal_validation(
         self,
-        comments: List[PastComment],
+        comments: list[PastComment],
         weather_data: WeatherForecast
-    ) -> Optional[PastComment]:
+    ) -> PastComment | None:
         """最低限のバリデーションで天気コメントを選択"""
         logger.info("最低限バリデーションで天気コメントを選択")
         
@@ -451,9 +450,9 @@ class CommentSelector:
     
     def _select_advice_with_minimal_validation(
         self,
-        comments: List[PastComment],
+        comments: list[PastComment],
         weather_data: WeatherForecast
-    ) -> Optional[PastComment]:
+    ) -> PastComment | None:
         """最低限のバリデーションでアドバイスコメントを選択"""
         logger.info("最低限バリデーションでアドバイスコメントを選択")
         

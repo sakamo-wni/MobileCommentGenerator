@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Set
+from typing import Any
 from datetime import datetime
 import csv
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class IndexedCSVHandler:
     """インデックス化されたCSVハンドラー"""
     
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(self, cache_dir: Path | None = None):
         """
         Args:
             cache_dir: インデックスキャッシュを保存するディレクトリ
@@ -30,8 +30,8 @@ class IndexedCSVHandler:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # メモリキャッシュ
-        self.index_cache: Dict[str, Dict[str, Any]] = {}
-        self.file_hashes: Dict[str, str] = {}
+        self.index_cache: dict[str, dict[str, Any]] = {}
+        self.file_hashes: dict[str, str] = {}
         
     def get_file_hash(self, file_path: Path) -> str:
         """ファイルのハッシュ値を計算"""
@@ -70,7 +70,7 @@ class IndexedCSVHandler:
     
     def load_indexed_csv(self, csv_path: Path, 
                         comment_type: CommentType,
-                        season: str) -> List[PastComment]:
+                        season: str) -> list[PastComment]:
         """インデックス化されたCSVをロード"""
         if self.need_rebuild_index(csv_path):
             self._build_index(csv_path, comment_type, season)
@@ -88,7 +88,7 @@ class IndexedCSVHandler:
             
         return []
     
-    def search_by_weather(self, csv_path: Path, weather_condition: str) -> List[PastComment]:
+    def search_by_weather(self, csv_path: Path, weather_condition: str) -> list[PastComment]:
         """天気条件で検索"""
         index = self._get_or_load_index(csv_path)
         if not index:
@@ -106,7 +106,7 @@ class IndexedCSVHandler:
     
     def search_by_usage_count(self, csv_path: Path, 
                              min_count: int = 0, 
-                             max_count: int = float('inf')) -> List[PastComment]:
+                             max_count: int = float('inf')) -> list[PastComment]:
         """使用回数で検索"""
         index = self._get_or_load_index(csv_path)
         if not index:
@@ -122,7 +122,7 @@ class IndexedCSVHandler:
                 
         return results
     
-    def _get_or_load_index(self, csv_path: Path) -> Optional[Dict[str, Any]]:
+    def _get_or_load_index(self, csv_path: Path) -> dict[str, Any | None]:
         """インデックスを取得（メモリまたはディスクから）"""
         # メモリキャッシュを確認
         if str(csv_path) in self.index_cache:
@@ -187,9 +187,9 @@ class IndexedCSVHandler:
         except Exception as e:
             logger.error(f"Failed to build index for {csv_path}: {e}")
     
-    def _create_past_comment(self, row: Dict[str, str], 
+    def _create_past_comment(self, row: dict[str, str], 
                            comment_type: CommentType, 
-                           season: str) -> Optional[PastComment]:
+                           season: str) -> PastComment | None:
         """CSVの行からPastCommentオブジェクトを作成"""
         try:
             # カラム名の確認
@@ -219,7 +219,7 @@ class IndexedCSVHandler:
             logger.error(f"Failed to create PastComment: {e}")
             return None
     
-    def _save_index_to_disk(self, csv_path: Path, index: Dict[str, Any]) -> None:
+    def _save_index_to_disk(self, csv_path: Path, index: dict[str, Any]) -> None:
         """インデックスをディスクに保存（アトミックな書き込みとリトライ機構付き）"""
         index_path = self._get_index_path(csv_path)
         temp_path = index_path.with_suffix('.tmp')
@@ -254,7 +254,7 @@ class IndexedCSVHandler:
                         except:
                             pass
     
-    def _load_index_from_disk(self, csv_path: Path) -> Optional[Dict[str, Any]]:
+    def _load_index_from_disk(self, csv_path: Path) -> dict[str, Any | None]:
         """ディスクからインデックスをロード"""
         index_path = self._get_index_path(csv_path)
         if not index_path.exists():
@@ -286,7 +286,7 @@ class IndexedCSVHandler:
                 except Exception as e:
                     logger.error(f"Failed to delete index file {index_file}: {e}")
     
-    def _convert_index_to_serializable(self, index: Dict[str, Any]) -> Dict[str, Any]:
+    def _convert_index_to_serializable(self, index: dict[str, Any]) -> dict[str, Any]:
         """インデックスをJSON用にシリアライズ可能な形式に変換"""
         serializable_index = {}
         
@@ -302,7 +302,7 @@ class IndexedCSVHandler:
                 
         return serializable_index
     
-    def _convert_index_from_serializable(self, serializable_index: Dict[str, Any]) -> Dict[str, Any]:
+    def _convert_index_from_serializable(self, serializable_index: dict[str, Any]) -> dict[str, Any]:
         """JSON形式のインデックスをPastCommentオブジェクトに変換"""
         index = {}
         
@@ -318,7 +318,7 @@ class IndexedCSVHandler:
                 
         return index
     
-    def _comment_to_dict(self, comment: PastComment) -> Dict[str, Any]:
+    def _comment_to_dict(self, comment: PastComment) -> dict[str, Any]:
         """PastCommentオブジェクトを辞書に変換"""
         return {
             "comment_id": comment.comment_id,
@@ -334,7 +334,7 @@ class IndexedCSVHandler:
             "comment2": comment.comment2
         }
     
-    def _dict_to_comment(self, data: Dict[str, Any]) -> PastComment:
+    def _dict_to_comment(self, data: dict[str, Any]) -> PastComment:
         """辞書をPastCommentオブジェクトに変換"""
         return PastComment(
             comment_id=data["comment_id"],

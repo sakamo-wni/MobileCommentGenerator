@@ -1,12 +1,12 @@
 """地点選択コンポーネント"""
 
 import streamlit as st
-from typing import List, Dict
+from typing import Any
 from src.ui.streamlit_utils import load_locations, filter_locations, sort_locations_by_order
 from src.config.app_config import get_config
 
 # 地域別地点データ
-REGIONS: Dict[str, List[str]] = {
+REGIONS: dict[str, list[str]] = {
     "北海道": [
         "稚内", "旭川", "留萌",
         "札幌", "岩見沢", "倶知安", 
@@ -93,7 +93,7 @@ PRESET_GROUPS = {
 }
 
 
-def location_selector() -> List[str]:
+def location_selector() -> list[str]:
     """
     地点選択コンポーネント（複数選択対応）
 

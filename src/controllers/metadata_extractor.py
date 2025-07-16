@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Dict
 import pytz
 
 from src.types import LocationResult, GenerationMetadata
@@ -28,9 +27,9 @@ class MetadataExtractor:
             return forecast_time
     
     @staticmethod
-    def extract_weather_metadata(result: LocationResult) -> Dict[str, str | float | None]:
+    def extract_weather_metadata(result: LocationResult) -> dict[str, str | float | None]:
         """結果から天気メタデータを抽出"""
-        metadata: Dict[str, str | float | None] = {}
+        metadata: dict[str, str | float | None] = {}
         
         if result.get('result') and result['result'].get('generation_metadata'):
             gen_metadata: GenerationMetadata = result['result']['generation_metadata']

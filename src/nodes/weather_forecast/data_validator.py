@@ -5,8 +5,7 @@
 """
 
 import logging
-from typing import List, Optional
-
+from typing import Any
 from src.data.weather_data import WeatherForecast, WeatherCondition
 
 logger = logging.getLogger(__name__)
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 class WeatherDataValidator:
     """天気予報データ検証・選択クラス"""
     
-    def select_forecast_by_time(self, forecasts: List[WeatherForecast], target_datetime) -> WeatherForecast:
+    def select_forecast_by_time(self, forecasts: list[WeatherForecast], target_datetime) -> WeatherForecast:
         """指定された時刻に最も近い予報データを選択
         
         Args:
@@ -56,7 +55,7 @@ class WeatherDataValidator:
         
         return closest_forecast
     
-    def select_priority_forecast(self, forecasts: List[WeatherForecast]) -> WeatherForecast:
+    def select_priority_forecast(self, forecasts: list[WeatherForecast]) -> WeatherForecast:
         """翌日9:00-18:00の予報から最も重要な気象条件を選択
         
         優先順位ルール:
@@ -143,7 +142,7 @@ class WeatherDataValidator:
     
     def validate_forecast_data(
         self,
-        forecasts: List[WeatherForecast],
+        forecasts: list[WeatherForecast],
         min_forecasts: int = 1,
     ) -> bool:
         """予報データの妥当性を検証
@@ -182,7 +181,7 @@ class WeatherDataValidator:
         
         return True
     
-    def parse_location_string(self, location_name_raw: str) -> tuple[str, Optional[float], Optional[float]]:
+    def parse_location_string(self, location_name_raw: str) -> tuple[str, float | None, float | None]:
         """地点文字列をパース
         
         Args:

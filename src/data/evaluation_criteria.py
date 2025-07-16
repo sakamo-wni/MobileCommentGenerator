@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any
 from datetime import datetime
 from enum import Enum
 
@@ -40,7 +40,7 @@ class CriterionScore:
     score: float
     weight: float = 1.0
     reason: str = ""
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """初期化後の検証"""
@@ -54,7 +54,7 @@ class CriterionScore:
         """重み付きスコアを取得"""
         return self.score * self.weight
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換"""
         return {
             "criterion": self.criterion.value,
@@ -83,11 +83,11 @@ class EvaluationResult:
 
     is_valid: bool
     total_score: float
-    criterion_scores: List[CriterionScore]
-    passed_criteria: List[EvaluationCriteria] = field(default_factory=list)
-    failed_criteria: List[EvaluationCriteria] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    criterion_scores: list[CriterionScore]
+    passed_criteria: list[EvaluationCriteria] = field(default_factory=list)
+    failed_criteria: list[EvaluationCriteria] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """初期化後の処理"""
@@ -112,14 +112,14 @@ class EvaluationResult:
             return 0.0
         return sum(s.score for s in self.criterion_scores) / len(self.criterion_scores)
 
-    def get_score_by_criterion(self, criterion: EvaluationCriteria) -> Optional[CriterionScore]:
+    def get_score_by_criterion(self, criterion: EvaluationCriteria) -> CriterionScore | None:
         """特定の基準のスコアを取得"""
         for score in self.criterion_scores:
             if score.criterion == criterion:
                 return score
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換"""
         return {
             "is_valid": self.is_valid,
@@ -151,19 +151,19 @@ class EvaluationContext:
     weather_condition: str
     location: str
     target_datetime: datetime
-    user_preferences: Dict[str, Any] = field(default_factory=dict)
-    history: List[Dict[str, Any]] = field(default_factory=list)
-    weather_stability: Optional[str] = None
+    user_preferences: dict[str, Any] = field(default_factory=dict)
+    history: list[dict[str, Any]] = field(default_factory=list)
+    weather_stability: str | None = None
 
     def get_preference(self, key: str, default: Any = None) -> Any:
         """ユーザー設定を取得"""
         return self.user_preferences.get(key, default)
 
-    def add_history(self, evaluation: Dict[str, Any]):
+    def add_history(self, evaluation: dict[str, Any]):
         """評価履歴を追加"""
         self.history.append({"timestamp": datetime.now().isoformat(), "evaluation": evaluation})
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換"""
         return {
             "weather_condition": self.weather_condition,
@@ -187,6 +187,6 @@ DEFAULT_CRITERION_WEIGHTS = {
 }
 
 
-def create_default_weights() -> Dict[EvaluationCriteria, float]:
+def create_default_weights() -> dict[EvaluationCriteria, float]:
     """デフォルトの評価重みを作成"""
     return DEFAULT_CRITERION_WEIGHTS.copy()

@@ -1,8 +1,7 @@
 """天気推移バリデータ - 天気の時系列変化に基づくコメント検証"""
 
 import logging
-from typing import Tuple, List, Optional
-
+from typing import Any
 from src.data.weather_data import WeatherForecast, WeatherCondition
 from src.data.past_comment import PastComment
 from .base_validator import BaseValidator
@@ -39,7 +38,7 @@ class WeatherTransitionValidator(BaseValidator):
         }
         logger.info("天気推移バリデータを初期化しました")
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """天気の推移に基づいてコメントを検証"""
         comment_text = comment.comment_text
         advice_text = comment.raw_data.get("advice", "")

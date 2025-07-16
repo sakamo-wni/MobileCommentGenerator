@@ -3,7 +3,7 @@
 import csv
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import Any
 from datetime import datetime
 
 from src.data.past_comment import PastComment, CommentType
@@ -17,7 +17,7 @@ class CSVFileHandler:
     def __init__(self, encoding: str = 'utf-8-sig'):
         self.encoding = encoding
     
-    def read_csv_file(self, file_path: Path) -> List[Dict[str, Any]]:
+    def read_csv_file(self, file_path: Path) -> list[dict[str, Any]]:
         """CSVファイルを読み込んで辞書のリストを返す"""
         if not file_path.exists():
             logger.warning(f"CSV file not found: {file_path}")
@@ -42,7 +42,7 @@ class CSVFileHandler:
             
         return rows
     
-    def validate_csv_headers(self, file_path: Path, expected_columns: List[str]) -> bool:
+    def validate_csv_headers(self, file_path: Path, expected_columns: list[str]) -> bool:
         """CSVファイルのヘッダーを検証"""
         # ファイルが存在しない場合は検証しない（read_csv_fileで警告される）
         if not file_path.exists():
@@ -69,7 +69,7 @@ class CommentParser:
     """CSVデータからPastCommentオブジェクトへの変換を担当"""
     
     @staticmethod
-    def parse_comment_row(row: Dict[str, Any], comment_type: str, season: str) -> Optional[PastComment]:
+    def parse_comment_row(row: dict[str, Any], comment_type: str, season: str) -> PastComment | None:
         """CSVの行データからPastCommentオブジェクトを生成"""
         try:
             # コメントテキストの取得
@@ -119,7 +119,7 @@ class CommentParser:
             return None
     
     @staticmethod
-    def _parse_count(count_str: Union[str, int, None], line_number: int) -> int:
+    def _parse_count(count_str: str | int | None, line_number: int) -> int:
         """カウント値を整数に変換
         
         Args:

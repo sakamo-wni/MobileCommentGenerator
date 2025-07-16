@@ -6,7 +6,7 @@ WxTech APIからの天気予報データを標準化して扱うためのクラ�
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any
 from enum import Enum
 
 from src.constants import (
@@ -123,11 +123,11 @@ class WeatherForecast:
     wind_speed: float
     wind_direction: WindDirection
     wind_direction_degrees: int
-    pressure: Optional[float] = None
-    visibility: Optional[float] = None
-    uv_index: Optional[int] = None
-    confidence: Optional[float] = None
-    raw_data: Dict[str, Any] = field(default_factory=dict)
+    pressure: float | None = None
+    visibility: float | None = None
+    uv_index: int | None = None
+    confidence: float | None = None
+    raw_data: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """データクラス初期化後の検証処理"""
@@ -151,7 +151,7 @@ class WeatherForecast:
         if not WIND_DIRECTION_MIN_DEGREES <= self.wind_direction_degrees <= WIND_DIRECTION_MAX_DEGREES:
             raise ValueError(f"異常な風向き度数: {self.wind_direction_degrees}度")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:
@@ -176,7 +176,7 @@ class WeatherForecast:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "WeatherForecast":
+    def from_dict(cls, data: dict[str, Any]) -> "WeatherForecast":
         """辞書から WeatherForecast オブジェクトを作成
 
         Args:
@@ -315,10 +315,10 @@ class WeatherForecastCollection:
     """
 
     location: str
-    forecasts: List[WeatherForecast]
+    forecasts: list[WeatherForecast]
     generated_at: datetime = field(default_factory=datetime.now)
 
-    def get_current_forecast(self) -> Optional[WeatherForecast]:
+    def get_current_forecast(self) -> WeatherForecast | None:
         """現在時刻に最も近い予報を取得
 
         Returns:
@@ -334,7 +334,7 @@ class WeatherForecastCollection:
 
         return self.get_nearest_forecast(now)
 
-    def get_nearest_forecast(self, target_datetime: datetime) -> Optional[WeatherForecast]:
+    def get_nearest_forecast(self, target_datetime: datetime) -> WeatherForecast | None:
         """指定日時に最も近い予報を取得
 
         Args:
@@ -367,7 +367,7 @@ class WeatherForecastCollection:
         )
         return closest_forecast
 
-    def get_forecast_by_hour(self, target_hour: int) -> Optional[WeatherForecast]:
+    def get_forecast_by_hour(self, target_hour: int) -> WeatherForecast | None:
         """指定時刻の予報を取得
 
         Args:
@@ -381,7 +381,7 @@ class WeatherForecastCollection:
                 return forecast
         return None
 
-    def get_daily_summary(self) -> Dict[str, Any]:
+    def get_daily_summary(self) -> dict[str, Any]:
         """日次サマリーを取得
 
         Returns:
@@ -402,7 +402,7 @@ class WeatherForecastCollection:
             "forecast_count": len(self.forecasts),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
 
         Returns:

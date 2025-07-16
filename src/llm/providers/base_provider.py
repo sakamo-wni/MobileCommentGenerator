@@ -1,7 +1,7 @@
 """LLMプロバイダーの基底クラス"""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
 
 from src.data.weather_data import WeatherForecast
 from src.data.comment_pair import CommentPair
@@ -12,7 +12,7 @@ class LLMProvider(ABC):
 
     @abstractmethod
     def generate_comment(
-        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
+        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: dict[str, Any]
     ) -> str:
         """
         天気コメントを生成する。
@@ -41,7 +41,7 @@ class LLMProvider(ABC):
         pass
 
     def _build_prompt(
-        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: Dict[str, Any]
+        self, weather_data: WeatherForecast, past_comments: CommentPair, constraints: dict[str, Any]
     ) -> str:
         """
         プロンプトを構築する共通メソッド。

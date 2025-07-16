@@ -1,7 +1,7 @@
 """LLMを使用した動的な重複検証バリデータ"""
 
 import logging
-from typing import Tuple, Optional, List
+from typing import Any
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -55,7 +55,7 @@ class LLMDuplicationValidator(BaseValidator):
   "type": "duplicate" or "contradiction" or "weather_mismatch" or "ok"
 }"""
     
-    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> Tuple[bool, str]:
+    def validate(self, comment: PastComment, weather_data: WeatherForecast) -> tuple[bool, str]:
         """単一コメントの検証（LLMDuplicationValidatorでは実装しない）"""
         return True, "単一コメントのチェックは他のバリデータで実施"
     
@@ -64,8 +64,8 @@ class LLMDuplicationValidator(BaseValidator):
         weather_comment: str,
         advice_comment: str,
         weather_data: WeatherForecast,
-        state: Optional[CommentGenerationState] = None
-    ) -> Tuple[bool, str]:
+        state: CommentGenerationState | None = None
+    ) -> tuple[bool, str]:
         """LLMを使用してコメントペアの一貫性を検証
         
         注意: エラー時はTrueを返してコメントを通過させる。
@@ -127,7 +127,7 @@ class LLMDuplicationValidator(BaseValidator):
             # （システム可用性優先：重複コンテンツよりサービス継続を重視）
             return True, "LLM検証エラー"
     
-    def _format_period_forecasts(self, state: Optional[CommentGenerationState]) -> str:
+    def _format_period_forecasts(self, state: CommentGenerationState | None) -> str:
         """4時点の予報データをフォーマット"""
         if not state or not hasattr(state, 'generation_metadata'):
             return ""

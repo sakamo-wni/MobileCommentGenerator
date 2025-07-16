@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any
 
 from src.ui.streamlit_utils import get_statistics, load_history
 
@@ -38,7 +38,7 @@ def show_statistics_page():
     show_detailed_analysis(history)
 
 
-def show_key_metrics(stats: Dict[str, Any]):
+def show_key_metrics(stats: dict[str, Any]):
     """主要指標の表示"""
     st.header("📈 主要指標")
 
@@ -71,7 +71,7 @@ def show_key_metrics(stats: Dict[str, Any]):
             st.metric("最新生成", "なし")
 
 
-def show_charts(history: List[Dict[str, Any]]):
+def show_charts(history: list[dict[str, Any]]):
     """グラフ表示"""
     st.header("📊 データ可視化")
 
@@ -234,7 +234,7 @@ def show_success_rate_chart(df: pd.DataFrame):
         st.plotly_chart(fig_provider, use_container_width=True)
 
 
-def show_detailed_analysis(history: List[Dict[str, Any]]):
+def show_detailed_analysis(history: list[dict[str, Any]]):
     """詳細分析"""
     st.header("🔍 詳細分析")
 

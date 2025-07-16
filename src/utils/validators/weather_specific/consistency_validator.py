@@ -1,7 +1,7 @@
 """一貫性バリデーター - コメントペアの一貫性を検証"""
 
 import logging
-from typing import Tuple, Set
+from typing import Any
 import re
 
 from src.config.config import get_weather_constants
@@ -37,7 +37,7 @@ class ConsistencyValidator:
         self, 
         weather_comment: str, 
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """天気の現実と表現の矛盾をチェック"""
         weather_desc = weather_data.weather_description.lower()
         temp = weather_data.temperature
@@ -82,7 +82,7 @@ class ConsistencyValidator:
         self,
         weather_comment: str,
         advice_comment: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """重複・類似表現チェック"""
         # 完全一致チェック
         if weather_comment.strip() == advice_comment.strip():
@@ -104,7 +104,7 @@ class ConsistencyValidator:
         weather_comment: str,
         advice_comment: str,
         weather_data: WeatherForecast
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """矛盾する態度・トーンチェック"""
         # ポジティブ/ネガティブのトーン分析
         weather_positive = self._count_positive_words(weather_comment)
@@ -133,7 +133,7 @@ class ConsistencyValidator:
         self,
         weather_comment: str,
         advice_comment: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """傘コメントの重複チェック"""
         umbrella_patterns = [
             r"傘[がをは]必要",
