@@ -17,6 +17,7 @@ from src.data.weather_data import WeatherForecast
 from src.config.weather_config import get_config
 from .models import ForecastCacheEntry
 from .utils import ensure_jst
+from .memory_cache import ForecastMemoryCache
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +32,15 @@ class ForecastCache:
     前日や前回の予報との比較を可能にする
     """
     
-    def __init__(self, cache_dir: Path | None = None):
+    def __init__(self, cache_dir: Path | None = None, 
+                 memory_cache_size: int = 500,
+                 memory_cache_ttl: int = 300):
         """初期化
         
         Args:
             cache_dir: キャッシュディレクトリ（Noneの場合はデフォルト）
+            memory_cache_size: インメモリキャッシュの最大サイズ
+            memory_cache_ttl: インメモリキャッシュのTTL（秒）
         """
         if cache_dir is None:
             # デフォルトはプロジェクトルートの.cacheディレクトリ
@@ -43,6 +48,12 @@ class ForecastCache:
         
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # インメモリキャッシュの初期化
+        self._memory_cache = ForecastMemoryCache(
+            max_size=memory_cache_size,
+            ttl_seconds=memory_cache_ttl
+        )
         
         # CSVのヘッダー定義
         self.csv_headers = [
@@ -91,6 +102,9 @@ class ForecastCache:
             
             logger.info(f"予報データをキャッシュに保存: {location_name} at {weather_forecast.datetime}")
             
+            # メモリキャッシュにも追加
+            self._memory_cache.put(location_name, weather_forecast.datetime, cache_entry)
+            
             # 古いデータのクリーンアップ（設定から保持日数を取得）
             config = get_config()
             retention_days = config.weather.forecast_cache_retention_days
@@ -111,6 +125,11 @@ class ForecastCache:
         Returns:
             予報キャッシュエントリ（見つからない場合はNone）
         """
+        # まずメモリキャッシュをチェック
+        if cached_entry := self._memory_cache.get(location_name, target_datetime):
+            logger.debug(f"メモリキャッシュから予報データを取得: {location_name} at {target_datetime}")
+            return cached_entry
+            
         try:
             cache_file = self.get_cache_file_path(location_name)
             
@@ -150,6 +169,8 @@ class ForecastCache:
                     f"キャッシュ保存時刻: {best_entry.cached_at.strftime('%Y-%m-%d %H:%M')}, "
                     f"同時刻エントリ数: {len(same_time_entries)}"
                 )
+                # メモリキャッシュに追加
+                self._memory_cache.put(location_name, target_datetime, best_entry)
                 return best_entry
             
             return None
