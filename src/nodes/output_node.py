@@ -47,7 +47,7 @@ def output_node(state: CommentGenerationState) -> CommentGenerationState:
             if isinstance(execution_start, str):
                 try:
                     execution_start = datetime.fromisoformat(execution_start.replace("Z", "+00:00"))
-                except:
+                except (ValueError, TypeError):
                     execution_start = None
 
             # datetime型の場合のみ計算

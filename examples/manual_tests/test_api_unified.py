@@ -49,7 +49,7 @@ def test_api():
             try:
                 error_detail = e.response.json()
                 print(f"エラー詳細: {json.dumps(error_detail, ensure_ascii=False, indent=2)}")
-            except:
+            except (ValueError, json.JSONDecodeError):
                 print(f"レスポンス: {e.response.text}")
         
         return False

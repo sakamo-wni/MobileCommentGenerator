@@ -251,7 +251,7 @@ class IndexedCSVHandler:
                     if temp_path.exists():
                         try:
                             temp_path.unlink()
-                        except:
+                        except (OSError, PermissionError):
                             pass
     
     def _load_index_from_disk(self, csv_path: Path) -> dict[str, Any | None]:
