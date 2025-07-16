@@ -28,3 +28,4 @@ streamlit>=1.28.0  # AppTest framework対応
 
 # Utilities
 pytz>=2023.3        # タイムゾーン処理
+psutil>=5.9.0       # システムリソース監視（キャッシュメモリ管理）

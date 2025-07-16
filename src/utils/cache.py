@@ -128,6 +128,25 @@ class TTLCache:
         self._stats["evictions"] += 1
         logger.debug(f"LRU eviction: {lru_key}")
     
+    def evict_lru(self, count: int = 1) -> int:
+        """指定された数のLRUエントリを削除（スレッドセーフ）
+        
+        Args:
+            count: 削除するエントリ数（デフォルト: 1）
+            
+        Returns:
+            実際に削除されたエントリ数
+        """
+        with self._lock:
+            evicted = 0
+            for _ in range(min(count, len(self._cache))):
+                if self._cache:
+                    self._evict_lru()
+                    evicted += 1
+                else:
+                    break
+            return evicted
+    
     def clear(self):
         """キャッシュをクリア（スレッドセーフ）"""
         with self._lock:
@@ -183,22 +202,36 @@ class TTLCache:
     def _estimate_memory_usage(self) -> int:
         """キャッシュのメモリ使用量を推定（バイト単位）"""
         # ロックは既に取得済みの前提
-        total_size = 0
-        
-        # 基本的なオーバーヘッド（辞書、統計情報など）
-        total_size += sys.getsizeof(self._cache)
-        total_size += sys.getsizeof(self._stats)
-        
-        # 各エントリのサイズを推定
-        for key, entry in self._cache.items():
-            # キーのサイズ
-            total_size += sys.getsizeof(key)
-            # エントリのサイズ（辞書のオーバーヘッド含む）
-            total_size += sys.getsizeof(entry)
-            # 値のサイズ（深い推定は避け、表層のみ）
-            total_size += sys.getsizeof(entry["value"])
-        
-        return total_size
+        try:
+            # より正確なメモリ計算を試みる
+            from src.utils.memory_utils import estimate_cache_memory_usage
+            
+            # キャッシュエントリのみのメモリ使用量を計算
+            cache_memory = estimate_cache_memory_usage(self._cache)
+            
+            # その他のオーバーヘッドを追加
+            overhead = sys.getsizeof(self._stats) + sys.getsizeof(self._lock)
+            
+            return cache_memory["total_size"] + overhead
+            
+        except ImportError:
+            # フォールバック: 従来の簡易計算
+            total_size = 0
+            
+            # 基本的なオーバーヘッド（辞書、統計情報など）
+            total_size += sys.getsizeof(self._cache)
+            total_size += sys.getsizeof(self._stats)
+            
+            # 各エントリのサイズを推定
+            for key, entry in self._cache.items():
+                # キーのサイズ
+                total_size += sys.getsizeof(key)
+                # エントリのサイズ（辞書のオーバーヘッド含む）
+                total_size += sys.getsizeof(entry)
+                # 値のサイズ（深い推定は避け、表層のみ）
+                total_size += sys.getsizeof(entry["value"])
+            
+            return total_size
     
     def _start_cleanup_thread(self):
         """自動クリーンアップスレッドを開始"""
