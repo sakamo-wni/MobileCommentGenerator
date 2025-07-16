@@ -47,7 +47,11 @@ class RainCommentStrategy:
                 logger.info(f"連続雨を検出: {rain_hours}時間の雨（9,12,15,18時）")
                 # デバッグ用：各時間の天気情報をログ出力
                 for f in period_forecasts:
-                    time_str = f.datetime.strftime('%H時') if hasattr(f, 'datetime') else '不明'
+                    # datetimeの安全な処理
+                    if hasattr(f, 'datetime') and hasattr(f.datetime, 'strftime'):
+                        time_str = f.datetime.strftime('%H時')
+                    else:
+                        time_str = '不明'
                     weather = f.weather if hasattr(f, 'weather') else '不明'
                     precip = f.precipitation if hasattr(f, 'precipitation') else 0
                     logger.debug(f"  {time_str}: {weather}, 降水量{precip}mm")

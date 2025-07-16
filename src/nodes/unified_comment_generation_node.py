@@ -41,7 +41,11 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_data = state.weather_data
         past_comments = state.past_comments
         location_name = state.location_name
-        target_datetime = state.target_datetime or datetime.now()
+        # target_datetimeの安全な取得
+        target_datetime = state.target_datetime
+        if not isinstance(target_datetime, datetime):
+            logger.warning(f"target_datetimeが不正な型です: {type(target_datetime)}, 現在時刻を使用します")
+            target_datetime = datetime.now()
         llm_provider = state.llm_provider or "openai"
         
         logger.debug(f"入力データ確認 - weather_data: {weather_data is not None}, past_comments: {past_comments is not None}")
@@ -156,8 +160,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             weather_comments[:OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
             advice_comments[:OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
             weather_info,
-            weather_data,
-            is_continuous_rain
+            location_name,
+            target_datetime
         )
         
         # 1回のLLM呼び出しで選択と生成を実行
