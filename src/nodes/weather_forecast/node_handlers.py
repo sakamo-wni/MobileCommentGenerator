@@ -5,10 +5,10 @@ fetch_weather_forecast_nodeの処理を責務ごとに分割
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
-from src.config.config import get_config, get_comment_config
+from src.config.config import get_config
 from src.config.config_loader import load_config
 from src.nodes.weather_forecast.service_factory import WeatherForecastServiceFactory
 

@@ -1,7 +1,6 @@
 """天気の一貫性チェックバリデーター"""
 
 import logging
-from typing import Any
 
 from src.config.config import get_weather_constants
 from src.data.weather_data import WeatherForecast

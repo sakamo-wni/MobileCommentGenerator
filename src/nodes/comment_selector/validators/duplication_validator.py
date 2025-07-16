@@ -1,7 +1,6 @@
 """重複チェックバリデーター"""
 
 import logging
-from typing import Any
 
 from src.constants.validation_constants import SIMILARITY_THRESHOLD
 from src.utils.validators.duplication_checker import DuplicationChecker

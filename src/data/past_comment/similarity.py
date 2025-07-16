@@ -1,7 +1,5 @@
 """過去コメントの類似度計算"""
 
-from typing import Any
-
 
 def matches_weather_condition(comment_weather: str, target_condition: str, fuzzy: bool = True) -> bool:
     """天気状況がマッチするか確認
