@@ -1,8 +1,6 @@
 """プロンプトテンプレート定義"""
 
 # コメント生成用プロンプトテンプレート
-
-from __future__ import annotations
 COMMENT_GENERATION_PROMPT = """あなたは天気予報のコメント作成者です。以下の条件でコメントを生成してください。
 
 【現在の天気情報】

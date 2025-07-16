@@ -5,7 +5,6 @@ CommentGenerationControllerから設定管理の責務を分離。
 
 from __future__ import annotations
 import logging
-from typing import Any
 from src.config.app_config import AppConfig, get_config
 from src.ui.streamlit_utils import load_locations
 
