@@ -7,6 +7,7 @@ Forecast cache package
 from .models import ForecastCacheEntry
 from .manager import ForecastCache, get_forecast_cache
 from .memory_cache import ForecastMemoryCache
+from .spatial_cache import SpatialForecastCache, LocationCoordinate
 from .utils import (
     ensure_jst,
     get_temperature_differences,
@@ -17,6 +18,8 @@ __all__ = [
     'ForecastCacheEntry',
     'ForecastCache',
     'ForecastMemoryCache',
+    'SpatialForecastCache',
+    'LocationCoordinate',
     'get_forecast_cache',
     'ensure_jst',
     'get_temperature_differences',

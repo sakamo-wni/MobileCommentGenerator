@@ -18,6 +18,7 @@ from src.config.weather_config import get_config
 from .models import ForecastCacheEntry
 from .utils import ensure_jst
 from .memory_cache import ForecastMemoryCache
+from .spatial_cache import SpatialForecastCache
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,15 @@ class ForecastCache:
     
     def __init__(self, cache_dir: Path | None = None, 
                  memory_cache_size: int = 500,
-                 memory_cache_ttl: int = 300):
+                 memory_cache_ttl: int = 300,
+                 enable_spatial_cache: bool = True):
         """初期化
         
         Args:
             cache_dir: キャッシュディレクトリ（Noneの場合はデフォルト）
             memory_cache_size: インメモリキャッシュの最大サイズ
             memory_cache_ttl: インメモリキャッシュのTTL（秒）
+            enable_spatial_cache: 空間キャッシュを有効にするか
         """
         if cache_dir is None:
             # デフォルトはプロジェクトルートの.cacheディレクトリ
@@ -54,6 +57,14 @@ class ForecastCache:
             max_size=memory_cache_size,
             ttl_seconds=memory_cache_ttl
         )
+        
+        # 空間キャッシュの初期化
+        self._spatial_cache = None
+        if enable_spatial_cache:
+            self._spatial_cache = SpatialForecastCache(
+                max_distance_km=10.0,  # 10km以内を近隣とみなす
+                max_neighbors=5
+            )
         
         # CSVのヘッダー定義
         self.csv_headers = [
@@ -105,6 +116,10 @@ class ForecastCache:
             # メモリキャッシュにも追加
             self._memory_cache.put(location_name, weather_forecast.datetime, cache_entry)
             
+            # 空間キャッシュにも追加
+            if self._spatial_cache:
+                self._spatial_cache.put(location_name, weather_forecast.datetime, cache_entry)
+            
             # 古いデータのクリーンアップ（設定から保持日数を取得）
             config = get_config()
             retention_days = config.weather.forecast_cache_retention_days
@@ -129,6 +144,12 @@ class ForecastCache:
         if cached_entry := self._memory_cache.get(location_name, target_datetime):
             logger.debug(f"メモリキャッシュから予報データを取得: {location_name} at {target_datetime}")
             return cached_entry
+        
+        # 空間キャッシュをチェック
+        if self._spatial_cache:
+            if spatial_entry := self._spatial_cache.get(location_name, target_datetime, tolerance_hours):
+                logger.debug(f"空間キャッシュから予報データを取得: {location_name} at {target_datetime}")
+                return spatial_entry
             
         try:
             cache_file = self.get_cache_file_path(location_name)
@@ -171,6 +192,9 @@ class ForecastCache:
                 )
                 # メモリキャッシュに追加
                 self._memory_cache.put(location_name, target_datetime, best_entry)
+                # 空間キャッシュにも追加
+                if self._spatial_cache:
+                    self._spatial_cache.put(location_name, target_datetime, best_entry)
                 return best_entry
             
             return None
@@ -303,6 +327,33 @@ class ForecastCache:
                     
         except Exception as e:
             logger.error(f"キャッシュクリーンアップ中にエラー: {e}")
+    
+    def register_location_coordinate(self, name: str, latitude: float, longitude: float) -> None:
+        """位置座標を登録（空間キャッシュ用）
+        
+        Args:
+            name: 地点名
+            latitude: 緯度
+            longitude: 経度
+        """
+        if self._spatial_cache:
+            self._spatial_cache.register_location(name, latitude, longitude)
+            logger.info(f"位置座標を登録: {name} ({latitude}, {longitude})")
+    
+    def get_cache_stats(self) -> dict[str, Any]:
+        """キャッシュ統計を取得
+        
+        Returns:
+            統計情報の辞書
+        """
+        stats = {
+            "memory_cache": self._memory_cache.get_stats()
+        }
+        
+        if self._spatial_cache:
+            stats["spatial_cache"] = self._spatial_cache.get_stats()
+        
+        return stats
 
 
 # シングルトンインスタンス
