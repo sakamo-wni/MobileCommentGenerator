@@ -55,6 +55,8 @@ dependencies = [
     "fastapi>=0.104.0",
     # Async HTTP
     "aiohttp>=3.9.0",  # For true async HTTP requests
+    # System monitoring (optional, for memory monitoring)
+    # "psutil>=5.9.0",  # Uncomment to enable memory monitoring
 ]
 
 # オプション依存関係 - 用途別グループ化
@@ -72,6 +74,7 @@ dev = [
     "flake8>=6.1.0",
     "bandit>=1.7.5",
     "ipython>=8.18.1",
+    "psutil>=5.9.0",  # For memory monitoring during development
 ]
 
 # Streamlit UI開発用（追加の依存関係）
