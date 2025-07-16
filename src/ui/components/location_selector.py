@@ -181,7 +181,7 @@ def location_selector() -> list[str]:
             default_selection = []
 
     # ソート（よく使う地点を上に）
-    sorted_locations = sort_locations_by_order(filtered_locations, st.session_state.favorite_locations)
+    sorted_locations = sort_locations_by_order(filtered_locations)
 
     selected_locations = st.multiselect(
         "📍 地点を選択",

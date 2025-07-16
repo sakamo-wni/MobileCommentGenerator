@@ -5,7 +5,7 @@
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Callable
 from datetime import datetime
 
 from src.apis.wxtech.cached_client import CachedWxTechAPIClient
@@ -106,7 +106,7 @@ class AsyncBatchProcessor:
         self,
         locations: list[str],
         llm_provider: str = "gemini",
-        progress_callback: callable | None = None
+        progress_callback: Callable[[int, int, str | None], None] | None = None
     ) -> BatchGenerationResult:
         """複数地点のコメントを非同期で生成
         

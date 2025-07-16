@@ -13,7 +13,8 @@ from pathlib import Path
 
 # 変換マッピング
 TYPE_MAPPINGS = {
-    r'\bDict\[([^]]+)\]': r'dict[\1]',
+    # TypedDictを含まないようにDict前に負の先読みアサーションを追加
+    r'\b(?<!Type)Dict\[([^]]+)\]': r'dict[\1]',
     r'\bList\[([^]]+)\]': r'list[\1]',
     r'\bTuple\[([^]]+)\]': r'tuple[\1]',
     r'\bSet\[([^]]+)\]': r'set[\1]',

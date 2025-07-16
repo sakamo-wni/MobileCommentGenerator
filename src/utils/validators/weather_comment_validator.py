@@ -1,7 +1,7 @@
 """天気コメント検証システム - メインバリデータ"""
 
 import logging
-from typing import Dict, Any, TypedDict
+from typing import Any, TypedDict
 from datetime import datetime
 
 from src.config.config import get_weather_constants

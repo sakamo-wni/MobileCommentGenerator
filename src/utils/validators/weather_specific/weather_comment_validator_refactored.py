@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Tuple, TYPE_CHECKING, Named
+from typing import TYPE_CHECKING, NamedTuple
 from datetime import datetime
 
 if TYPE_CHECKING:

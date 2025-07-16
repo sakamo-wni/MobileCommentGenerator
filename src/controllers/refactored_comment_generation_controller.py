@@ -5,7 +5,7 @@
 
 import asyncio
 import logging
-from typing import Callable
+from typing import Callable, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.types import LocationResult, BatchGenerationResult
@@ -106,7 +106,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
         self, 
         locations: list[str], 
         llm_provider: str,
-        progress_callback: Callable[[int, int, str | None, None]] = None, 
+        progress_callback: Callable[[int, int, str | None], None] | None = None, 
         max_workers: int | None = None
     ) -> BatchGenerationResult:
         """複数地点のコメント生成（並列処理版）"""
@@ -180,7 +180,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
     
     # === プライベートメソッド ===
     
-    def _log_weather_timeline(self, location: str, result: Dict) -> None:
+    def _log_weather_timeline(self, location: str, result: dict[str, Any]) -> None:
         """weather_timelineのデバッグログ出力"""
         generation_metadata = result.get('generation_metadata', {})
         weather_timeline = generation_metadata.get('weather_timeline', {})
@@ -192,7 +192,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
         else:
             logger.warning(f"Controller: location={location}, weather_timelineが存在しません")
     
-    def _build_location_result(self, location: str, result: Dict) -> LocationResult:
+    def _build_location_result(self, location: str, result: dict[str, Any]) -> LocationResult:
         """LocationResult型の結果を構築"""
         location_result: LocationResult = {
             'location': location,
@@ -226,7 +226,7 @@ class RefactoredCommentGenerationController(ICommentGenerationController):
         locations: list[str],
         llm_provider: str,
         progress_callback: Callable,
-        all_results: List,
+        all_results: list[LocationResult],
         results_container,
         view
     ) -> BatchGenerationResult:

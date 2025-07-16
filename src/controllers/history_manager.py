@@ -23,7 +23,7 @@ class HistoryManager:
             self._generation_history = load_history()
         return self._generation_history
     
-    def save_generation_result(self, result: Dict, location: str, llm_provider: str) -> None:
+    def save_generation_result(self, result: dict[str, Any], location: str, llm_provider: str) -> None:
         """生成結果を履歴に保存"""
         if result.get('success'):
             save_to_history(result, location, llm_provider)
