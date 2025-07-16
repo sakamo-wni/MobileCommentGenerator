@@ -1,5 +1,6 @@
 """コメントのキャッシュ管理を担当するクラス"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from datetime import datetime, timedelta

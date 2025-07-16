@@ -1,5 +1,6 @@
 """時間帯・季節判定モジュール"""
 
+from __future__ import annotations
 from datetime import datetime
 from src.utils.common_utils import get_season_from_month, get_time_period_from_hour
 

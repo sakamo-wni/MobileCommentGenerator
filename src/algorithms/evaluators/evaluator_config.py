@@ -4,6 +4,7 @@
 各評価器で使用する設定を一元管理
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 

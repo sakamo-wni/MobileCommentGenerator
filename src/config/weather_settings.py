@@ -5,6 +5,7 @@
 新しいコードでは src.config.config から get_weather_config() を使用してください。
 """
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any

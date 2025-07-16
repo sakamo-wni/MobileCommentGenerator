@@ -1,5 +1,6 @@
 """LLMプロバイダー選択コンポーネント"""
 
+from __future__ import annotations
 import streamlit as st
 from typing import Any
 from src.config.app_config import get_config

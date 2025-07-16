@@ -4,6 +4,7 @@ WxTech API データパーサー
 APIレスポンスをドメインモデルに変換する処理を管理
 """
 
+from __future__ import annotations
 from typing import Any
 import warnings
 from datetime import datetime

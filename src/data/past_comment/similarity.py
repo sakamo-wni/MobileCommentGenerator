@@ -1,5 +1,6 @@
 """過去コメントの類似度計算"""
 
+from __future__ import annotations
 from src.config.similarity_config import get_similarity_config
 
 

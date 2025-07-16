@@ -1,5 +1,6 @@
 """Trie（トライ木）データ構造の実装 - 効率的な前方一致検索用"""
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 

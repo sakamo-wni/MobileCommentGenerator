@@ -1,12 +1,14 @@
 """APIリクエストのキャッシュ機能を提供するユーティリティ"""
 
+from __future__ import annotations
 import time
 import hashlib
 import json
 import inspect
 import threading
 import sys
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
+from collections.abc import Callable
 from functools import wraps
 import logging
 

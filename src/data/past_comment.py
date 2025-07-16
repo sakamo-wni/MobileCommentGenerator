@@ -6,6 +6,8 @@
 """
 
 # 分割されたモジュールから再エクスポート
+
+from __future__ import annotations
 from src.data.past_comment.models import PastComment, CommentType
 from src.data.past_comment.collection import PastCommentCollection
 from src.data.past_comment.similarity import matches_weather_condition, calculate_similarity_score

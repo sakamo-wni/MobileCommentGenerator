@@ -9,6 +9,8 @@
 """
 
 # 後方互換性のために全てのクラスと関数を再エクスポート
+
+from __future__ import annotations
 from .config import get_weather_config, get_langgraph_config
 from .app_settings import (
     AppConfig,

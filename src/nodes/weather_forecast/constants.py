@@ -5,6 +5,8 @@ Weather forecast node constants
 """
 
 # API関連の定数
+
+from __future__ import annotations
 API_MAX_RETRIES = 3  # API呼び出しの最大リトライ回数
 API_INITIAL_RETRY_DELAY = 1.0  # 初回リトライ遅延（秒）
 API_RETRY_BACKOFF_MULTIPLIER = 2  # リトライ遅延の指数バックオフ乗数

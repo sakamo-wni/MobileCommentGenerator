@@ -1,5 +1,6 @@
 """バリデーション関連の定数"""
 
+from __future__ import annotations
 import re
 
 # 類似度の閾値

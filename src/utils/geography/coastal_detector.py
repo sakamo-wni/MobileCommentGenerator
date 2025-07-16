@@ -1,5 +1,6 @@
 """海岸線検出ユーティリティ - 緯度経度から海岸/内陸を判定（KD-Tree最適化版）"""
 
+from __future__ import annotations
 import logging
 from math import radians, sin, cos, sqrt, atan2
 import numpy as np

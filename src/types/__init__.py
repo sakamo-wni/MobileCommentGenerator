@@ -16,7 +16,27 @@ from .common import (
     APIResponse
 )
 
+from .aliases import (
+    JsonDict,
+    JsonList,
+    NullableJsonDict,
+    ConfigDict,
+    StringMapping,
+    WeatherMetadata,
+    TemperatureDifferences,
+    HistoryEntry,
+    HistoryList,
+    ProgressCallback,
+    NumericStats,
+    FloatStats,
+    ApiResponse,
+    ApiErrorDetail,
+    BatchResult,
+    LocationResults
+)
+
 __all__ = [
+    # From common
     'LLMProvider',
     'WeatherCondition',
     'CommentStyle',
@@ -29,5 +49,22 @@ __all__ = [
     'HistoryItem',
     'CommentPair',
     'ValidationResult',
-    'APIResponse'
+    'APIResponse',
+    # From aliases
+    'JsonDict',
+    'JsonList',
+    'NullableJsonDict',
+    'ConfigDict',
+    'StringMapping',
+    'WeatherMetadata',
+    'TemperatureDifferences',
+    'HistoryEntry',
+    'HistoryList',
+    'ProgressCallback',
+    'NumericStats',
+    'FloatStats',
+    'ApiResponse',
+    'ApiErrorDetail',
+    'BatchResult',
+    'LocationResults'
 ]

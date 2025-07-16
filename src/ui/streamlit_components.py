@@ -7,6 +7,8 @@ Streamlit UIコンポーネント
 """
 
 # 新しいコンポーネントからインポート
+
+from __future__ import annotations
 from src.ui.components import (
     location_selector,
     llm_provider_selector,

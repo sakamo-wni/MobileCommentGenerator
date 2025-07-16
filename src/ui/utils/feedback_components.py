@@ -4,8 +4,10 @@
 より良いユーザー体験のためのフィードバック機能
 """
 
+from __future__ import annotations
 import streamlit as st
-from typing import Any, Callable, Literal
+from typing import Any, Literal
+from collections.abc import Callable
 from datetime import datetime
 import time
 from .security_utils import sanitize_html, sanitize_id, generate_safe_id

@@ -1,5 +1,6 @@
 """CSVファイル操作を担当するクラス"""
 
+from __future__ import annotations
 import csv
 import logging
 from pathlib import Path

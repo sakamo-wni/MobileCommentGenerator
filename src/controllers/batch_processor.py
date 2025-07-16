@@ -1,8 +1,9 @@
 """バッチ処理モジュール"""
 
+from __future__ import annotations
 import asyncio
 import logging
-from typing import Callable
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.types import LocationResult, BatchGenerationResult
@@ -38,7 +39,7 @@ class BatchProcessor:
         locations: list[str],
         llm_provider: str,
         generate_func: Callable[[str, str], LocationResult],
-        progress_callback: Callable[[int, int, str | None, None]] = None,
+        progress_callback: Callable[[int, int, str | None], None] | None = None,
         max_workers: int | None = None
     ) -> BatchGenerationResult:
         """非同期バッチ処理（asyncio版）"""
@@ -95,7 +96,7 @@ class BatchProcessor:
         llm_provider: str,
         idx: int,
         total: int,
-        progress_callback: Callable[[int, int, str | None, None]],
+        progress_callback: Callable[[int, int, str | None], None],
         semaphore: asyncio.Semaphore
     ) -> LocationResult:
         """単一地点の処理（コールバック付き）"""
@@ -114,7 +115,7 @@ class BatchProcessor:
         locations: list[str],
         llm_provider: str,
         generate_func: Callable[[str, str], LocationResult],
-        progress_callback: Callable[[int, int, str | None, None]] = None,
+        progress_callback: Callable[[int, int, str | None], None] | None = None,
         max_workers: int | None = None
     ) -> BatchGenerationResult:
         """同期バッチ処理（ThreadPoolExecutor版）- 後方互換性のため"""

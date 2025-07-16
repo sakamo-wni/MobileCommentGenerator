@@ -3,6 +3,7 @@
 fetch_weather_forecast_nodeの処理を責務ごとに分割
 """
 
+from __future__ import annotations
 import logging
 import os
 from datetime import datetime

@@ -3,6 +3,7 @@ Workflow-related type definitions for Python 3.13+.
 This module contains type definitions for LangGraph workflow states and metadata.
 """
 
+from __future__ import annotations
 from typing import TypedDict, NotRequired, Literal
 from datetime import datetime
 

@@ -4,6 +4,7 @@
 生成履歴の統計分析とデータ可視化
 """
 
+from __future__ import annotations
 import streamlit as st
 import pandas as pd
 import plotly.express as px

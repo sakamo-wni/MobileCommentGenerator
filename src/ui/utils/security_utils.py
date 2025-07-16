@@ -4,6 +4,7 @@
 HTMLサニタイズ、入力検証など
 """
 
+from __future__ import annotations
 import re
 import html
 from typing import Any

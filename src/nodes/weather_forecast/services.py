@@ -5,6 +5,7 @@ Weather forecast node services
 責務ごとに分離されたサービスを提供
 """
 
+from __future__ import annotations
 import asyncio
 import logging
 import time

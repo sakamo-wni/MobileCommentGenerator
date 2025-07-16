@@ -1,6 +1,8 @@
 """System-related constants."""
 
 # Batch processing
+
+from __future__ import annotations
 DEFAULT_BATCH_SIZE = 10
 MAX_BATCH_SIZE = 100
 

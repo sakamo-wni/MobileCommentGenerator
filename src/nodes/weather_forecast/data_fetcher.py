@@ -4,6 +4,7 @@
 WxTech APIを使用して天気予報データを取得する機能を提供
 """
 
+from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from typing import Any

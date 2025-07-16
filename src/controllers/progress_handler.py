@@ -5,8 +5,10 @@
 インターフェースを定義しています。
 """
 
+from __future__ import annotations
 import asyncio
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
+from collections.abc import Callable
 from concurrent.futures import Future
 
 import streamlit as st

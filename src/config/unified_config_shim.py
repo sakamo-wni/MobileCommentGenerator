@@ -2,6 +2,7 @@
 unified_config.pyとの互換性のためのシムクラス
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any

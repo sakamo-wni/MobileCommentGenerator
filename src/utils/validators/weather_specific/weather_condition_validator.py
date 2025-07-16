@@ -1,5 +1,6 @@
 """天気条件バリデーター - 天気条件に基づいてコメントの適切性を検証"""
 
+from __future__ import annotations
 import logging
 import yaml
 from pathlib import Path

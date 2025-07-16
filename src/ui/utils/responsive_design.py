@@ -4,6 +4,7 @@
 モバイルフレンドリーなUIを実現するためのスタイリングとレイアウトヘルパー
 """
 
+from __future__ import annotations
 import streamlit as st
 from typing import Any
 from .security_utils import sanitize_html, sanitize_css_value

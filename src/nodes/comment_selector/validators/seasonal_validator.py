@@ -1,5 +1,6 @@
 """季節の妥当性チェックバリデーター"""
 
+from __future__ import annotations
 import logging
 
 logger = logging.getLogger(__name__)

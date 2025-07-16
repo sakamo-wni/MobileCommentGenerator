@@ -4,6 +4,7 @@ WxTech API リクエスト処理
 低レベルのHTTPリクエスト処理とレート制限を管理
 """
 
+from __future__ import annotations
 from typing import Any
 import requests
 import json

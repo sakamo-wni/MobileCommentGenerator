@@ -5,6 +5,7 @@
 自動再構築機能を提供します。
 """
 
+from __future__ import annotations
 import hashlib
 import json
 import logging

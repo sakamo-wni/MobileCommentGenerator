@@ -1,5 +1,6 @@
 """天気コメント検証システム - 互換性のためのエイリアス"""
 
+from __future__ import annotations
 import warnings
 
 # 後方互換性のため、validators パッケージから WeatherCommentValidator をインポート

@@ -1,5 +1,6 @@
 """地域特性バリデーター - 地域特性に基づいてコメントの適切性を検証"""
 
+from __future__ import annotations
 import logging
 
 logger = logging.getLogger(__name__)

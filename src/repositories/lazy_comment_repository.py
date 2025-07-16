@@ -4,6 +4,7 @@ CSVファイルを必要な時だけ読み込むことで、起動時間とメ�
 並列読み込みに対応してパフォーマンスを向上
 """
 
+from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Any

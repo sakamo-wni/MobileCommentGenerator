@@ -1,5 +1,6 @@
 """一貫性バリデーター - コメントペアの一貫性を検証"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 import re

@@ -4,6 +4,7 @@
 キャッシュ機能を持つWxTech APIクライアントの実装
 """
 
+from __future__ import annotations
 from typing import Any
 import logging
 import os

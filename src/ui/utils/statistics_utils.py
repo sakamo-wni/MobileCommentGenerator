@@ -4,6 +4,7 @@
 履歴データからの統計情報生成など
 """
 
+from __future__ import annotations
 from typing import Any
 from datetime import datetime, date
 from collections import Counter

@@ -1,5 +1,6 @@
 """地点選択コンポーネント"""
 
+from __future__ import annotations
 import streamlit as st
 from typing import Any
 from src.ui.streamlit_utils import load_locations, filter_locations, sort_locations_by_order
@@ -181,7 +182,7 @@ def location_selector() -> list[str]:
             default_selection = []
 
     # ソート（よく使う地点を上に）
-    sorted_locations = sort_locations_by_order(filtered_locations, st.session_state.favorite_locations)
+    sorted_locations = sort_locations_by_order(filtered_locations)
 
     selected_locations = st.multiselect(
         "📍 地点を選択",

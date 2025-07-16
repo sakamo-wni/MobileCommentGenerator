@@ -1,5 +1,6 @@
 """地点データ検索エンジン - 地点データの高速検索機能を提供"""
 
+from __future__ import annotations
 import logging
 from collections import defaultdict
 

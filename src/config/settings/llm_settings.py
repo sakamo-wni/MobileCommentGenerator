@@ -1,5 +1,6 @@
 """LLM（大規模言語モデル）関連の設定モジュール"""
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 

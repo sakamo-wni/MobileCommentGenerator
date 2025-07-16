@@ -1,5 +1,6 @@
 """海岸地域バリデータ - 海岸/内陸に基づくコメント検証"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from src.data.weather_data import WeatherForecast

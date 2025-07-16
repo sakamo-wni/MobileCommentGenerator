@@ -4,6 +4,7 @@
 ユーザーとのエンゲージメントを促進する要素を評価する
 """
 
+from __future__ import annotations
 import re
 from src.algorithms.evaluators.base_evaluator import BaseEvaluator
 from src.data.evaluation_criteria import EvaluationCriteria, CriterionScore, EvaluationContext

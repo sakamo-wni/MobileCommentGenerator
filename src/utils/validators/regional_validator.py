@@ -1,5 +1,6 @@
 """地域特性バリデータ - 地域に基づくコメント検証"""
 
+from __future__ import annotations
 import logging
 
 from src.data.weather_data import WeatherForecast

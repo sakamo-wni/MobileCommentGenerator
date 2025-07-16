@@ -1,5 +1,6 @@
 """重複チェックバリデーター"""
 
+from __future__ import annotations
 import logging
 
 from src.constants.validation_constants import SIMILARITY_THRESHOLD

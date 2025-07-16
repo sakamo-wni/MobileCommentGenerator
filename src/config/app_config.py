@@ -1,5 +1,6 @@
 """アプリケーション設定の統一管理（非推奨: config.pyを使用してください）"""
 
+from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Any

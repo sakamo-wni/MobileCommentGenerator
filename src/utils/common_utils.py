@@ -1,5 +1,6 @@
 """共通ユーティリティ関数"""
 
+from __future__ import annotations
 from datetime import datetime
 
 from src.constants import (

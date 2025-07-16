@@ -4,6 +4,7 @@
 選択されたコメントペアを評価し、品質を検証するLangGraphノード
 """
 
+from __future__ import annotations
 from typing import Any
 import logging
 from datetime import datetime

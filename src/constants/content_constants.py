@@ -1,6 +1,8 @@
 """Content-related constants."""
 
 # Severe weather patterns
+
+from __future__ import annotations
 SEVERE_WEATHER_PATTERNS = [
     "大雨", "豪雨", "暴風", "台風", "雷", "嵐", "大雪", "吹雪"
 ]

@@ -1,5 +1,6 @@
 """Helper functions for standardizing function parameters"""
 
+from __future__ import annotations
 from typing import Any
 from datetime import datetime
 

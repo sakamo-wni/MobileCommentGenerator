@@ -4,6 +4,7 @@
 天気予報データの検証と優先度に基づく選択機能を提供
 """
 
+from __future__ import annotations
 import logging
 from typing import Any
 from src.data.weather_data import WeatherForecast, WeatherCondition

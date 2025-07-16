@@ -1,5 +1,6 @@
 """類似度計算の設定"""
 
+from __future__ import annotations
 from dataclasses import dataclass
 
 

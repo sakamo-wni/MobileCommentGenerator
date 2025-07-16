@@ -1,5 +1,6 @@
 """天気推移バリデータ - 天気の時系列変化に基づくコメント検証"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from src.data.weather_data import WeatherForecast, WeatherCondition

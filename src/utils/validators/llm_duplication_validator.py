@@ -1,5 +1,6 @@
 """LLMを使用した動的な重複検証バリデータ"""
 
+from __future__ import annotations
 import logging
 from typing import Any
 from langchain_google_genai import ChatGoogleGenerativeAI

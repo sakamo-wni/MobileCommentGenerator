@@ -1,6 +1,8 @@
 """Time-related constants."""
 
 # Time period boundaries (hours)
+
+from __future__ import annotations
 MORNING_START_HOUR = 5
 MORNING_END_HOUR = 10
 NOON_START_HOUR = 10

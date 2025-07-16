@@ -4,8 +4,10 @@ UI関連のヘルパー関数
 クリップボード操作、ダウンロード、エラーハンドリングなど
 """
 
+from __future__ import annotations
 import base64
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 from datetime import datetime
 import streamlit as st
 from .feedback_components import show_notification

@@ -1,5 +1,6 @@
 """過去コメント取得ノード - ローカルCSVファイルから過去コメントを取得"""
 
+from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import Any

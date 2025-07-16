@@ -4,6 +4,7 @@
 スレッドセーフ実装により、並列処理環境でも安全に使用可能。
 """
 
+from __future__ import annotations
 import logging
 import threading
 from typing import Any

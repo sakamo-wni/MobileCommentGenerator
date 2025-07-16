@@ -4,6 +4,7 @@
 設定は論理的なグループに分割され、settings/ディレクトリ内の各モジュールで定義されています。
 """
 
+from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import Any

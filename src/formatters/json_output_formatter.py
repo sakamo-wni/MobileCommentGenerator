@@ -4,6 +4,7 @@ JSON Output Formatter
 最終結果をJSON形式で整形し、クリーンアップ処理を行う
 """
 
+from __future__ import annotations
 from typing import Any
 import logging
 import json

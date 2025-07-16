@@ -4,6 +4,7 @@
 WxTech APIからの天気予報データを標準化して扱うためのクラス群
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
