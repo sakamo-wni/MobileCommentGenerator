@@ -7,6 +7,7 @@ Temperature analysis service for weather forecast node
 from __future__ import annotations
 
 import logging
+from typing import Optional
 from src.data.weather_data import WeatherForecast
 from src.data.forecast_cache import get_temperature_differences
 
@@ -20,7 +21,7 @@ class TemperatureAnalysisService:
         self, 
         forecast: WeatherForecast, 
         location_name: str
-    ) -> dict[str, float | None]:
+    ) -> dict[str, Optional[float]]:
         """気温差を計算
         
         Args:

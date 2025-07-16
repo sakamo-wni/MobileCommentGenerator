@@ -7,15 +7,15 @@ Weather information formatter for unified comment generation
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 from src.constants.weather_constants import TEMP, PRECIP, COMMENT
 
 logger = logging.getLogger(__name__)
 
 
 def format_weather_info(weather_data: Any, 
-                       temperature_differences: dict[str, float | None] | None,
-                       weather_trend: Any | None) -> str:
+                       temperature_differences: Optional[dict[str, Optional[float]]],
+                       weather_trend: Optional[Any]) -> str:
     """天気情報を文字列にフォーマット
     
     Args:

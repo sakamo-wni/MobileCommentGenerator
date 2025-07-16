@@ -7,6 +7,7 @@ Location service for weather forecast node
 from __future__ import annotations
 
 import logging
+from typing import Optional, Tuple
 from src.data.location.models import Location
 from src.data.location.manager import LocationManagerRefactored
 
@@ -19,7 +20,7 @@ class LocationService:
     def __init__(self):
         self.location_manager = LocationManagerRefactored()
     
-    def parse_location_string(self, location_name_raw: str) -> tuple[str, float | None, float | None]:
+    def parse_location_string(self, location_name_raw: str) -> Tuple[str, Optional[float], Optional[float]]:
         """地点名文字列から地点名と座標を抽出
         
         Args:
@@ -55,8 +56,8 @@ class LocationService:
     def get_location_with_coordinates(
         self, 
         location_name: str, 
-        provided_lat: float | None = None,
-        provided_lon: float | None = None
+        provided_lat: Optional[float] = None,
+        provided_lon: Optional[float] = None
     ) -> Location:
         """地点情報を取得（座標情報付き）
         

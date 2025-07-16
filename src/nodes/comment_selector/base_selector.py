@@ -11,6 +11,7 @@ from src.data.weather_data import WeatherForecast
 from src.llm.llm_manager import LLMManager
 from src.utils.weather_comment_validator import WeatherCommentValidator
 from src.config.config import get_severe_weather_config
+from src.constants.weather_constants import COMMENT
 
 from .llm_selector import LLMCommentSelector
 from .validation import CommentValidator
@@ -23,8 +24,6 @@ from .strategies import (
 
 logger = logging.getLogger(__name__)
 
-# 連続雨判定の閾値（時間）
-CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
 
 
 class CommentSelector:

@@ -6,6 +6,7 @@ import logging
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment, CommentType
+from src.constants.weather_constants import COMMENT
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,6 @@ RAIN_ADVICE_PATTERNS = ["雨にご注意", "傘", "濡れ", "雨具", "足元", 
 # 悪天候を表すパターン
 STORM_WEATHER_PATTERNS = ["荒れた天気", "大雨", "激しい雨", "暴風", "警戒", "注意", "本格的な雨"]
 
-# 連続雨判定の閾値（時間）
-CONTINUOUS_RAIN_THRESHOLD_HOURS = 4
 
 # にわか雨表現のパターン
 SHOWER_RAIN_PATTERNS = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨", "雨が心配"]
@@ -309,7 +308,7 @@ def _check_continuous_rain(state: CommentGenerationState) -> bool:
         elif hasattr(f, 'precipitation') and f.precipitation >= 0.1:
             rain_hours += 1
     
-    is_continuous_rain = rain_hours >= CONTINUOUS_RAIN_THRESHOLD_HOURS
+    is_continuous_rain = rain_hours >= COMMENT.CONTINUOUS_RAIN_HOURS
     
     if is_continuous_rain:
         logger.info(f"🚨 連続雨を検出: {rain_hours}時間の雨（comment_safetyでの判定）")

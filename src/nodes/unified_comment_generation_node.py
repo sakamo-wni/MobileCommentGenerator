@@ -171,8 +171,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         result = parse_unified_response(response)
         
         # 選択されたコメントペアを取得
-        weather_idx = result.get("weather_index", 0)
-        advice_idx = result.get("advice_index", 0)
+        weather_idx = result.get("selected_weather_index", 0)
+        advice_idx = result.get("selected_advice_index", 0)
         
         # LLMがnullを返した場合の処理
         if weather_idx is None:
@@ -193,8 +193,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             selection_reason="統一モードによる自動選択"
         )
         
-        # 生成されたコメントを取得
-        generated_comment = result.get("generated_comment", "")
+        # 生成されたコメントを取得（使用しないが、LLMの応答を確認）
+        weather_comment = result.get("weather_comment", "")
+        advice_comment = result.get("advice_comment", "")
+        generated_comment = f"{weather_comment}　{advice_comment}" if weather_comment and advice_comment else ""
         
         # 常に選択されたコメントの結合を使用（LLMが創作しないように）
         weather_text = selected_weather.comment_text

@@ -3,7 +3,8 @@
 import pytest
 from datetime import datetime
 from unittest.mock import Mock, MagicMock
-from src.nodes.comment_selector.base_selector import CommentSelector, CONTINUOUS_RAIN_THRESHOLD_HOURS
+from src.nodes.comment_selector.base_selector import CommentSelector
+from src.constants.weather_constants import COMMENT
 from src.data.weather_data import WeatherForecast
 from src.data.past_comment import PastComment, CommentType
 from src.data.comment_generation_state import CommentGenerationState
@@ -113,7 +114,7 @@ class TestContinuousRain:
 
     def test_continuous_rain_threshold(self):
         """連続雨の閾値が正しく設定されていることを確認"""
-        assert CONTINUOUS_RAIN_THRESHOLD_HOURS == 4
+        assert COMMENT.CONTINUOUS_RAIN_HOURS == 4
 
     def test_rain_intensity_validation(self):
         """降水量に応じた表現の妥当性チェック"""

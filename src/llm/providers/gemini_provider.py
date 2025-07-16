@@ -93,7 +93,7 @@ class GeminiProvider(LLMProvider):
                 prompt,
                 generation_config=genai.GenerationConfig(
                     temperature=0.3,  # より決定的な出力に
-                    max_output_tokens=100,  # 必要最小限に削減
+                    max_output_tokens=500,  # 統合生成に十分なトークン数
                 )
             )
 
