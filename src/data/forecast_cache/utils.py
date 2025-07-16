@@ -6,7 +6,7 @@ Forecast cache utility functions
 
 from __future__ import annotations
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 from typing import Optional
@@ -111,7 +111,3 @@ def save_forecast_to_cache(weather_forecast: WeatherForecast, location_name: str
     from .manager import get_forecast_cache
     cache = get_forecast_cache()
     cache.save_forecast(weather_forecast, location_name)
-
-
-# timedelta import was missing
-from datetime import timedelta
