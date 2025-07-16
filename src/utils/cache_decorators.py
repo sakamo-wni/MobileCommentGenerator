@@ -12,8 +12,6 @@ import logging
 from typing import Any, TypeVar, ParamSpec
 from collections.abc import Callable
 from functools import wraps
-import hashlib
-import json
 
 from src.utils.cache_manager import get_cache
 from src.utils.cache import generate_cache_key
@@ -184,15 +182,11 @@ def method_cache(
                 
                 cache = getattr(self, cache_attr)
                 
-                # キャッシュキーの生成
+                # キャッシュキーの生成（統一された関数を使用）
                 if key_include_self:
-                    key_data = (id(self), func.__name__, args, tuple(sorted(kwargs.items())))
+                    cache_key = f"{func.__name__}:{id(self)}:{generate_cache_key(*args, **kwargs)}"
                 else:
-                    key_data = (func.__name__, args, tuple(sorted(kwargs.items())))
-                
-                cache_key = hashlib.md5(
-                    json.dumps(key_data, default=str).encode()
-                ).hexdigest()
+                    cache_key = f"{func.__name__}:{generate_cache_key(*args, **kwargs)}"
                 
                 # キャッシュから取得
                 cached = cache.get(cache_key)
@@ -216,15 +210,11 @@ def method_cache(
                 
                 cache = getattr(self, cache_attr)
                 
-                # キャッシュキーの生成
+                # キャッシュキーの生成（統一された関数を使用）
                 if key_include_self:
-                    key_data = (id(self), func.__name__, args, tuple(sorted(kwargs.items())))
+                    cache_key = f"{func.__name__}:{id(self)}:{generate_cache_key(*args, **kwargs)}"
                 else:
-                    key_data = (func.__name__, args, tuple(sorted(kwargs.items())))
-                
-                cache_key = hashlib.md5(
-                    json.dumps(key_data, default=str).encode()
-                ).hexdigest()
+                    cache_key = f"{func.__name__}:{generate_cache_key(*args, **kwargs)}"
                 
                 # キャッシュから取得
                 cached = cache.get(cache_key)

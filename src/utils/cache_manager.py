@@ -44,7 +44,7 @@ class CacheConfig:
     enable_memory_pressure_handling: bool = True
     memory_pressure_threshold: float = 0.8  # 80%
     enable_stats_tracking: bool = True
-    stats_file_path: Path | None = None
+    stats_file_path: Path | None = field(default_factory=lambda: Path("cache_stats.json"))
     
 
 @dataclass
@@ -247,14 +247,14 @@ class CacheManager:
             # 各キャッシュのサイズを削減
             for name, cache in self._caches.items():
                 stats = cache.get_stats()
-                if stats.size > 0:
+                if stats["size"] > 0:
                     # 10%のエントリを削除
-                    target_evictions = max(1, int(stats.size * 0.1))
+                    target_evictions = max(1, int(stats["size"] * 0.1))
                     
-                    for _ in range(target_evictions):
-                        cache._evict_lru()
+                    # パブリックメソッドを使用
+                    evicted = cache.evict_lru(target_evictions)
                     
-                    self._extended_stats[name].evictions_by_memory_pressure += target_evictions
+                    self._extended_stats[name].evictions_by_memory_pressure += evicted
                     
             logger.info("Memory pressure handled by evicting entries")
     

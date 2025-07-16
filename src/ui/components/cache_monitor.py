@@ -194,7 +194,8 @@ def display_cache_history():
     st.subheader("📈 キャッシュパフォーマンス履歴")
     
     # 統計ファイルからデータを読み込み
-    stats_file = Path("cache_stats.json")
+    cache_manager = get_cache_manager()
+    stats_file = cache_manager._global_config.stats_file_path or Path("cache_stats.json")
     
     if not stats_file.exists():
         st.info("履歴データがまだありません。しばらくお待ちください。")
