@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "messageId": "test-message-id",
+      "receiptHandle": "test-receipt-handle",
+      "body": "{\"request_id\":\"test-request-id\",\"location_id\":\"関東_東京\",\"generation_params\":{\"comment_type\":\"general\",\"tone\":\"friendly\"},\"timestamp\":\"2024-01-01T09:00:00Z\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1704099600000",
+        "SenderId": "test-sender",
+        "ApproximateFirstReceiveTimestamp": "1704099600100"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "test-md5",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:ap-northeast-1:123456789012:weather-comment-generator-dev-comment-generation",
+      "awsRegion": "ap-northeast-1"
+    }
+  ]
+}

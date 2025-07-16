@@ -1,0 +1,199 @@
+Comment: Weather Comment Generation Workflow
+StartAt: ValidateInput
+States:
+  ValidateInput:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    Parameters:
+      FunctionName: ${WeatherFetcherArn}
+      Payload:
+        location_id.$: $.location_id
+        validate_only: true
+    ResultPath: $.validation
+    OutputPath: $
+    Next: CheckCache
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+        IntervalSeconds: 2
+        MaxAttempts: 3
+        BackoffRate: 2
+    Catch:
+      - ErrorEquals:
+          - States.ALL
+        Next: ValidationFailed
+
+  CheckCache:
+    Type: Parallel
+    Branches:
+      - StartAt: FetchWeatherData
+        States:
+          FetchWeatherData:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName: ${WeatherFetcherArn}
+              Payload:
+                location_id.$: $.location_id
+                use_spatial_cache.$: $.use_spatial_cache
+            ResultPath: $.weather_result
+            End: true
+            Retry:
+              - ErrorEquals:
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                IntervalSeconds: 5
+                MaxAttempts: 3
+                BackoffRate: 2
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                ResultPath: $.weather_error
+                Next: WeatherFetchFailed
+          
+          WeatherFetchFailed:
+            Type: Fail
+            Cause: Failed to fetch weather data
+
+      - StartAt: CheckExistingComment
+        States:
+          CheckExistingComment:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:getItem
+            Parameters:
+              TableName: ${CommentsTableName}
+              Key:
+                location_id:
+                  S.$: $.location_id
+                generated_at:
+                  S.$: $.target_datetime
+            ResultPath: $.existing_comment
+            End: true
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                ResultPath: $.cache_check_error
+                Next: NoCacheFound
+          
+          NoCacheFound:
+            Type: Pass
+            Result:
+              cached: false
+            ResultPath: $.existing_comment
+            End: true
+    
+    Next: ProcessComment
+    ResultPath: $.parallel_results
+
+  ProcessComment:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    Parameters:
+      FunctionName: ${CommentProcessorArn}
+      Payload:
+        location_id.$: $.location_id
+        weather_data.$: $.parallel_results[0].weather_result.Payload.weather_data
+        cached_comment.$: $.parallel_results[1].existing_comment
+        generation_params.$: $.generation_params
+        request_id.$: $.request_id
+    ResultPath: $.comment_result
+    Next: CheckGenerationStatus
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+        IntervalSeconds: 5
+        MaxAttempts: 3
+        BackoffRate: 2
+    Catch:
+      - ErrorEquals:
+          - States.ALL
+        ResultPath: $.generation_error
+        Next: GenerationFailed
+
+  CheckGenerationStatus:
+    Type: Choice
+    Choices:
+      - Variable: $.comment_result.Payload.statusCode
+        NumericEquals: 200
+        Next: StoreResult
+      - Variable: $.comment_result.Payload.statusCode
+        NumericEquals: 429
+        Next: RateLimitWait
+    Default: GenerationFailed
+
+  RateLimitWait:
+    Type: Wait
+    Seconds: 60
+    Next: ProcessComment
+
+  StoreResult:
+    Type: Parallel
+    Branches:
+      - StartAt: SaveToDatabase
+        States:
+          SaveToDatabase:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:putItem
+            Parameters:
+              TableName: ${CommentsTableName}
+              Item:
+                location_id:
+                  S.$: $.location_id
+                generated_at:
+                  S.$: $.comment_result.Payload.generated_at
+                comment_id:
+                  S.$: $.comment_result.Payload.comment_id
+                location_name:
+                  S.$: $.comment_result.Payload.location_name
+                weather_data:
+                  M.$: $.comment_result.Payload.weather_data
+                generated_comment:
+                  S.$: $.comment_result.Payload.generated_comment
+                advice_comment:
+                  S.$: $.comment_result.Payload.advice_comment
+                llm_provider:
+                  S.$: $.comment_result.Payload.llm_provider
+                generation_metadata:
+                  M.$: $.comment_result.Payload.generation_metadata
+                comment_date:
+                  S.$: $.comment_result.Payload.comment_date
+                ttl:
+                  N.$: $.comment_result.Payload.ttl
+            End: true
+
+      - StartAt: SendNotification
+        States:
+          SendNotification:
+            Type: Task
+            Resource: arn:aws:states:::sns:publish
+            Parameters:
+              TopicArn: ${NotificationTopicArn}
+              Subject: Weather Comment Generated
+              Message:
+                location_id.$: $.location_id
+                comment_id.$: $.comment_result.Payload.comment_id
+                generated_at.$: $.comment_result.Payload.generated_at
+            End: true
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: NotificationSkipped
+          
+          NotificationSkipped:
+            Type: Pass
+            End: true
+
+    Next: Success
+
+  Success:
+    Type: Succeed
+
+  ValidationFailed:
+    Type: Fail
+    Cause: Input validation failed
+
+  GenerationFailed:
+    Type: Fail
+    Cause: Comment generation failed

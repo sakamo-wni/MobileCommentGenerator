@@ -1,0 +1,16 @@
+{
+  "resource": "/generate",
+  "path": "/generate",
+  "httpMethod": "POST",
+  "headers": {
+    "Content-Type": "application/json",
+    "x-api-key": "test-api-key"
+  },
+  "requestContext": {
+    "requestId": "test-request-id",
+    "identity": {
+      "sourceIp": "127.0.0.1"
+    }
+  },
+  "body": "{\"location_id\":\"関東_東京\",\"generation_params\":{\"comment_type\":\"general\",\"tone\":\"friendly\",\"weather_focus\":\"temperature\"}}"
+}

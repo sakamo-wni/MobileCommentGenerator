@@ -1,0 +1,45 @@
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "weather-comment-generator-dev"
+s3_bucket = "weather-comment-generator-deployment-dev"
+s3_prefix = "weather-comment-generator-dev"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+parameter_overrides = "Environment=dev"
+image_repositories = []
+
+[default.local_start_api]
+[default.local_start_api.parameters]
+port = 3000
+host = "127.0.0.1"
+env_vars = "env.json"
+docker_network = "bridge"
+
+[default.local_invoke]
+[default.local_invoke.parameters]
+env_vars = "env.json"
+docker_network = "bridge"
+
+[staging]
+[staging.deploy]
+[staging.deploy.parameters]
+stack_name = "weather-comment-generator-staging"
+s3_bucket = "weather-comment-generator-deployment-staging"
+s3_prefix = "weather-comment-generator-staging"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+parameter_overrides = "Environment=staging"
+
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "weather-comment-generator-prod"
+s3_bucket = "weather-comment-generator-deployment-prod"
+s3_prefix = "weather-comment-generator-prod"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+parameter_overrides = "Environment=prod"
+confirm_changeset = true
