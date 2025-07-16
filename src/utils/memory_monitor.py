@@ -5,11 +5,16 @@ Memory usage monitor
 """
 
 from __future__ import annotations
-import psutil
 import os
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
+
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +37,11 @@ class MemoryMonitor:
         """
         self.warning_threshold = warning_threshold_percent
         self.critical_threshold = critical_threshold_percent
-        self._process = psutil.Process(os.getpid())
+        self._process = psutil.Process(os.getpid()) if PSUTIL_AVAILABLE else None
         self._last_check = datetime.now()
+        
+        if not PSUTIL_AVAILABLE:
+            logger.warning("psutil is not available. Memory monitoring will be disabled.")
         
     def get_memory_info(self) -> Dict[str, Any]:
         """メモリ情報を取得
@@ -41,6 +49,24 @@ class MemoryMonitor:
         Returns:
             メモリ使用状況の辞書
         """
+        if not PSUTIL_AVAILABLE or not self._process:
+            return {
+                "process": {
+                    "rss_mb": 0,
+                    "vms_mb": 0,
+                    "percent": 0,
+                    "pid": os.getpid()
+                },
+                "system": {
+                    "total_mb": 0,
+                    "available_mb": 0,
+                    "percent": 0,
+                    "used_mb": 0
+                },
+                "timestamp": datetime.now().isoformat(),
+                "monitoring_disabled": True
+            }
+        
         # プロセスメモリ情報
         process_info = self._process.memory_info()
         process_percent = self._process.memory_percent()
@@ -119,9 +145,12 @@ class MemoryMonitor:
         estimates["total"] = total_mb
         
         # 現在のプロセスメモリに対する割合
-        process_info = self._process.memory_info()
-        process_mb = process_info.rss / 1024 / 1024
-        estimates["cache_percent_of_process"] = (total_mb / process_mb * 100) if process_mb > 0 else 0
+        if PSUTIL_AVAILABLE and self._process:
+            process_info = self._process.memory_info()
+            process_mb = process_info.rss / 1024 / 1024
+            estimates["cache_percent_of_process"] = (total_mb / process_mb * 100) if process_mb > 0 else 0
+        else:
+            estimates["cache_percent_of_process"] = 0
         
         return estimates
     
