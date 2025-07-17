@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, TypedDict
 
 from src.data.weather_models import WeatherForecast
 from src.data.weather_collection import WeatherForecastCollection
@@ -23,6 +23,19 @@ OUTDOOR_END_HOUR = 18               # 外出終了時刻のデフォルト
 COMFORTABLE_TEMP_MIN = 20.0         # 快適な気温の下限
 COMFORTABLE_TEMP_MAX = 25.0         # 快適な気温の上限
 LOW_WIND_SPEED_MAX = 3.0            # 弱風の上限（m/s）
+
+
+class WeatherTrendResult(TypedDict):
+    """天気傾向分析の結果"""
+    trend: str                      # 全体的な傾向
+    temperature_trend: str          # 気温傾向
+    precipitation_risk: str         # 降水リスク
+    extreme_weather_risk: bool      # 異常気象リスク
+    min_temperature: float | None   # 最低気温
+    max_temperature: float | None   # 最高気温
+    total_precipitation: float      # 総降水量
+    analysis_period_hours: int      # 分析期間（時間）
+    data_points: int               # データポイント数
 
 
 def detect_weather_changes(
@@ -78,7 +91,7 @@ def detect_weather_changes(
 def analyze_weather_trend(
     collection: WeatherForecastCollection,
     hours: int = DEFAULT_ANALYSIS_HOURS
-) -> dict[str, any]:
+) -> WeatherTrendResult:
     """天気の傾向を分析
     
     Args:
@@ -94,12 +107,17 @@ def analyze_weather_trend(
     forecasts = collection.get_forecasts_between(current_time, future_time)
     
     if not forecasts:
-        return {
-            "trend": "unknown",
-            "temperature_trend": "stable",
-            "precipitation_risk": "low",
-            "extreme_weather_risk": False,
-        }
+        return WeatherTrendResult(
+            trend="unknown",
+            temperature_trend="stable",
+            precipitation_risk="low",
+            extreme_weather_risk=False,
+            min_temperature=None,
+            max_temperature=None,
+            total_precipitation=0.0,
+            analysis_period_hours=hours,
+            data_points=0
+        )
     
     # 気温トレンド
     temperatures = [f.temperature for f in forecasts]
@@ -136,17 +154,17 @@ def analyze_weather_trend(
     else:
         overall_trend = "changing"
     
-    return {
-        "trend": overall_trend,
-        "temperature_trend": temp_trend,
-        "precipitation_risk": precip_risk,
-        "extreme_weather_risk": extreme_weather,
-        "min_temperature": min(temperatures) if temperatures else None,
-        "max_temperature": max(temperatures) if temperatures else None,
-        "total_precipitation": sum(f.precipitation for f in forecasts),
-        "analysis_period_hours": hours,
-        "data_points": len(forecasts),
-    }
+    return WeatherTrendResult(
+        trend=overall_trend,
+        temperature_trend=temp_trend,
+        precipitation_risk=precip_risk,
+        extreme_weather_risk=extreme_weather,
+        min_temperature=min(temperatures) if temperatures else None,
+        max_temperature=max(temperatures) if temperatures else None,
+        total_precipitation=sum(f.precipitation for f in forecasts),
+        analysis_period_hours=hours,
+        data_points=len(forecasts)
+    )
 
 
 def find_optimal_outdoor_time(
