@@ -5,7 +5,8 @@
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# tests/manual/ から実行されるため、プロジェクトルートまで2段階上る
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.utils.comment_deduplicator import CommentDeduplicator, deduplicate_final_comment
 
