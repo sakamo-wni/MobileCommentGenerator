@@ -1,0 +1,96 @@
+# バリデータ用語設定ファイル
+# このファイルには、各種バリデータで使用する単語リストや設定値を定義します
+
+# トーン一貫性バリデータ用語
+tone_words:
+  positive:
+    - "良い"
+    - "素晴らしい"
+    - "最高"
+    - "絶好"
+    - "快適"
+  
+  negative:
+    - "悪い"
+    - "最悪"
+    - "厳しい"
+    - "辛い"
+    - "大変"
+  
+  urgency:
+    - "注意"
+    - "警戒"
+    - "危険"
+    - "要注意"
+    - "気をつけて"
+  
+  casual:
+    - "楽しい"
+    - "ワクワク"
+    - "ルンルン"
+    - "ハッピー"
+    - "ラッキー"
+  
+  encouraging:
+    - "頑張"
+    - "応援"
+    - "ファイト"
+    - "エール"
+    - "励ま"
+
+# 傘関連の重複チェック用設定
+umbrella_patterns:
+  # 傘のパターンペア（同時に使うと冗長）
+  redundant_pairs:
+    - ["傘", "雨具"]
+    - ["傘", "レイングッズ"]
+    - ["雨具", "レイングッズ"]
+    - ["折りたたみ傘", "傘"]
+    - ["レインコート", "雨具"]
+    - ["カッパ", "雨具"]
+    - ["雨合羽", "レインコート"]
+    - ["防水", "撥水"]
+  
+  # 傘関連ワード
+  umbrella_words:
+    - "傘"
+    - "雨具"
+    - "レイン"
+    - "折りたたみ"
+  
+  # コンテキスト修飾子
+  context_modifiers:
+    - "あると安心"
+    - "持っていく"
+    - "必要"
+    - "便利"
+  
+  # 降水閾値
+  precipitation_threshold: 0.1
+
+# CSV検証用デフォルト設定
+csv_validation:
+  max_comment_length: 200
+  min_comment_length: 1
+  warning_length: 100
+  count_range:
+    min: 0
+    max: 1000000
+  required_columns:
+    weather_comment:
+      - "weather_comment"
+      - "count"
+    advice:
+      - "advice"
+      - "count"
+
+# データ品質設定
+data_quality:
+  remove_duplicates: true
+  remove_empty: true
+  normalize_special_chars: true
+  ng_words:
+    - "エラー"
+    - "NULL"
+    - "undefined"
+    - "???"

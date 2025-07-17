@@ -6,6 +6,11 @@ from .temperature_validator import TemperatureValidator
 from .consistency_validator import ConsistencyValidator
 from .regional_validator import RegionalValidator
 from .weather_comment_validator import WeatherCommentValidator
+from .tone_consistency_validator import ToneConsistencyValidator
+from .umbrella_redundancy_validator import UmbrellaRedundancyValidator
+from .weather_reality_validator import WeatherRealityValidator
+from .temperature_symptom_validator import TemperatureSymptomValidator
+from .time_temperature_validator import TimeTemperatureValidator
 
 __all__ = [
     'BaseValidator',
@@ -13,5 +18,10 @@ __all__ = [
     'TemperatureValidator',
     'ConsistencyValidator',
     'RegionalValidator',
-    'WeatherCommentValidator'
+    'WeatherCommentValidator',
+    'ToneConsistencyValidator',
+    'UmbrellaRedundancyValidator',
+    'WeatherRealityValidator',
+    'TemperatureSymptomValidator',
+    'TimeTemperatureValidator'
 ]

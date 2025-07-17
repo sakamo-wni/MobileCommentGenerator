@@ -3,6 +3,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
+import yaml
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -34,7 +39,30 @@ class BaseCSVValidator:
         Args:
             config: 検証設定（local_csv_config.yamlから読み込み）
         """
-        self.config = config or self._get_default_config()
+        self.config = config or self._load_config_from_file()
+    
+    def _load_config_from_file(self) -> dict[str, Any]:
+        """設定ファイルから読み込み、デフォルトをマージ"""
+        default_config = self._get_default_config()
+        
+        config_path = Path(__file__).parent.parent.parent.parent.parent / "config" / "validator_words.yaml"
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                file_config = yaml.safe_load(f)
+                
+                # CSV検証設定をマージ
+                if 'csv_validation' in file_config:
+                    default_config['validation'].update(file_config['csv_validation'])
+                
+                # データ品質設定をマージ
+                if 'data_quality' in file_config:
+                    default_config['data_quality'].update(file_config['data_quality'])
+                
+                logger.info("設定ファイルからCSV検証設定を読み込みました")
+        except Exception as e:
+            logger.warning(f"設定ファイル読み込みエラー: {e}. デフォルト値を使用します。")
+        
+        return default_config
     
     def _get_default_config(self) -> dict[str, Any]:
         """デフォルト設定を取得"""
