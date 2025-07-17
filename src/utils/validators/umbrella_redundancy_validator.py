@@ -80,7 +80,9 @@ class UmbrellaRedundancyValidator:
         # 晴天時の傘言及チェック
         precipitation_threshold = config.get('precipitation_threshold', 0.1)
         if weather_data.precipitation < precipitation_threshold and "晴" in weather_data.weather_description:
-            check_words = config.get('umbrella_words', ["傘", "雨具"])[:2]  # 最初の2つを使用
+            umbrella_words = config.get('umbrella_words', ["傘", "雨具"])
+            sunny_check_count = config.get('sunny_check_word_count', 2)
+            check_words = umbrella_words[:sunny_check_count]
             if any(word in weather_comment + advice_comment for word in check_words):
                 return False, "晴天時に傘・雨具への言及は不適切"
         
@@ -92,15 +94,8 @@ class UmbrellaRedundancyValidator:
         
         例：「折り畳み傘」と「日傘」は異なる文脈
         """
-        # 文脈を区別するための修飾語
-        # 設定ファイルから取得、なければデフォルト値を使用
-        word_context_modifiers = config.get('word_context_modifiers', {})
-        if not word_context_modifiers:
-            word_context_modifiers = {
-                "傘": ["折り畳み", "日", "雨", "大きな", "小さな"],
-                "雨具": ["簡易", "本格的な", "防水"],
-            }
-        context_modifiers = word_context_modifiers
+        # 文脈を区別するための修飾語を設定から取得
+        context_modifiers = config.get('word_context_modifiers', {})
         
         modifiers = context_modifiers.get(word, [])
         context1 = None

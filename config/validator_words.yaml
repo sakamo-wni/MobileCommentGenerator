@@ -171,6 +171,9 @@ umbrella_patterns:
   # 降水閾値
   precipitation_threshold: 0.1
   
+  # 晴天時にチェックする傘関連の単語数
+  sunny_check_word_count: 2
+  
   # 文脈を区別する修飾語
   word_context_modifiers:
     "傘":
