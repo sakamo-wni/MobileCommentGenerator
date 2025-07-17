@@ -2,48 +2,45 @@
 
 from __future__ import annotations
 import logging
-import yaml
-from pathlib import Path
+from functools import lru_cache
 from datetime import datetime
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
+from src.config.config import get_validator_words
 
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=1)
+def _get_time_temperature_config():
+    """時間温度設定を取得（キャッシュ付き）"""
+    config = get_validator_words()
+    return config.get('time_temperature', _get_default_config())
+
+
+def _get_default_config() -> dict:
+    """デフォルトの時間帯設定を返す"""
+    return {
+        'time_periods': {
+            'morning': {'start': 5, 'end': 9},
+            'day': {'start': 10, 'end': 15},
+            'evening': {'start': 16, 'end': 18},
+            'night': {'start': 19, 'end': 4}
+        },
+        'inappropriate_expressions': {
+            'morning': ["夕焼け", "夜風", "日没", "夕暮れ", "星空"],
+            'day': ["星空", "月明かり", "夜露", "朝露", "朝もや"],
+            'evening': ["朝日", "朝焼け", "朝露", "早朝"],
+            'night': ["強い日差し", "日焼け", "紫外線対策", "日中の暑さ"]
+        },
+        'night_hot_expressions': ["蒸し暑い", "熱帯夜", "寝苦しい"],
+        'night_hot_threshold': 25,
+        'day_cold_threshold': 10
+    }
+
+
 class TimeTemperatureValidator:
     """時間帯と温度表現の矛盾を検証"""
-    
-    def __init__(self):
-        """設定ファイルから時間帯設定を読み込み"""
-        config_path = Path(__file__).parent.parent.parent.parent / "config" / "validator_words.yaml"
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-                self.time_temp_config = config.get('time_temperature', {})
-        except Exception as e:
-            logger.warning(f"設定ファイル読み込みエラー: {e}. デフォルト値を使用します。")
-            self.time_temp_config = self._get_default_config()
-    
-    def _get_default_config(self) -> dict:
-        """デフォルトの時間帯設定を返す"""
-        return {
-            'time_periods': {
-                'morning': {'start': 5, 'end': 9},
-                'day': {'start': 10, 'end': 15},
-                'evening': {'start': 16, 'end': 18},
-                'night': {'start': 19, 'end': 4}
-            },
-            'inappropriate_expressions': {
-                'morning': ["夕焼け", "夜風", "日没", "夕暮れ", "星空"],
-                'day': ["星空", "月明かり", "夜露", "朝露", "朝もや"],
-                'evening': ["朝日", "朝焼け", "朝露", "早朝"],
-                'night': ["強い日差し", "日焼け", "紫外線対策", "日中の暑さ"]
-            },
-            'night_hot_expressions': ["蒸し暑い", "熱帯夜", "寝苦しい"],
-            'night_hot_threshold': 25,
-            'day_cold_threshold': 10
-        }
     
     def check_time_temperature_contradiction(
         self,
@@ -73,8 +70,9 @@ class TimeTemperatureValidator:
             return True, ""  # 時刻情報がない場合はチェックしない
         
         # 時間帯の定義を取得
-        time_periods = self.time_temp_config.get('time_periods', {})
-        inappropriate_expressions = self.time_temp_config.get('inappropriate_expressions', {})
+        config = _get_time_temperature_config()
+        time_periods = config.get('time_periods', {})
+        inappropriate_expressions = config.get('inappropriate_expressions', {})
         
         # 朝の時間帯
         morning = time_periods.get('morning', {})
@@ -135,19 +133,30 @@ class TimeTemperatureValidator:
         text: str
     ) -> tuple[bool, str]:
         """温度と時間帯の組み合わせの妥当性をチェック"""
+        config = _get_time_temperature_config()
         
         # 早朝・夜間の高温表現チェック
-        night_hot_threshold = self.time_temp_config.get('night_hot_threshold', 25)
-        if (hour < 6 or hour > 20) and temperature < night_hot_threshold:
-            hot_expressions = self.time_temp_config.get('night_hot_expressions', [])
+        night_hours = config.get('night_hours', {})
+        early_morning_end = night_hours.get('early_morning_end', 6)
+        night_start = night_hours.get('night_start', 20)
+        
+        night_hot_threshold = config.get('night_hot_threshold', 25)
+        if (hour < early_morning_end or hour >= night_start) and temperature < night_hot_threshold:
+            hot_expressions = config.get('night_hot_expressions', [])
             for expr in hot_expressions:
                 if expr in text:
                     return False, f"低温（{temperature}°C）の夜間に不適切な暑さ表現: {expr}"
         
         # 日中の低温で日差し関連
-        day_cold_threshold = self.time_temp_config.get('day_cold_threshold', 10)
-        if 10 <= hour <= 15 and temperature < day_cold_threshold:
-            if "強い日差し" in text or "日焼け対策" in text:
-                return False, f"低温（{temperature}°C）での強い日差し表現は不自然"
+        day_hours = config.get('day_hours', {})
+        day_start = day_hours.get('start', 10)
+        day_end = day_hours.get('end', 15)
+        
+        day_cold_threshold = config.get('day_cold_threshold', 10)
+        if day_start <= hour <= day_end and temperature < day_cold_threshold:
+            sunshine_expressions = config.get('sunshine_expressions', ["強い日差し", "日焼け対策"])
+            for expr in sunshine_expressions:
+                if expr in text:
+                    return False, f"低温（{temperature}°C）での日差し表現は不自然: {expr}"
         
         return True, ""

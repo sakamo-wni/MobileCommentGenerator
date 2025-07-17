@@ -9,6 +9,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 from functools import lru_cache
+from pathlib import Path
+import yaml
 
 from .settings import (
     APIConfig,
@@ -279,5 +281,17 @@ def get_server_config() -> ServerConfig:
 def get_llm_config() -> LLMConfig:
     """LLM設定を取得"""
     return get_config().llm
+
+
+@lru_cache(maxsize=1)
+def get_validator_words() -> dict[str, Any]:
+    """バリデータ用語設定を取得"""
+    config_path = Path(__file__).parent.parent.parent / "config" / "validator_words.yaml"
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        logger.warning(f"バリデータ用語設定ファイルの読み込みに失敗しました: {e}")
+        return {}
 
 

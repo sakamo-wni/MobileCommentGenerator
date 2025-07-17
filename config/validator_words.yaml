@@ -88,6 +88,21 @@ time_temperature:
   # 温度閾値
   night_hot_threshold: 25
   day_cold_threshold: 10
+  
+  # 夜間の時間範囲
+  night_hours:
+    early_morning_end: 6
+    night_start: 20
+  
+  # 日中の時間範囲
+  day_hours:
+    start: 10
+    end: 15
+  
+  # 日差し関連表現
+  sunshine_expressions:
+    - "強い日差し"
+    - "日焼け対策"
 
 # トーン一貫性バリデータ用語
 tone_words:
@@ -195,3 +210,35 @@ data_quality:
     - "NULL"
     - "undefined"
     - "???"
+
+# 温度と症状の矛盾チェック用設定
+temperature_symptom:
+  # 防寒対策リスト
+  cold_protection:
+    - "防寒"
+    - "厚着"
+    - "温かい服装"
+    - "カイロ"
+    - "マフラー"
+  
+  # 熱中症対策リスト
+  heat_protection:
+    - "熱中症"
+    - "水分補給"
+    - "塩分補給"
+    - "日陰で休憩"
+    - "クーラー"
+  
+  # 穏やかな気温範囲
+  mild_temperature:
+    min: 15
+    max: 25
+  
+  # 極端な表現リスト
+  extreme_expressions:
+    - "猛暑"
+    - "酷暑"
+    - "極寒"
+    - "凍える"
+    - "熱中症警戒"
+    - "防寒必須"
