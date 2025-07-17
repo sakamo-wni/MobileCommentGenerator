@@ -135,8 +135,14 @@ class CommentUtils:
                             has_rain_in_timeline = True
                             break
             
-            # 1. 雨天時の最優先処理（単一時点または時系列データで雨がある場合）
-            if weather_data.precipitation > 0 or has_rain_in_timeline:
+            # 1. 雨天時の最優先処理（実際に雨が降っている場合のみ）
+            # 降水量の閾値を調整: 0.5mm/h以上を雨として扱う（霧雨や極少量の降水を除外）
+            is_raining = weather_data.precipitation >= 0.5 or (
+                has_rain_in_timeline and 
+                any(word in weather_data.weather_description.lower() for word in ["雨", "rain", "shower"])
+            )
+            
+            if is_raining:
                 rain_keywords = ["雨", "傘", "濡れ", "降水", "にわか雨", "雷雨"]
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     severe_matched.append(candidate)  # 雨天時は最優先カテゴリに入れる
