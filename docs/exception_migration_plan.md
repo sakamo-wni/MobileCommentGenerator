@@ -48,37 +48,83 @@
 2. ✅ テストコードのインポートを更新
 3. ⏳ 他の例外クラスの使用箇所を段階的に更新
 
-## 統合後の構造案
+## 実装状況
+
+### 完了した作業
+
+1. **error_types.pyへの新しいErrorType追加**
+   - ✅ RATE_LIMIT_ERROR
+   - ✅ API_RESPONSE_ERROR  
+   - ✅ FILE_IO_ERROR
+   - ✅ LOCATION_NOT_FOUND
+   - ✅ COMMENT_GENERATION_ERROR
+   - ✅ MISSING_DATA_ERROR
+
+2. **新しい例外クラスの追加**
+   - ✅ RateLimitError
+   - ✅ APIResponseError
+   - ✅ FileIOError
+   - ✅ LocationNotFoundError
+   - ✅ CommentGenerationError
+   - ✅ MissingDataError
+
+3. **__init__.pyの更新**
+   - ✅ error_types.pyからのインポートに統一
+   - ✅ 後方互換性のためのエイリアス追加
+   - ✅ 非推奨警告の実装
+
+4. **旧例外ファイルの非推奨化**
+   - ✅ api_errors.py
+   - ✅ data_errors.py
+   - ✅ business_errors.py
+   - ✅ system_errors.py
+
+### 今後の作業
+
+1. **コードベース全体での使用箇所更新**
+   - 旧例外クラスの使用箇所を特定
+   - AppExceptionベースの例外に置き換え
+
+2. **テストの拡充**
+   - 新しい例外クラスのテスト作成
+   - 国際化機能のテスト
+
+3. **バージョン2.0.0での削除**
+   - 旧例外ファイルの削除
+   - 非推奨エイリアスの削除
+
+## 移行ガイド
+
+### 旧例外から新例外への移行例
 
 ```python
-# src/exceptions/error_types.py に追加するErrorType
-class ErrorType(Enum):
-    # ... 既存のタイプ ...
-    
-    # API関連（追加）
-    API_KEY_ERROR = "api_key_error"
-    RATE_LIMIT_ERROR = "rate_limit_error"
-    API_RESPONSE_ERROR = "api_response_error"
-    
-    # ビジネスロジック関連（追加）
-    LOCATION_NOT_FOUND = "location_not_found"
-    COMMENT_GENERATION_ERROR = "comment_generation_error"
-    
-    # データ関連（追加）
-    MISSING_DATA_ERROR = "missing_data_error"
-    
-    # システム関連（追加）
-    FILE_IO_ERROR = "file_io_error"
+# 旧: api_errors.py
+from src.exceptions import APIError
+raise APIError("APIエラーが発生しました")
+
+# 新: error_types.pyベース
+from src.exceptions import AppException, ErrorType
+raise AppException(ErrorType.API_ERROR, "APIエラーが発生しました")
+```
+
+```python
+# 旧: data_errors.py
+from src.exceptions import DataValidationError
+raise DataValidationError("データ検証エラー")
+
+# 新: error_types.pyベース
+from src.exceptions import ValidationError
+raise ValidationError("データ検証エラー")
 ```
 
 ## 利点
-1. 一貫性のあるエラーハンドリング
-2. 国際化サポートの統一
-3. エラー情報の構造化
-4. API応答の標準化
-5. 保守性の向上
+1. **一貫性のあるエラーハンドリング**: すべての例外がAppExceptionベース
+2. **国際化サポートの統一**: 日本語/英語のメッセージが統一管理
+3. **エラー情報の構造化**: ErrorTypeによるエラー種別の明確化
+4. **API応答の標準化**: to_dict()メソッドによるAPIレスポンスの統一
+5. **保守性の向上**: 重複コードの削減
 
 ## 注意点
-1. 既存コードへの影響を最小限に抑える
-2. 段階的な移行で安定性を確保
-3. 十分なテストカバレッジを確保
+1. **既存コードへの影響を最小限に**: エイリアスによる後方互換性維持
+2. **段階的な移行**: バージョン2.0.0までの移行期間を設定
+3. **十分なテストカバレッジ**: 新しい例外クラスの動作確認
