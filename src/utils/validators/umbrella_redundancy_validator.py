@@ -94,12 +94,14 @@ class UmbrellaRedundancyValidator:
         例：「折り畳み傘」と「日傘」は異なる文脈
         """
         # 文脈を区別するための修飾語
-        # デフォルトの修飾語マップ
-        default_context_modifiers = {
-            "傘": ["折り畳み", "日", "雨", "大きな", "小さな"],
-            "雨具": ["簡易", "本格的な", "防水"],
-        }
-        context_modifiers = default_context_modifiers
+        # 設定ファイルから取得、なければデフォルト値を使用
+        word_context_modifiers = self.umbrella_config.get('word_context_modifiers', {})
+        if not word_context_modifiers:
+            word_context_modifiers = {
+                "傘": ["折り畳み", "日", "雨", "大きな", "小さな"],
+                "雨具": ["簡易", "本格的な", "防水"],
+            }
+        context_modifiers = word_context_modifiers
         
         modifiers = context_modifiers.get(word, [])
         context1 = None

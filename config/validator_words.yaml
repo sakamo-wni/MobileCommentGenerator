@@ -1,6 +1,94 @@
 # バリデータ用語設定ファイル
 # このファイルには、各種バリデータで使用する単語リストや設定値を定義します
 
+# 天気と現実の矛盾チェック用語
+weather_reality:
+  rain_expressions:
+    - "雨"
+    - "降水"
+    - "傘"
+    - "濡れ"
+    - "しっとり"
+    - "じめじめ"
+  
+  sunny_expressions:
+    - "快晴"
+    - "日差し"
+    - "陽射し"
+    - "太陽"
+    - "青空"
+    - "晴天"
+  
+  cold_expressions:
+    - "寒い"
+    - "冷え"
+    - "ひんやり"
+    - "凍える"
+    - "震える"
+  
+  hot_expressions:
+    - "暑い"
+    - "猛暑"
+    - "酷暑"
+    - "うだる"
+    - "汗ばむ"
+  
+  # 温度閾値
+  high_temp_threshold: 30
+  low_temp_threshold: 10
+
+# 時間帯と温度の矛盾チェック用設定
+time_temperature:
+  # 時間帯の定義
+  time_periods:
+    morning:
+      start: 5
+      end: 9
+    day:
+      start: 10
+      end: 15
+    evening:
+      start: 16
+      end: 18
+    night:
+      start: 19
+      end: 4
+  
+  # 時間帯別の不適切な表現
+  inappropriate_expressions:
+    morning:
+      - "夕焼け"
+      - "夜風"
+      - "日没"
+      - "夕暮れ"
+      - "星空"
+    day:
+      - "星空"
+      - "月明かり"
+      - "夜露"
+      - "朝露"
+      - "朝もや"
+    evening:
+      - "朝日"
+      - "朝焼け"
+      - "朝露"
+      - "早朝"
+    night:
+      - "強い日差し"
+      - "日焼け"
+      - "紫外線対策"
+      - "日中の暑さ"
+  
+  # 夜間の暑さ表現
+  night_hot_expressions:
+    - "蒸し暑い"
+    - "熱帯夜"
+    - "寝苦しい"
+  
+  # 温度閾値
+  night_hot_threshold: 25
+  day_cold_threshold: 10
+
 # トーン一貫性バリデータ用語
 tone_words:
   positive:
@@ -67,6 +155,19 @@ umbrella_patterns:
   
   # 降水閾値
   precipitation_threshold: 0.1
+  
+  # 文脈を区別する修飾語
+  word_context_modifiers:
+    "傘":
+      - "折り畳み"
+      - "日"
+      - "雨"
+      - "大きな"
+      - "小さな"
+    "雨具":
+      - "簡易"
+      - "本格的な"
+      - "防水"
 
 # CSV検証用デフォルト設定
 csv_validation:
