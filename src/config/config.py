@@ -281,8 +281,7 @@ def get_llm_config() -> LLMConfig:
 
 def reset_config() -> None:
     """設定シングルトンをリセット（テスト用）"""
-    if hasattr(Config, '_instance'):
-        Config._instance = None
+    get_config.cache_clear()  # @lru_cacheをクリア
 
 
 @lru_cache(maxsize=1)

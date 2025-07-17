@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from src.config.config import Config, get_config
+from src.config.config import Config, get_config, reset_config
 from src.exceptions import ConfigError as ConfigurationError
 
 
@@ -186,23 +186,20 @@ class TestConfig:
         for value, expected in test_cases:
             with patch.dict(os.environ, {"DEBUG": value}):
                 # シングルトンをクリア
-                if hasattr(Config, '_instance'):
-                    Config._instance = None
+                reset_config()
                 config = Config()
                 assert config.app.debug is expected, f"Failed for value '{value}', expected {expected} but got {config.app.debug}"
     
     def test_integer_parsing(self):
         """整数値の解析テスト"""
         with patch.dict(os.environ, {"WEATHER_CACHE_TTL": "300"}):
-            if hasattr(Config, '_instance'):
-                Config._instance = None
+            reset_config()
             config = Config()
             assert config.weather.cache_ttl_seconds == 300
         
         # 不正な値の場合はエラーが発生するかデフォルト値を使用
         with patch.dict(os.environ, {"WEATHER_CACHE_TTL": "invalid"}):
-            if hasattr(Config, '_instance'):
-                Config._instance = None
+            reset_config()
             try:
                 config = Config()
                 # int()変換でエラーが発生する場合
@@ -213,15 +210,13 @@ class TestConfig:
         """環境別の設定テスト"""
         # 開発環境
         with patch.dict(os.environ, {"APP_ENV": "development"}):
-            if hasattr(Config, '_instance'):
-                Config._instance = None
+            reset_config()
             config = Config()
             assert config.app.env == "development"
         
         # テスト環境
         with patch.dict(os.environ, {"APP_ENV": "test"}):
-            if hasattr(Config, '_instance'):
-                Config._instance = None
+            reset_config()
             config = Config()
             assert config.app.env == "test"
         
@@ -231,7 +226,6 @@ class TestConfig:
             "WXTECH_API_KEY": "prod_key",
             "OPENAI_API_KEY": "prod_openai"
         }):
-            if hasattr(Config, '_instance'):
-                Config._instance = None
+            reset_config()
             config = Config()
             assert config.app.env == "production"

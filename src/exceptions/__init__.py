@@ -29,14 +29,81 @@ from .error_types import (
 
 # 旧システムからの移行用エイリアス（非推奨）
 # これらは将来のバージョンで削除される予定です
-APIError = AppException  # ErrorType.API_ERRORを使用
-APIKeyError = AppException  # ErrorType.MISSING_CREDENTIALを使用
-NetworkError = AppException  # ErrorType.NETWORK_ERRORを使用
-APITimeoutError = AppException  # ErrorType.TIMEOUT_ERRORを使用
+import warnings
+
+class APIError(AppException):
+    """非推奨: AppException(ErrorType.API_ERROR)を使用してください"""
+    def __init__(self, message=None, details=None):
+        warnings.warn(
+            "APIError is deprecated. Use AppException with ErrorType.API_ERROR. "
+            "Will be removed in version 2.0.0",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(ErrorType.API_ERROR, message, details)
+
+class APIKeyError(AppException):
+    """非推奨: AppException(ErrorType.MISSING_CREDENTIAL)を使用してください"""
+    def __init__(self, message=None, details=None):
+        warnings.warn(
+            "APIKeyError is deprecated. Use AppException with ErrorType.MISSING_CREDENTIAL. "
+            "Will be removed in version 2.0.0",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(ErrorType.MISSING_CREDENTIAL, message, details)
+
+class NetworkError(AppException):
+    """非推奨: AppException(ErrorType.NETWORK_ERROR)を使用してください"""
+    def __init__(self, message=None, details=None):
+        warnings.warn(
+            "NetworkError is deprecated. Use AppException with ErrorType.NETWORK_ERROR. "
+            "Will be removed in version 2.0.0",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(ErrorType.NETWORK_ERROR, message, details)
+
+class APITimeoutError(AppException):
+    """非推奨: AppException(ErrorType.TIMEOUT_ERROR)を使用してください"""
+    def __init__(self, message=None, details=None):
+        warnings.warn(
+            "APITimeoutError is deprecated. Use AppException with ErrorType.TIMEOUT_ERROR. "
+            "Will be removed in version 2.0.0",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(ErrorType.TIMEOUT_ERROR, message, details)
+
+# DataErrorはDataAccessErrorのエイリアス
 DataError = DataAccessError
-DataParsingError = AppException  # ErrorType.PARSING_ERRORを使用
+
+class DataParsingError(AppException):
+    """非推奨: AppException(ErrorType.PARSING_ERROR)を使用してください"""
+    def __init__(self, message=None, details=None):
+        warnings.warn(
+            "DataParsingError is deprecated. Use AppException with ErrorType.PARSING_ERROR. "
+            "Will be removed in version 2.0.0",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(ErrorType.PARSING_ERROR, message, details)
+
+# DataValidationErrorはValidationErrorのエイリアス
 DataValidationError = ValidationError
-BusinessLogicError = AppException  # ErrorType.SYSTEM_ERRORを使用
+
+class BusinessLogicError(AppException):
+    """非推奨: AppException(ErrorType.SYSTEM_ERROR)を使用してください"""
+    def __init__(self, message=None, details=None):
+        warnings.warn(
+            "BusinessLogicError is deprecated. Use AppException with ErrorType.SYSTEM_ERROR. "
+            "Will be removed in version 2.0.0",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(ErrorType.SYSTEM_ERROR, message, details)
+
+# WeatherDataUnavailableErrorはWeatherFetchErrorのエイリアス
 WeatherDataUnavailableError = WeatherFetchError
 
 __all__ = [

@@ -2,12 +2,14 @@
 
 警告: このモジュールは非推奨です。
 代わりに error_types.py の統一された例外システムを使用してください。
+Will be removed in version 2.0.0
 """
 
 import warnings
 
 warnings.warn(
-    "system_errors モジュールは非推奨です。error_types.py の統一された例外システムを使用してください。",
+    "system_errors モジュールは非推奨です。error_types.py の統一された例外システムを使用してください。"
+    " Will be removed in version 2.0.0",
     DeprecationWarning,
     stacklevel=2
 )
