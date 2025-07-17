@@ -82,10 +82,42 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         for comment in weather_comments:
             comment_text = comment.comment_text
             
-            # 季節に不適切な「残暑」を除外（7-8月は残暑ではない）
-            if target_datetime.month in [6, 7, 8] and "残暑" in comment_text:
-                logger.debug(f"{target_datetime.month}月に「残暑」は不適切: '{comment_text}'")
+            # 季節に不適切なコメントを除外
+            month = target_datetime.month
+            
+            # 残暑は9月以降のみ
+            if month not in [9, 10, 11] and "残暑" in comment_text:
+                logger.debug(f"{month}月に「残暑」は不適切: '{comment_text}'")
                 continue
+            
+            # 春（3-5月）に不適切な表現
+            if month in [3, 4, 5]:
+                spring_inappropriate = ["梅雨", "真夏", "猛暑", "残暑", "師走", "年末", "初雪", "真冬"]
+                if any(word in comment_text for word in spring_inappropriate):
+                    logger.debug(f"春（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 夏（6-8月）に不適切な表現
+            elif month in [6, 7, 8]:
+                summer_inappropriate = ["初雪", "雪", "真冬", "厳寒", "凍結", "霜", "初霜", "残暑", "紅葉", "落ち葉"]
+                if any(word in comment_text for word in summer_inappropriate):
+                    logger.debug(f"夏（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 秋（9-11月）に不適切な表現
+            elif month in [9, 10, 11]:
+                autumn_inappropriate = ["真夏", "猛暑", "梅雨", "初雪", "真冬", "厳寒"]
+                # 9月は残暑OK、10-11月は微妙だが許容
+                if any(word in comment_text for word in autumn_inappropriate):
+                    logger.debug(f"秋（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 冬（12-2月）に不適切な表現
+            elif month in [12, 1, 2]:
+                winter_inappropriate = ["残暑", "猛暑", "真夏", "梅雨", "桜", "新緑", "紅葉"]
+                if any(word in comment_text for word in winter_inappropriate):
+                    logger.debug(f"冬（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
             
             # 晴天時に雨のコメントを除外
             if "晴" in weather_data.weather_description and weather_data.precipitation < 0.5:

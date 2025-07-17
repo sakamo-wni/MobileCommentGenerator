@@ -116,15 +116,39 @@ def check_and_fix_weather_comment_safety(
                 weather_comment = _find_cloudy_weather_comment(state.past_comments, weather_comment)
                 break
     
-    # 季節外れの「残暑」チェック（6-8月は残暑ではない）
-    if state and hasattr(state, 'target_datetime') and state.target_datetime.month in [6, 7, 8] and weather_comment and "残暑" in weather_comment:
-        logger.warning(f"🚨 緊急修正: {state.target_datetime.month}月に「残暑」は不適切 - 代替コメント検索")
-        weather_comment = weather_comment.replace("残暑", "暑さ")
-        # それでも不自然な場合は代替コメント検索
-        if "厳しい暑さ" not in weather_comment:
-            weather_comment = _find_alternative_weather_comment(
-                weather_data, state.past_comments, ["残暑"], state
-            )
+    # 季節外れの表現をチェック
+    if state and hasattr(state, 'target_datetime') and weather_comment:
+        month = state.target_datetime.month
+        
+        # 残暑チェック（9月以降のみ適切）
+        if month not in [9, 10, 11] and "残暑" in weather_comment:
+            logger.warning(f"🚨 緊急修正: {month}月に「残暑」は不適切 - 代替コメント検索")
+            if month in [6, 7, 8]:
+                weather_comment = weather_comment.replace("残暑", "暑さ")
+            else:
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, ["残暑"], state
+                )
+        
+        # 季節別の不適切表現チェック
+        seasonal_inappropriate = []
+        
+        if month in [3, 4, 5]:  # 春
+            seasonal_inappropriate = ["梅雨", "真夏", "猛暑", "師走", "年末", "初雪", "真冬"]
+        elif month in [6, 7, 8]:  # 夏
+            seasonal_inappropriate = ["初雪", "雪", "真冬", "厳寒", "凍結", "霜", "初霜", "紅葉", "落ち葉"]
+        elif month in [9, 10, 11]:  # 秋
+            seasonal_inappropriate = ["真夏", "猛暑", "梅雨", "初雪", "真冬", "厳寒"]
+        elif month in [12, 1, 2]:  # 冬
+            seasonal_inappropriate = ["猛暑", "真夏", "梅雨", "桜", "新緑", "紅葉"]
+        
+        for word in seasonal_inappropriate:
+            if word in weather_comment:
+                logger.warning(f"🚨 緊急修正: {month}月に「{word}」は不適切 - 代替コメント検索")
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, seasonal_inappropriate, state
+                )
+                break
     
     return weather_comment, advice_comment
 
