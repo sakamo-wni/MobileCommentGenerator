@@ -77,6 +77,98 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
         logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
         
+        # 天気と矛盾するコメントを候補から除外
+        filtered_weather_comments = []
+        for comment in weather_comments:
+            comment_text = comment.comment_text
+            
+            # 季節に不適切なコメントを除外
+            month = target_datetime.month
+            
+            # 残暑は9月以降のみ
+            if month not in [9, 10, 11] and "残暑" in comment_text:
+                logger.debug(f"{month}月に「残暑」は不適切: '{comment_text}'")
+                continue
+            
+            # 春（3-5月）に不適切な表現
+            if month in [3, 4, 5]:
+                spring_inappropriate = ["梅雨", "真夏", "猛暑", "残暑", "師走", "年末", "初雪", "真冬"]
+                if any(word in comment_text for word in spring_inappropriate):
+                    logger.debug(f"春（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 夏（6-8月）に不適切な表現
+            elif month in [6, 7, 8]:
+                summer_inappropriate = ["初雪", "雪", "真冬", "厳寒", "凍結", "霜", "初霜", "残暑", "紅葉", "落ち葉"]
+                if any(word in comment_text for word in summer_inappropriate):
+                    logger.debug(f"夏（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 秋（9-11月）に不適切な表現
+            elif month in [9, 10, 11]:
+                autumn_inappropriate = ["真夏", "猛暑", "梅雨", "初雪", "真冬", "厳寒"]
+                # 9月は残暑OK、10-11月は微妙だが許容
+                if any(word in comment_text for word in autumn_inappropriate):
+                    logger.debug(f"秋（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 冬（12-2月）に不適切な表現
+            elif month in [12, 1, 2]:
+                winter_inappropriate = ["残暑", "猛暑", "真夏", "梅雨", "桜", "新緑", "紅葉"]
+                if any(word in comment_text for word in winter_inappropriate):
+                    logger.debug(f"冬（{month}月）に不適切な表現を除外: '{comment_text}'")
+                    continue
+            
+            # 晴天時に雨のコメントを除外
+            if "晴" in weather_data.weather_description and weather_data.precipitation < 0.5:
+                rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨"]
+                if any(keyword in comment_text for keyword in rain_keywords):
+                    logger.debug(f"晴天時に雨のコメントを除外: '{comment_text}'")
+                    continue
+            
+            # 晴天時に曇りのコメントを除外
+            if "晴" in weather_data.weather_description:
+                cloudy_keywords = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
+                if any(keyword in comment_text for keyword in cloudy_keywords):
+                    logger.debug(f"晴天時に曇りのコメントを除外: '{comment_text}'")
+                    continue
+            
+            # 安定した天気の時に変わりやすい天気のコメントを除外
+            # 4時点の予報データをチェック
+            if state and hasattr(state, 'generation_metadata'):
+                period_forecasts = state.generation_metadata.get('period_forecasts', [])
+                if len(period_forecasts) >= 4:
+                    # 全て同じ天気条件かチェック
+                    weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
+                    if len(set(weather_conditions)) == 1:  # 全て同じ天気
+                        changeable_keywords = ["変わりやすい", "天気急変", "不安定", "変化", "急変", "めまぐるしく", "一時的"]
+                        if any(keyword in comment_text for keyword in changeable_keywords):
+                            logger.debug(f"安定した天気で変わりやすい表現を除外: '{comment_text}'")
+                            continue
+            
+            # 雨天時に晴天のコメントを除外
+            if "雨" in weather_data.weather_description:
+                sunny_keywords = ["快晴", "青空", "強い日差し", "眩しい", "太陽がギラギラ"]
+                if any(keyword in comment_text for keyword in sunny_keywords):
+                    logger.debug(f"雨天時に晴天のコメントを除外: '{comment_text}'")
+                    continue
+            
+            # 曇天時（うすぐもり含む）に強い日差しのコメントを除外
+            if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]):
+                sunshine_keywords = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]
+                if any(keyword in comment_text for keyword in sunshine_keywords):
+                    logger.debug(f"曇天時に日差しのコメントを除外: '{comment_text}'")
+                    continue
+            
+            filtered_weather_comments.append(comment)
+        
+        # フィルタリング後のコメントを使用
+        if filtered_weather_comments:
+            weather_comments = filtered_weather_comments
+            logger.info(f"フィルタリング後の天気コメント数: {len(weather_comments)}")
+        else:
+            logger.warning("フィルタリング後の天気コメントが0件になったため、元のリストを使用")
+        
         # LLMマネージャーの初期化
         from src.config.config import get_config
         config = get_config()
@@ -218,8 +310,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         ng_check = check_ng_words(generated_comment)
         if not ng_check["is_valid"]:
             logger.warning(f"NGワードが検出されました: {ng_check['found_words']}")
-            # NGワードが含まれる場合は、選択されたペアのコメントを結合して使用
-            generated_comment = f"{selected_weather.comment_text}　{selected_advice.comment_text}"
+            # NGワードは既に適切に処理されているはずなので、そのまま使用
+            # （重複除去済みのコメントを維持）
         
         # 状態の更新
         state.selected_pair = selected_pair

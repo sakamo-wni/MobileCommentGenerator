@@ -131,6 +131,18 @@ class WeatherValidator(BaseValidator):
             
             for word in forbidden_words:
                 if word in comment_text:
+                    # コンテキストを考慮した判定
+                    # 例：「日差しはなく」「晴れ間はありません」のような否定形は許可
+                    negative_patterns = ["ない", "なく", "ません", "無い", "無く", "ありません"]
+                    if any(neg in comment_text[comment_text.index(word):comment_text.index(word)+10] for neg in negative_patterns):
+                        continue
+                    
+                    # 降水量が極めて少ない場合（0.1mm/h未満）は、軽い表現を許可
+                    if weather_type == "rain" and weather_data.precipitation < 0.1:
+                        mild_allowed = ["変わりやすい", "不安定", "にわか雨"]
+                        if word in mild_allowed:
+                            continue
+                    
                     return False, f"天気条件に不適切なワード: {word}"
         
         # 雨天時の追加チェック
@@ -155,20 +167,28 @@ class WeatherValidator(BaseValidator):
         """天気データから天気タイプを判定"""
         weather_desc = weather_data.weather_description.lower()
         
-        # 大雨・豪雨判定
-        if any(word in weather_desc for word in ["豪雨", "大雨", "暴風雨", "嵐", "台風"]):
+        # 大雨・豪雨判定（降水量も考慮）
+        if any(word in weather_desc for word in ["豪雨", "大雨", "暴風雨", "嵐", "台風"]) or weather_data.precipitation >= 10:
             return "heavy_rain"
         
-        # 雨判定
-        if any(word in weather_desc for word in ["雨", "rain"]):
+        # 雨判定（降水量0.5mm/h以上かつ説明文に雨が含まれる場合）
+        if weather_data.precipitation >= 0.5 and any(word in weather_desc for word in ["雨", "rain", "shower"]):
             return "rain"
         
-        # 晴れ判定
-        if any(word in weather_data.weather_description for word in SUNNY_WEATHER_KEYWORDS):
+        # 晴れ判定（降水量が少なく、晴れキーワードが含まれる）
+        if weather_data.precipitation < 0.1 and any(word in weather_data.weather_description for word in SUNNY_WEATHER_KEYWORDS):
             return "sunny"
         
-        # 曇り判定（うすぐもりも含む）
-        if any(word in weather_desc for word in ["曇", "くもり", "cloud", "うすぐもり", "薄曇", "薄ぐもり"]):
+        # 曇り判定（降水量が少なく、曇りキーワードが含まれる）
+        if weather_data.precipitation < 0.5 and any(word in weather_desc for word in ["曇", "くもり", "cloud", "うすぐもり", "薄曇", "薄ぐもり"]):
+            return "cloudy"
+        
+        # その他の場合、天気説明文を優先
+        if any(word in weather_desc for word in ["雨", "rain"]):
+            return "rain"
+        elif any(word in weather_data.weather_description for word in SUNNY_WEATHER_KEYWORDS):
+            return "sunny"
+        elif any(word in weather_desc for word in ["曇", "くもり", "cloud"]):
             return "cloudy"
         
         return "unknown"

@@ -135,8 +135,14 @@ class CommentUtils:
                             has_rain_in_timeline = True
                             break
             
-            # 1. 雨天時の最優先処理（単一時点または時系列データで雨がある場合）
-            if weather_data.precipitation > 0 or has_rain_in_timeline:
+            # 1. 雨天時の最優先処理（実際に雨が降っている場合のみ）
+            # 降水量の閾値を調整: 0.5mm/h以上を雨として扱う（霧雨や極少量の降水を除外）
+            is_raining = weather_data.precipitation >= 0.5 or (
+                has_rain_in_timeline and 
+                any(word in weather_data.weather_description.lower() for word in ["雨", "rain", "shower"])
+            )
+            
+            if is_raining:
                 rain_keywords = ["雨", "傘", "濡れ", "降水", "にわか雨", "雷雨"]
                 if any(keyword in comment.comment_text for keyword in rain_keywords):
                     severe_matched.append(candidate)  # 雨天時は最優先カテゴリに入れる
@@ -164,6 +170,20 @@ class CommentUtils:
                     else:
                         others.append(candidate)
                 else:
+                    # 晴天時に雨のコメントを除外する追加チェック
+                    if "晴" in weather_data.weather_description and weather_data.precipitation < 0.1:
+                        rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨"]
+                        if any(keyword in comment.comment_text for keyword in rain_keywords):
+                            logger.debug(f"晴天時に雨のコメントを除外: '{comment.comment_text}'")
+                            continue  # このコメントは候補から完全に除外
+                    
+                    # 曇天時に強い日差しのコメントを除外する追加チェック
+                    if "曇" in weather_data.weather_description:
+                        sunshine_keywords = ["強い日差し", "眩しい", "日光", "紫外線が強", "日焼け", "太陽がギラギラ"]
+                        if any(keyword in comment.comment_text for keyword in sunshine_keywords):
+                            logger.debug(f"曇天時に強い日差しのコメントを除外: '{comment.comment_text}'")
+                            continue  # このコメントは候補から完全に除外
+                    
                     if comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
                         weather_matched.append(candidate)
                     else:

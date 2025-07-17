@@ -110,9 +110,9 @@ class WxTechAPIClient:
         forecast_collection = self.get_forecast_for_next_day_hours_optimized(location.latitude, location.longitude)
         
         # 地点名を正しく設定
-        forecast_collection.location = location.name
+        forecast_collection.location_id = location.name
         for forecast in forecast_collection.forecasts:
-            forecast.location = location.name
+            forecast.location_id = location.name
         
         return forecast_collection
     
@@ -196,7 +196,7 @@ class WxTechAPIClient:
         
         # フィルタリングしたデータを新しいコレクションとして返す
         filtered_collection = WeatherForecastCollection(
-            location=forecast_collection.location,
+            location_id=forecast_collection.location_id,
             forecasts=selected_forecasts
         )
         

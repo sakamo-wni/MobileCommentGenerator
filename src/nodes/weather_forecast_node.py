@@ -91,9 +91,9 @@ class WeatherForecastNode:
             return {
                 **state,
                 "weather_data": {
-                    "location": weather_collection.location,
+                    "location": weather_collection.location_id,
                     "forecasts": [f.to_dict() for f in filtered_forecasts],
-                    "generated_at": weather_collection.generated_at.isoformat(),
+                    "generated_at": weather_collection.created_at.isoformat(),
                     "summary": weather_collection.get_daily_summary(),
                 },
                 "weather_summary": weather_summary,

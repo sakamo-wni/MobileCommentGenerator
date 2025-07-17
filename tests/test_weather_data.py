@@ -12,26 +12,61 @@ from src.data.weather_data import (
 )
 
 
+def create_weather_forecast(
+    location_id="東京",
+    datetime_val=None,
+    temperature=20.0,
+    weather_condition=WeatherCondition.CLEAR,
+    weather_description="晴れ",
+    humidity=50.0,
+    precipitation=0.0,
+    wind_speed=5.0,
+    wind_direction=WindDirection.NORTH,
+    **kwargs
+):
+    """テスト用のWeatherForecastを作成するヘルパー関数"""
+    if datetime_val is None:
+        datetime_val = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    
+    return WeatherForecast(
+        location_id=location_id,
+        datetime=datetime_val,
+        temperature=temperature,
+        feels_like=kwargs.get("feels_like", temperature),
+        humidity=humidity,
+        pressure=kwargs.get("pressure", 1013.25),
+        wind_speed=wind_speed,
+        wind_direction=wind_direction,
+        weather_condition=weather_condition,
+        weather_description=weather_description,
+        precipitation=precipitation,
+        cloud_coverage=kwargs.get("cloud_coverage", 0.0),
+        visibility=kwargs.get("visibility", 10.0),
+        uv_index=kwargs.get("uv_index", 0.0),
+        raw_data=kwargs.get("raw_data", {}),
+    )
+
+
 class TestWeatherForecast:
     """WeatherForecast クラスのテスト"""
 
     def test_weather_forecast_initialization(self):
         """天気予報オブジェクトの初期化テスト"""
         forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
             temperature=20.5,
-            weather_code="100",
+            feels_like=20.5,
+            humidity=50.0,
+            pressure=1013.25,
+            wind_speed=5.0,
+            wind_direction=WindDirection.NORTH,
             weather_condition=WeatherCondition.CLEAR,
             weather_description="晴れ",
             precipitation=0.0,
-            humidity=50.0,
-            wind_speed=5.0,
-            wind_direction=WindDirection.N,
-            wind_direction_degrees=0,
         )
 
-        assert forecast.location == "東京"
+        assert forecast.location_id == "東京"
         assert forecast.temperature == 20.5
         assert forecast.weather_condition == WeatherCondition.CLEAR
         assert forecast.weather_description == "晴れ"
@@ -42,22 +77,20 @@ class TestWeatherForecast:
         # 異常な気温
         with pytest.raises(ValueError, match="気温が範囲外"):
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=datetime.now(timezone.utc),
                 temperature=100.0,  # 異常な気温
-                weather_code="100",
-                weather_condition=WeatherCondition.CLEAR,
+                    weather_condition=WeatherCondition.CLEAR,
                 weather_description="晴れ",
             )
 
         # 異常な湿度
         with pytest.raises(ValueError, match="湿度が範囲外"):
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=datetime.now(timezone.utc),
                 temperature=20.0,
-                weather_code="100",
-                weather_condition=WeatherCondition.CLEAR,
+                    weather_condition=WeatherCondition.CLEAR,
                 weather_description="晴れ",
                 humidity=150.0,  # 異常な湿度
             )
@@ -65,11 +98,10 @@ class TestWeatherForecast:
         # 負の降水量
         with pytest.raises(ValueError, match="降水量が負の値"):
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=datetime.now(timezone.utc),
                 temperature=20.0,
-                weather_code="300",
-                weather_condition=WeatherCondition.RAIN,
+                    weather_condition=WeatherCondition.RAIN,
                 weather_description="雨",
                 precipitation=-5.0,  # 負の降水量
             )
@@ -78,10 +110,9 @@ class TestWeatherForecast:
         """良い天気判定のテスト"""
         # 晴れの場合
         clear_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=22.0,
-            weather_code="100",
             weather_condition=WeatherCondition.CLEAR,
             weather_description="晴れ",
         )
@@ -89,10 +120,9 @@ class TestWeatherForecast:
 
         # 雨の場合
         rainy_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=15.0,
-            weather_code="300",
             weather_condition=WeatherCondition.RAIN,
             weather_description="雨",
             precipitation=10.0,
@@ -103,10 +133,9 @@ class TestWeatherForecast:
         """悪天候判定のテスト"""
         # 通常の天気
         normal_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=20.0,
-            weather_code="200",
             weather_condition=WeatherCondition.CLOUDY,
             weather_description="曇り",
         )
@@ -114,10 +143,9 @@ class TestWeatherForecast:
 
         # 嵐
         storm_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=15.0,
-            weather_code="500",
             weather_condition=WeatherCondition.STORM,
             weather_description="嵐",
             wind_speed=25.0,
@@ -127,10 +155,9 @@ class TestWeatherForecast:
 
         # 大雨
         heavy_rain_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=18.0,
-            weather_code="302",
             weather_condition=WeatherCondition.HEAVY_RAIN,
             weather_description="大雨",
             precipitation=30.0,
@@ -141,10 +168,9 @@ class TestWeatherForecast:
         """快適度判定のテスト"""
         # 快適な条件
         comfortable_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=22.0,
-            weather_code="100",
             weather_condition=WeatherCondition.CLEAR,
             weather_description="晴れ",
             humidity=50.0,
@@ -153,10 +179,9 @@ class TestWeatherForecast:
 
         # 暑い条件
         hot_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=32.0,
-            weather_code="100",
             weather_condition=WeatherCondition.CLEAR,
             weather_description="晴れ",
             humidity=70.0,
@@ -165,10 +190,9 @@ class TestWeatherForecast:
 
         # 寒い条件
         cold_forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime.now(timezone.utc),
             temperature=5.0,
-            weather_code="100",
             weather_condition=WeatherCondition.CLEAR,
             weather_description="晴れ",
         )
@@ -177,22 +201,20 @@ class TestWeatherForecast:
     def test_to_dict(self):
         """辞書変換のテスト"""
         forecast = WeatherForecast(
-            location="東京",
+            location_id="東京",
             datetime=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
             temperature=20.0,
-            weather_code="100",
             weather_condition=WeatherCondition.CLEAR,
             weather_description="晴れ",
             precipitation=0.0,
             humidity=50.0,
             wind_speed=5.0,
-            wind_direction=WindDirection.N,
-            wind_direction_degrees=0,
+            wind_direction=WindDirection.NORTH,
         )
 
         result_dict = forecast.to_dict()
 
-        assert result_dict["location"] == "東京"
+        assert result_dict["location_id"] == "東京"
         assert result_dict["temperature"] == 20.0
         assert result_dict["weather_condition"] == "CLEAR"
         assert result_dict["weather_description"] == "晴れ"
@@ -209,38 +231,36 @@ class TestWeatherForecastCollection:
         """コレクション初期化のテスト"""
         forecasts = [
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=datetime(2024, 1, 1, i, 0, tzinfo=timezone.utc),
                 temperature=20.0 + i,
-                weather_code="100",
-                weather_condition=WeatherCondition.CLEAR,
+                    weather_condition=WeatherCondition.CLEAR,
                 weather_description="晴れ",
             )
             for i in range(3)
         ]
 
-        collection = WeatherForecastCollection(location="東京", forecasts=forecasts)
+        collection = WeatherForecastCollection(location_id="東京", forecasts=forecasts)
 
-        assert collection.location == "東京"
+        assert collection.location_id == "東京"
         assert len(collection.forecasts) == 3
-        assert collection.generated_at is not None
+        assert collection.created_at is not None
 
     def test_get_current_forecast(self):
         """現在の予報取得テスト"""
         now = datetime.now(timezone.utc)
         forecasts = [
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=now.replace(hour=h),
                 temperature=20.0,
-                weather_code="100",
-                weather_condition=WeatherCondition.CLEAR,
+                    weather_condition=WeatherCondition.CLEAR,
                 weather_description="晴れ",
             )
             for h in range(0, 24, 3)
         ]
 
-        collection = WeatherForecastCollection(location="東京", forecasts=forecasts)
+        collection = WeatherForecastCollection(location_id="東京", forecasts=forecasts)
 
         current = collection.get_current_forecast()
         assert current is not None
@@ -250,10 +270,9 @@ class TestWeatherForecastCollection:
         """日次サマリー取得テスト"""
         forecasts = [
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=datetime(2024, 1, 1, h, 0, tzinfo=timezone.utc),
                 temperature=15.0 + (h / 2),  # 温度変化
-                weather_code="100" if h < 12 else "200",
                 weather_condition=WeatherCondition.CLEAR if h < 12 else WeatherCondition.CLOUDY,
                 weather_description="晴れ" if h < 12 else "曇り",
                 precipitation=0.0 if h < 18 else 5.0,
@@ -261,7 +280,7 @@ class TestWeatherForecastCollection:
             for h in range(24)
         ]
 
-        collection = WeatherForecastCollection(location="東京", forecasts=forecasts)
+        collection = WeatherForecastCollection(location_id="東京", forecasts=forecasts)
 
         summary = collection.get_daily_summary()
 
@@ -276,17 +295,16 @@ class TestWeatherForecastCollection:
         base_time = datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
         forecasts = [
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=base_time.replace(hour=h),
                 temperature=20.0,
-                weather_code="100",
-                weather_condition=WeatherCondition.CLEAR,
+                    weather_condition=WeatherCondition.CLEAR,
                 weather_description="晴れ",
             )
             for h in range(24)
         ]
 
-        collection = WeatherForecastCollection(location="東京", forecasts=forecasts)
+        collection = WeatherForecastCollection(location_id="東京", forecasts=forecasts)
 
         # 6時間分をフィルタリング
         start_time = base_time.replace(hour=6)
@@ -300,21 +318,20 @@ class TestWeatherForecastCollection:
         """コレクションの辞書変換テスト"""
         forecasts = [
             WeatherForecast(
-                location="東京",
+                location_id="東京",
                 datetime=datetime(2024, 1, 1, i, 0, tzinfo=timezone.utc),
                 temperature=20.0,
-                weather_code="100",
-                weather_condition=WeatherCondition.CLEAR,
+                    weather_condition=WeatherCondition.CLEAR,
                 weather_description="晴れ",
             )
             for i in range(3)
         ]
 
-        collection = WeatherForecastCollection(location="東京", forecasts=forecasts)
+        collection = WeatherForecastCollection(location_id="東京", forecasts=forecasts)
 
         result_dict = collection.to_dict()
 
-        assert result_dict["location"] == "東京"
+        assert result_dict["location_id"] == "東京"
         assert len(result_dict["forecasts"]) == 3
-        assert "generated_at" in result_dict
+        assert "created_at" in result_dict
         assert "summary" in result_dict

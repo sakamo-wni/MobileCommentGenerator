@@ -124,7 +124,7 @@ class CommentValidator:
     
     def is_rain_weather_with_pollen_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """雨天時に花粉関連のコメントが含まれているかチェック"""
-        location = getattr(weather_data, 'location', None)
+        location = getattr(weather_data, 'location_id', None)
         return self.pollen_validator.is_inappropriate_pollen_comment(
             comment_text, weather_data, weather_data.datetime, location
         )
@@ -137,7 +137,24 @@ class CommentValidator:
         """コメントの天気条件と実際の天気が一致するかチェック"""
         if not comment_condition:
             return True
-        return comment_condition.lower() in weather_description.lower()
+        
+        comment_cond_lower = comment_condition.lower()
+        weather_desc_lower = weather_description.lower()
+        
+        # 晴れの判定
+        if any(word in comment_cond_lower for word in ["晴", "sunny", "clear"]):
+            return any(word in weather_desc_lower for word in ["晴", "sunny", "clear"])
+        
+        # 曇りの判定
+        if any(word in comment_cond_lower for word in ["曇", "cloud", "overcast"]):
+            return any(word in weather_desc_lower for word in ["曇", "cloud", "overcast"])
+        
+        # 雨の判定
+        if any(word in comment_cond_lower for word in ["雨", "rain", "shower"]):
+            return any(word in weather_desc_lower for word in ["雨", "rain", "shower"])
+        
+        # その他の場合は部分一致
+        return comment_cond_lower in weather_desc_lower
     
     # 以下は既存のメソッドへの委譲
     def _is_duplicate_content(self, weather_text: str, advice_text: str) -> bool:

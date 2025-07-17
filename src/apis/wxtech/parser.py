@@ -56,7 +56,7 @@ def parse_forecast_response(
                 warnings.warn(f"日別予報の解析に失敗: {str(e)}")
                 continue
     
-    return WeatherForecastCollection(location=location_name, forecasts=forecasts)
+    return WeatherForecastCollection(location_id=location_name, forecasts=forecasts)
 
 
 def parse_single_forecast(
@@ -106,17 +106,20 @@ def parse_single_forecast(
         )
     
     return WeatherForecast(
-        location=location_name,
+        location_id=location_name,
         datetime=forecast_datetime,
         temperature=temperature,
-        weather_code=weather_code,
+        feels_like=temperature,  # 体感温度は仮に同じ値を使用
+        humidity=float(data.get("rhum", 0)),
+        pressure=float(data.get("pres", 1013.25)),  # デフォルト値として標準気圧を使用
+        wind_speed=float(data.get("wndspd", 0)),
+        wind_direction=wind_direction,
         weather_condition=weather_condition,
         weather_description=weather_description,
         precipitation=float(precipitation_value),
-        humidity=float(data.get("rhum", 0)),
-        wind_speed=float(data.get("wndspd", 0)),
-        wind_direction=wind_direction,
-        wind_direction_degrees=wind_degrees,
+        cloud_coverage=float(data.get("cloud", 0)),  # クラウドカバレッジ
+        visibility=float(data.get("vis", 10.0)),  # 視程（デフォルト10km）
+        uv_index=float(data.get("uv", 0.0)),  # UV指数
         raw_data=data,
     )
 

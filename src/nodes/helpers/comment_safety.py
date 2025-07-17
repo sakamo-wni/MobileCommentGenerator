@@ -58,7 +58,7 @@ def check_and_fix_weather_comment_safety(
             if pattern in weather_comment:
                 logger.warning(f"🚨 緊急修正: 晴天時に「{pattern}」は不適切 - 代替コメント検索")
                 weather_comment = _find_alternative_weather_comment(
-                    weather_data, state.past_comments, CHANGEABLE_WEATHER_PATTERNS
+                    weather_data, state.past_comments, CHANGEABLE_WEATHER_PATTERNS, state
                 )
                 break
     
@@ -96,13 +96,95 @@ def check_and_fix_weather_comment_safety(
                 )
                 break
     
+    # 晴天時に雨表現は絶対に不適切 - 既存コメントから再選択
+    if any(sunny in weather_data.weather_description for sunny in SUNNY_WEATHER_DESCRIPTIONS) and weather_data.precipitation < 0.5 and weather_comment:
+        rain_inappropriate_patterns = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨", "本格的な雨"]
+        for pattern in rain_inappropriate_patterns:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 晴天時に雨表現「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, rain_inappropriate_patterns, state
+                )
+                break
+    
+    # 晴天時に曇り表現は絶対に不適切 - 既存コメントから再選択
+    if any(sunny in weather_data.weather_description for sunny in SUNNY_WEATHER_DESCRIPTIONS) and weather_comment:
+        cloudy_inappropriate_patterns = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
+        for pattern in cloudy_inappropriate_patterns:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 晴天時に曇り表現「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, cloudy_inappropriate_patterns, state
+                )
+                break
+    
+    # 曇天時（うすぐもり含む）に強い日差し表現は絶対に不適切
+    if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]) and weather_comment:
+        strong_sun_patterns = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]
+        for pattern in strong_sun_patterns:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 曇天時に強い日差し表現「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_cloudy_weather_comment(state.past_comments, weather_comment)
+                break
+    
+    # 安定した天気なのに変わりやすい表現をチェック
+    if state and hasattr(state, 'generation_metadata') and weather_comment:
+        period_forecasts = state.generation_metadata.get('period_forecasts', [])
+        if len(period_forecasts) >= 4:
+            # 全て同じ天気条件かチェック
+            weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
+            if len(set(weather_conditions)) == 1:  # 全て同じ天気
+                changeable_patterns = ["変わりやすい", "天気急変", "不安定", "変化", "急変", "めまぐるしく"]
+                for pattern in changeable_patterns:
+                    if pattern in weather_comment:
+                        logger.warning(f"🚨 緊急修正: 安定した天気で「{pattern}」は不適切 - 代替コメント検索")
+                        weather_comment = _find_alternative_weather_comment(
+                            weather_data, state.past_comments, changeable_patterns, state
+                        )
+                        break
+    
+    # 季節外れの表現をチェック
+    if state and hasattr(state, 'target_datetime') and weather_comment:
+        month = state.target_datetime.month
+        
+        # 残暑チェック（9月以降のみ適切）
+        if month not in [9, 10, 11] and "残暑" in weather_comment:
+            logger.warning(f"🚨 緊急修正: {month}月に「残暑」は不適切 - 代替コメント検索")
+            if month in [6, 7, 8]:
+                weather_comment = weather_comment.replace("残暑", "暑さ")
+            else:
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, ["残暑"], state
+                )
+        
+        # 季節別の不適切表現チェック
+        seasonal_inappropriate = []
+        
+        if month in [3, 4, 5]:  # 春
+            seasonal_inappropriate = ["梅雨", "真夏", "猛暑", "師走", "年末", "初雪", "真冬"]
+        elif month in [6, 7, 8]:  # 夏
+            seasonal_inappropriate = ["初雪", "雪", "真冬", "厳寒", "凍結", "霜", "初霜", "紅葉", "落ち葉"]
+        elif month in [9, 10, 11]:  # 秋
+            seasonal_inappropriate = ["真夏", "猛暑", "梅雨", "初雪", "真冬", "厳寒"]
+        elif month in [12, 1, 2]:  # 冬
+            seasonal_inappropriate = ["猛暑", "真夏", "梅雨", "桜", "新緑", "紅葉"]
+        
+        for word in seasonal_inappropriate:
+            if word in weather_comment:
+                logger.warning(f"🚨 緊急修正: {month}月に「{word}」は不適切 - 代替コメント検索")
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, seasonal_inappropriate, state
+                )
+                break
+    
     return weather_comment, advice_comment
 
 
 def _find_alternative_weather_comment(
     weather_data: WeatherForecast,
     past_comments: list[PastComment | None],
-    changeable_patterns: list[str]
+    changeable_patterns: list[str],
+    state: CommentGenerationState = None
 ) -> str:
     """晴天時の代替天気コメントを検索"""
     if not past_comments:
@@ -287,6 +369,41 @@ def _find_rain_weather_comment(past_comments: list[PastComment | None],
     if weather_comments:
         logger.warning(f"🚨 適切な雨天コメントが見つかりません。最初のコメントを使用")
         return weather_comments[0].comment_text
+    
+    return current_comment
+
+
+def _find_cloudy_weather_comment(past_comments: list[PastComment | None], current_comment: str) -> str:
+    """曇天時の代替天気コメントを検索"""
+    if not past_comments:
+        return current_comment
+    
+    # 天気コメントのみをフィルタリング
+    weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
+    
+    # 曇天に適したコメントのパターン
+    cloudy_patterns = [
+        "曇り空", "どんより", "雲が多", "雲が厚", "グレーの空",
+        "太陽が隠れ", "すっきりしない", "うす曇り", "変わりやすい"
+    ]
+    
+    # 曇天に適したコメントを検索
+    for past_comment in weather_comments:
+        comment_text = past_comment.comment_text
+        if any(pattern in comment_text for pattern in cloudy_patterns):
+            # 強い日差し表現を含まないことを確認
+            if not any(sun in comment_text for sun in ["強い日差し", "眩しい", "ジリジリ", "照りつける"]):
+                logger.info(f"🚨 曇天用代替コメント: '{comment_text}'")
+                return comment_text
+    
+    # 見つからない場合はデフォルト
+    if weather_comments:
+        for past_comment in weather_comments:
+            comment_text = past_comment.comment_text
+            # 日差し関連の表現を含まないコメントを選択
+            if not any(sun in comment_text for sun in ["日差し", "太陽", "陽射し", "日光"]):
+                logger.info(f"🚨 デフォルト曇天コメント: '{comment_text}'")
+                return comment_text
     
     return current_comment
 

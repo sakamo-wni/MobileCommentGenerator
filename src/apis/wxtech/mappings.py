@@ -318,14 +318,14 @@ def convert_wind_direction(wind_dir_index: int) -> tuple[WindDirection, int]:
     """
     direction_mapping = {
         0: (WindDirection.CALM, 0),
-        1: (WindDirection.N, 0),
-        2: (WindDirection.NE, 45),
-        3: (WindDirection.E, 90),
-        4: (WindDirection.SE, 135),
-        5: (WindDirection.S, 180),
-        6: (WindDirection.SW, 225),
-        7: (WindDirection.W, 270),
-        8: (WindDirection.NW, 315),
+        1: (WindDirection.NORTH, 0),
+        2: (WindDirection.NORTHEAST, 45),
+        3: (WindDirection.EAST, 90),
+        4: (WindDirection.SOUTHEAST, 135),
+        5: (WindDirection.SOUTH, 180),
+        6: (WindDirection.SOUTHWEST, 225),
+        7: (WindDirection.WEST, 270),
+        8: (WindDirection.NORTHWEST, 315),
     }
     
-    return direction_mapping.get(wind_dir_index, (WindDirection.UNKNOWN, 0))
+    return direction_mapping.get(wind_dir_index, (WindDirection.VARIABLE, 0))

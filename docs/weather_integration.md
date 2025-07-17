@@ -82,7 +82,7 @@ async def basic_weather_example():
         # 東京の天気予報を取得
         forecast_collection = client.get_forecast(35.6762, 139.6503)
         
-        print(f"地点: {forecast_collection.location}")
+        print(f"地点: {forecast_collection.location_id}")
         
         current_forecast = forecast_collection.get_current_forecast()
         if current_forecast:
