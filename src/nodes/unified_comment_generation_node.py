@@ -28,6 +28,7 @@ from src.nodes.unified_comment_generation import (
     filter_forbidden_phrases,
     filter_seasonal_inappropriate_comments
 )
+from src.utils.comment_deduplicator import CommentDeduplicator
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +207,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_text, advice_text = check_and_fix_weather_comment_safety(
             weather_data, weather_text, advice_text, state
         )
+        
+        # 重複除去
+        weather_text, advice_text = CommentDeduplicator.deduplicate_comment(weather_text, advice_text)
         
         # 最終的なコメントは必ず選択されたコメントの結合
         generated_comment = f"{weather_text}　{advice_text}"
