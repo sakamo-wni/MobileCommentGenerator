@@ -58,7 +58,7 @@ def check_and_fix_weather_comment_safety(
             if pattern in weather_comment:
                 logger.warning(f"🚨 緊急修正: 晴天時に「{pattern}」は不適切 - 代替コメント検索")
                 weather_comment = _find_alternative_weather_comment(
-                    weather_data, state.past_comments, CHANGEABLE_WEATHER_PATTERNS
+                    weather_data, state.past_comments, CHANGEABLE_WEATHER_PATTERNS, state
                 )
                 break
     
@@ -96,13 +96,25 @@ def check_and_fix_weather_comment_safety(
                 )
                 break
     
+    # 晴天時に雨表現は絶対に不適切 - 既存コメントから再選択
+    if any(sunny in weather_data.weather_description for sunny in SUNNY_WEATHER_DESCRIPTIONS) and weather_data.precipitation < 0.5 and weather_comment:
+        rain_inappropriate_patterns = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨", "本格的な雨"]
+        for pattern in rain_inappropriate_patterns:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 晴天時に雨表現「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, rain_inappropriate_patterns, state
+                )
+                break
+    
     return weather_comment, advice_comment
 
 
 def _find_alternative_weather_comment(
     weather_data: WeatherForecast,
     past_comments: list[PastComment | None],
-    changeable_patterns: list[str]
+    changeable_patterns: list[str],
+    state: CommentGenerationState = None
 ) -> str:
     """晴天時の代替天気コメントを検索"""
     if not past_comments:

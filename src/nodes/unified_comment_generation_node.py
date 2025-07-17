@@ -77,6 +77,41 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
         logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
         
+        # 天気と矛盾するコメントを候補から除外
+        filtered_weather_comments = []
+        for comment in weather_comments:
+            comment_text = comment.comment_text
+            
+            # 晴天時に雨のコメントを除外
+            if "晴" in weather_data.weather_description and weather_data.precipitation < 0.5:
+                rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨"]
+                if any(keyword in comment_text for keyword in rain_keywords):
+                    logger.debug(f"晴天時に雨のコメントを除外: '{comment_text}'")
+                    continue
+            
+            # 雨天時に晴天のコメントを除外
+            if "雨" in weather_data.weather_description:
+                sunny_keywords = ["快晴", "青空", "強い日差し", "眩しい", "太陽がギラギラ"]
+                if any(keyword in comment_text for keyword in sunny_keywords):
+                    logger.debug(f"雨天時に晴天のコメントを除外: '{comment_text}'")
+                    continue
+            
+            # 曇天時に強い日差しのコメントを除外
+            if "曇" in weather_data.weather_description:
+                sunshine_keywords = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強"]
+                if any(keyword in comment_text for keyword in sunshine_keywords):
+                    logger.debug(f"曇天時に日差しのコメントを除外: '{comment_text}'")
+                    continue
+            
+            filtered_weather_comments.append(comment)
+        
+        # フィルタリング後のコメントを使用
+        if filtered_weather_comments:
+            weather_comments = filtered_weather_comments
+            logger.info(f"フィルタリング後の天気コメント数: {len(weather_comments)}")
+        else:
+            logger.warning("フィルタリング後の天気コメントが0件になったため、元のリストを使用")
+        
         # LLMマネージャーの初期化
         from src.config.config import get_config
         config = get_config()
