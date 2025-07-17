@@ -111,7 +111,7 @@ CLOUD = CloudCoverageThresholds()
 COMMENT = CommentGenerationConstants()
 
 # 特殊な定数
-SPECIAL_WEATHER_PRIORITY_THRESHOLD = 4  # 特別な天気の優先度閾値
+SPECIAL_WEATHER_PRIORITY_THRESHOLD = 6  # 特別な天気の優先度閾値（6以上が悪天候）
 
 # 後方互換性のためのエイリアス（非推奨）
 # これらは将来のバージョンで削除予定
