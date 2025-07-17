@@ -112,7 +112,7 @@ class WxTechAPIClient:
         # 地点名を正しく設定
         forecast_collection.location_id = location.name
         for forecast in forecast_collection.forecasts:
-            forecast.location = location.name
+            forecast.location_id = location.name
         
         return forecast_collection
     

@@ -62,7 +62,7 @@ class LLMProvider(ABC):
 
         # プロンプトの構築
         prompt = COMMENT_GENERATION_PROMPT.format(
-            location=weather_data.location,
+            location=weather_data.location_id,
             weather_condition=weather_data.weather_description,
             temperature=weather_data.temperature,
             time_period=constraints.get("time_period", "昼"),

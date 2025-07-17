@@ -124,7 +124,7 @@ class CommentValidator:
     
     def is_rain_weather_with_pollen_comment(self, comment_text: str, weather_data: WeatherForecast) -> bool:
         """雨天時に花粉関連のコメントが含まれているかチェック"""
-        location = getattr(weather_data, 'location', None)
+        location = getattr(weather_data, 'location_id', None)
         return self.pollen_validator.is_inappropriate_pollen_comment(
             comment_text, weather_data, weather_data.datetime, location
         )
