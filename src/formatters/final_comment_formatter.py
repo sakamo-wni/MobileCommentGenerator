@@ -8,6 +8,7 @@ import logging
 import re
 
 from src.data.comment_generation_state import CommentGenerationState
+from src.utils.comment_deduplicator import deduplicate_final_comment
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,9 @@ class FinalCommentFormatter:
         
         # 最終安全チェック
         final_comment = self._apply_safety_checks(final_comment, weather_data)
+        
+        # 重複除去
+        final_comment = deduplicate_final_comment(final_comment)
         
         logger.info(f"最終コメント確定: '{final_comment}'")
         return final_comment
