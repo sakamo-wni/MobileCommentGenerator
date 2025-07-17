@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
+from .types import CheckResult
 
 logger = logging.getLogger(__name__)
 
@@ -24,20 +25,16 @@ class SeasonalAppropriatenessChecker:
         self,
         weather_comment: str,
         state: CommentGenerationState
-    ) -> tuple[bool, str, list[str]]:
-        """季節と表現の適切性をチェック
-        
-        Returns:
-            (is_inappropriate, pattern_found, inappropriate_patterns)
-        """
+    ) -> CheckResult:
+        """季節と表現の適切性をチェック"""
         if not state or not hasattr(state, 'target_datetime') or not weather_comment:
-            return False, "", []
+            return CheckResult(False, "", [])
         
         month = state.target_datetime.month
         
         # 残暑チェック（9月以降のみ適切）
         if self._check_late_summer_heat(weather_comment, month):
-            return True, "残暑", ["残暑"]
+            return CheckResult(True, "残暑", ["残暑"])
         
         # 季節別の不適切表現チェック
         season = self._get_season(month)
@@ -46,9 +43,9 @@ class SeasonalAppropriatenessChecker:
         for word in seasonal_inappropriate:
             if word in weather_comment:
                 logger.warning(f"🚨 {month}月に「{word}」は不適切")
-                return True, word, seasonal_inappropriate
+                return CheckResult(True, word, seasonal_inappropriate)
         
-        return False, "", []
+        return CheckResult(False, "", [])
     
     def _check_late_summer_heat(self, weather_comment: str, month: int) -> bool:
         """残暑表現の適切性をチェック"""

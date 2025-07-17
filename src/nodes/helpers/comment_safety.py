@@ -10,7 +10,8 @@ from .safety_checks import (
     WeatherConsistencyChecker,
     SeasonalAppropriatenessChecker,
     RainContextChecker,
-    AlternativeCommentFinder
+    AlternativeCommentFinder,
+    CheckResult
 )
 
 logger = logging.getLogger(__name__)
@@ -43,24 +44,24 @@ def check_and_fix_weather_comment_safety(
     alternative_finder = AlternativeCommentFinder()
     
     # 1. 晴天時の一貫性チェック
-    is_inappropriate, pattern, patterns = weather_checker.check_sunny_weather_consistency(
+    result = weather_checker.check_sunny_weather_consistency(
         weather_data, weather_comment
     )
-    if is_inappropriate:
+    if result.is_inappropriate:
         weather_comment = alternative_finder.find_alternative_weather_comment(
-            weather_data, state.past_comments, patterns, state
+            weather_data, state.past_comments, result.inappropriate_patterns, state
         )
     
     # 2. 雨天時の一貫性チェック
-    is_inappropriate, pattern, patterns = weather_checker.check_rainy_weather_consistency(
+    result = weather_checker.check_rainy_weather_consistency(
         weather_data, weather_comment, advice_comment
     )
-    if is_inappropriate:
-        if pattern == "熱中症":
+    if result.is_inappropriate:
+        if result.pattern_found == "熱中症":
             advice_comment = alternative_finder.find_rain_advice(
                 state.past_comments, advice_comment
             )
-        elif pattern == "ムシムシ":
+        elif result.pattern_found == "ムシムシ":
             weather_comment = alternative_finder.find_storm_weather_comment(
                 state.past_comments, weather_comment
             )
@@ -70,45 +71,45 @@ def check_and_fix_weather_comment_safety(
             )
     
     # 3. 曇天時の一貫性チェック
-    is_inappropriate, pattern, patterns = weather_checker.check_cloudy_weather_consistency(
+    result = weather_checker.check_cloudy_weather_consistency(
         weather_data, weather_comment
     )
-    if is_inappropriate:
+    if result.is_inappropriate:
         weather_comment = alternative_finder.find_cloudy_weather_comment(
             state.past_comments, weather_comment
         )
     
     # 4. 連続雨チェック
-    is_inappropriate, pattern, patterns = rain_checker.check_continuous_rain_context(
+    result = rain_checker.check_continuous_rain_context(
         weather_comment, state
     )
-    if is_inappropriate:
+    if result.is_inappropriate:
         weather_comment = alternative_finder.find_rain_weather_comment(
             state.past_comments, weather_comment, weather_data, avoid_shower=True
         )
     
     # 5. 天気の安定性チェック
-    is_inappropriate, pattern, patterns = weather_checker.check_weather_stability(
+    result = weather_checker.check_weather_stability(
         weather_comment, state
     )
-    if is_inappropriate:
+    if result.is_inappropriate:
         weather_comment = alternative_finder.find_alternative_weather_comment(
-            weather_data, state.past_comments, patterns, state
+            weather_data, state.past_comments, result.inappropriate_patterns, state
         )
     
     # 6. 季節の適切性チェック
-    is_inappropriate, pattern, patterns = seasonal_checker.check_seasonal_appropriateness(
+    result = seasonal_checker.check_seasonal_appropriateness(
         weather_comment, state
     )
-    if is_inappropriate:
+    if result.is_inappropriate:
         # 残暑の場合は単純置換を試みる
-        if pattern == "残暑" and state.target_datetime.month in [6, 7, 8]:
+        if result.pattern_found == "残暑" and state.target_datetime.month in [6, 7, 8]:
             weather_comment = seasonal_checker.get_temperature_appropriate_replacement(
                 weather_comment, state.target_datetime.month
             )
         else:
             weather_comment = alternative_finder.find_alternative_weather_comment(
-                weather_data, state.past_comments, patterns, state
+                weather_data, state.past_comments, result.inappropriate_patterns, state
             )
     
     return weather_comment, advice_comment

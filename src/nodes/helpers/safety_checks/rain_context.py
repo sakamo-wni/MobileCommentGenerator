@@ -6,17 +6,15 @@ from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.past_comment import PastComment, CommentType
 from src.constants.weather_constants import COMMENT
+from .types import CheckResult
+from .constants import (
+    SHOWER_RAIN_PATTERNS,
+    RAIN_ADVICE_PATTERNS,
+    STORM_WEATHER_PATTERNS,
+    PRECIPITATION_THRESHOLD_RAIN
+)
 
 logger = logging.getLogger(__name__)
-
-# にわか雨表現のパターン
-SHOWER_RAIN_PATTERNS = ["にわか雨", "ニワカ雨", "一時的な雨", "急な雨", "突然の雨", "雨が心配"]
-
-# 雨天に適したアドバイスパターン
-RAIN_ADVICE_PATTERNS = ["雨にご注意", "傘", "濡れ", "雨具", "足元", "滑り"]
-
-# 悪天候を表すパターン
-STORM_WEATHER_PATTERNS = ["荒れた天気", "大雨", "激しい雨", "暴風", "警戒", "注意", "本格的な雨"]
 
 
 class RainContextChecker:
@@ -26,22 +24,18 @@ class RainContextChecker:
         self,
         weather_comment: str,
         state: CommentGenerationState
-    ) -> tuple[bool, str, list[str]]:
-        """連続雨時のコンテキストをチェック
-        
-        Returns:
-            (is_inappropriate, pattern_found, inappropriate_patterns)
-        """
+    ) -> CheckResult:
+        """連続雨時のコンテキストをチェック"""
         if not weather_comment or not self._check_continuous_rain(state):
-            return False, "", []
+            return CheckResult(False, "", [])
         
         # 連続雨時に「にわか雨」表現は不適切
         for pattern in SHOWER_RAIN_PATTERNS:
             if pattern in weather_comment:
                 logger.warning(f"🚨 連続雨時に「{pattern}」は不適切")
-                return True, pattern, SHOWER_RAIN_PATTERNS
+                return CheckResult(True, pattern, SHOWER_RAIN_PATTERNS)
         
-        return False, "", []
+        return CheckResult(False, "", [])
     
     def _check_continuous_rain(self, state: CommentGenerationState) -> bool:
         """連続雨かどうかをチェック"""
@@ -59,7 +53,7 @@ class RainContextChecker:
                 rain_hours += 1
             elif hasattr(f, 'weather_description') and '雨' in f.weather_description:
                 rain_hours += 1
-            elif hasattr(f, 'precipitation') and f.precipitation >= 0.1:
+            elif hasattr(f, 'precipitation') and f.precipitation >= PRECIPITATION_THRESHOLD_RAIN:
                 rain_hours += 1
         
         is_continuous_rain = rain_hours >= COMMENT.CONTINUOUS_RAIN_HOURS

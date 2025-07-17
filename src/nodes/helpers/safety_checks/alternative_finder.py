@@ -5,17 +5,14 @@ import logging
 from src.data.weather_data import WeatherForecast
 from src.data.comment_generation_state import CommentGenerationState
 from src.data.past_comment import PastComment, CommentType
+from .constants import (
+    SUNNY_KEYWORDS,
+    RAIN_ADVICE_PATTERNS,
+    STORM_WEATHER_PATTERNS,
+    SHOWER_RAIN_PATTERNS
+)
 
 logger = logging.getLogger(__name__)
-
-# 晴天を表すキーワード
-SUNNY_KEYWORDS = ["晴", "日差し", "太陽", "快晴", "青空"]
-
-# 雨天に適したアドバイスパターン
-RAIN_ADVICE_PATTERNS = ["雨にご注意", "傘", "濡れ", "雨具", "足元", "滑り"]
-
-# 悪天候を表すパターン
-STORM_WEATHER_PATTERNS = ["荒れた天気", "大雨", "激しい雨", "暴風", "警戒", "注意", "本格的な雨"]
 
 
 class AlternativeCommentFinder:
@@ -26,7 +23,7 @@ class AlternativeCommentFinder:
         weather_data: WeatherForecast,
         past_comments: list[PastComment | None],
         inappropriate_patterns: list[str],
-        state: CommentGenerationState = None
+        state: CommentGenerationState | None = None
     ) -> str:
         """晴天時の代替天気コメントを検索"""
         if not past_comments:
@@ -172,7 +169,7 @@ class AlternativeCommentFinder:
     def _get_temperature_patterns(
         self,
         temperature: float,
-        state: CommentGenerationState = None
+        state: CommentGenerationState | None = None
     ) -> list[str]:
         """気温に応じた適切なコメントパターンを取得"""
         if temperature >= 35:
