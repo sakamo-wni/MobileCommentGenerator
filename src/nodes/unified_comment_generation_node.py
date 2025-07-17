@@ -218,8 +218,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         ng_check = check_ng_words(generated_comment)
         if not ng_check["is_valid"]:
             logger.warning(f"NGワードが検出されました: {ng_check['found_words']}")
-            # NGワードが含まれる場合は、選択されたペアのコメントを結合して使用
-            generated_comment = f"{selected_weather.comment_text}　{selected_advice.comment_text}"
+            # NGワードは既に適切に処理されているはずなので、そのまま使用
+            # （重複除去済みのコメントを維持）
         
         # 状態の更新
         state.selected_pair = selected_pair

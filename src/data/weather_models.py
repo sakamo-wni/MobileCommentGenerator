@@ -84,6 +84,10 @@ class WeatherForecast:
         """異常気象かどうか"""
         return self.weather_condition.is_special_condition()
 
+    def is_severe_weather(self) -> bool:
+        """悪天候かどうか（後方互換性のため）"""
+        return self.is_extreme_weather
+
     @property
     def precipitation_level(self) -> str:
         """降水レベルを返す"""
