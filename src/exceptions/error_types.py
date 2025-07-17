@@ -29,6 +29,14 @@ class ErrorType(Enum):
     # System errors
     SYSTEM_ERROR = "system_error"
     UNKNOWN_ERROR = "unknown_error"
+    
+    # Additional error types for migration
+    RATE_LIMIT_ERROR = "rate_limit_error"
+    API_RESPONSE_ERROR = "api_response_error"
+    FILE_IO_ERROR = "file_io_error"
+    LOCATION_NOT_FOUND = "location_not_found"
+    COMMENT_GENERATION_ERROR = "comment_generation_error"
+    MISSING_DATA_ERROR = "missing_data_error"
 
 class ErrorMessages:
     """Internationalized error messages"""
@@ -85,6 +93,30 @@ class ErrorMessages:
         ErrorType.UNKNOWN_ERROR: {
             "ja": "不明なエラー",
             "en": "Unknown error"
+        },
+        ErrorType.RATE_LIMIT_ERROR: {
+            "ja": "レート制限エラー",
+            "en": "Rate limit error"
+        },
+        ErrorType.API_RESPONSE_ERROR: {
+            "ja": "API応答エラー",
+            "en": "API response error"
+        },
+        ErrorType.FILE_IO_ERROR: {
+            "ja": "ファイル入出力エラー",
+            "en": "File I/O error"
+        },
+        ErrorType.LOCATION_NOT_FOUND: {
+            "ja": "場所が見つかりません",
+            "en": "Location not found"
+        },
+        ErrorType.COMMENT_GENERATION_ERROR: {
+            "ja": "コメント生成エラー",
+            "en": "Comment generation error"
+        },
+        ErrorType.MISSING_DATA_ERROR: {
+            "ja": "データが見つかりません",
+            "en": "Missing data error"
         }
     }
     
@@ -159,3 +191,38 @@ class ConfigError(AppException):
     """Configuration error"""
     def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
         super().__init__(ErrorType.CONFIG_ERROR, message, details)
+
+# Additional exception classes for migration compatibility
+class RateLimitError(AppException):
+    """Rate limit error"""
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
+        super().__init__(ErrorType.RATE_LIMIT_ERROR, message, details)
+
+class APIResponseError(AppException):
+    """API response error"""
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
+        super().__init__(ErrorType.API_RESPONSE_ERROR, message, details)
+
+class FileIOError(AppException):
+    """File I/O error"""
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
+        super().__init__(ErrorType.FILE_IO_ERROR, message, details)
+
+class LocationNotFoundError(AppException):
+    """Location not found error"""
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
+        super().__init__(ErrorType.LOCATION_NOT_FOUND, message, details)
+
+class CommentGenerationError(AppException):
+    """Comment generation error"""
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
+        super().__init__(ErrorType.COMMENT_GENERATION_ERROR, message, details)
+
+class MissingDataError(AppException):
+    """Missing data error"""
+    def __init__(self, message: str | None = None, details: dict[str, Any | None] = None):
+        super().__init__(ErrorType.MISSING_DATA_ERROR, message, details)
+
+# Aliases for backward compatibility
+ConfigurationError = ConfigError
+NetworkError = AppException  # Will use base with NETWORK_ERROR type

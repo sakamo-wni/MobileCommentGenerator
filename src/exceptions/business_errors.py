@@ -1,4 +1,18 @@
-"""ビジネスロジック関連のエラークラス"""
+"""ビジネスロジック関連のエラークラス
+
+警告: このモジュールは非推奨です。
+代わりに error_types.py の統一された例外システムを使用してください。
+Will be removed in version 2.0.0
+"""
+
+import warnings
+
+warnings.warn(
+    "business_errors モジュールは非推奨です。error_types.py の統一された例外システムを使用してください。"
+    " Will be removed in version 2.0.0",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 class BusinessLogicError(Exception):
