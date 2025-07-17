@@ -170,6 +170,20 @@ class CommentUtils:
                     else:
                         others.append(candidate)
                 else:
+                    # 晴天時に雨のコメントを除外する追加チェック
+                    if "晴" in weather_data.weather_description and weather_data.precipitation < 0.1:
+                        rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨"]
+                        if any(keyword in comment.comment_text for keyword in rain_keywords):
+                            logger.debug(f"晴天時に雨のコメントを除外: '{comment.comment_text}'")
+                            continue  # このコメントは候補から完全に除外
+                    
+                    # 曇天時に強い日差しのコメントを除外する追加チェック
+                    if "曇" in weather_data.weather_description:
+                        sunshine_keywords = ["強い日差し", "眩しい", "日光", "紫外線が強", "日焼け", "太陽がギラギラ"]
+                        if any(keyword in comment.comment_text for keyword in sunshine_keywords):
+                            logger.debug(f"曇天時に強い日差しのコメントを除外: '{comment.comment_text}'")
+                            continue  # このコメントは候補から完全に除外
+                    
                     if comment_validator.is_weather_matched(comment.weather_condition, weather_data.weather_description):
                         weather_matched.append(candidate)
                     else:
