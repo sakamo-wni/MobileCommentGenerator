@@ -9,21 +9,15 @@ from .constants import (
     CHANGEABLE_WEATHER_PATTERNS,
     SUNNY_KEYWORDS,
     SUNNY_WEATHER_DESCRIPTIONS,
-    PRECIPITATION_THRESHOLD_SUNNY
+    PRECIPITATION_THRESHOLD_SUNNY,
+    RAIN_INAPPROPRIATE_SUNNY,
+    RAIN_INAPPROPRIATE_CLOUDY,
+    SUNNY_INAPPROPRIATE_RAIN,
+    SUNNY_INAPPROPRIATE_CLOUDY,
+    CLOUDY_INAPPROPRIATE_SUN
 )
 
 logger = logging.getLogger(__name__)
-
-# 雨天に不適切な表現
-RAIN_INAPPROPRIATE_SUNNY = ["晴れ", "快晴", "日差し", "太陽", "青空", "陽射し", "日向", "晴天"]
-RAIN_INAPPROPRIATE_CLOUDY = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ", "穏やかな空"]
-
-# 晴天に不適切な表現
-SUNNY_INAPPROPRIATE_RAIN = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨", "本格的な雨"]
-SUNNY_INAPPROPRIATE_CLOUDY = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
-
-# 曇天に不適切な表現
-CLOUDY_INAPPROPRIATE_SUN = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]
 
 
 class WeatherConsistencyChecker:

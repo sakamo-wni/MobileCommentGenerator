@@ -25,7 +25,17 @@ class AlternativeCommentFinder:
         inappropriate_patterns: list[str],
         state: CommentGenerationState | None = None
     ) -> str:
-        """晴天時の代替天気コメントを検索"""
+        """晴天時の代替天気コメントを検索
+        
+        Args:
+            weather_data: 天気予報データ
+            past_comments: 過去のコメントリスト（Noneが含まれる場合は無効なコメント）
+            inappropriate_patterns: 不適切な表現パターンのリスト
+            state: コメント生成状態（Noneの場合は月情報が利用できない）
+            
+        Returns:
+            適切な代替コメント。見つからない場合はデフォルトコメントを生成
+        """
         if not past_comments:
             return ""
         
@@ -58,8 +68,9 @@ class AlternativeCommentFinder:
                 logger.info(f"🚨 デフォルト代替（禁止ワード回避）: '{comment_text}'")
                 return comment_text
         
-        logger.error(f"🚨 適切な代替コメントが見つかりません")
-        return ""
+        # 最終的なフォールバック: デフォルトコメントを生成
+        logger.error(f"🚨 適切な代替コメントが見つかりません。デフォルトコメントを使用します")
+        return self._generate_default_weather_comment(weather_data)
     
     def find_rain_advice(
         self,
@@ -185,3 +196,26 @@ class AlternativeCommentFinder:
             return ["厳しい暑さ", "強い日差し", "強烈な日差し"]
         else:
             return ["爽やかな晴天", "穏やかな空", "心地よい天気", "過ごしやすい天気"]
+    
+    def _generate_default_weather_comment(self, weather_data: WeatherForecast) -> str:
+        """天気データに基づいてデフォルトコメントを生成
+        
+        過去のコメントから適切なものが見つからない場合の
+        フォールバック処理として使用される。
+        """
+        if "雨" in weather_data.weather_description:
+            if weather_data.precipitation >= 10:
+                return "激しい雨に注意が必要です"
+            elif weather_data.precipitation >= 2:
+                return "雨が降る見込みです"
+            else:
+                return "小雨の可能性があります"
+        elif "曇" in weather_data.weather_description:
+            return "曇り空の一日となりそうです"
+        elif any(sunny in weather_data.weather_description for sunny in SUNNY_KEYWORDS):
+            if weather_data.temperature >= 30:
+                return "晴れて暑くなりそうです"
+            else:
+                return "穏やかな晴天となりそうです"
+        else:
+            return "天気の変化にご注意ください"
