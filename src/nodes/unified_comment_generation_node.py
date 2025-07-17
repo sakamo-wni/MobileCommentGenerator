@@ -82,6 +82,11 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         for comment in weather_comments:
             comment_text = comment.comment_text
             
+            # 季節に不適切な「残暑」を除外（7-8月は残暑ではない）
+            if target_datetime.month in [6, 7, 8] and "残暑" in comment_text:
+                logger.debug(f"{target_datetime.month}月に「残暑」は不適切: '{comment_text}'")
+                continue
+            
             # 晴天時に雨のコメントを除外
             if "晴" in weather_data.weather_description and weather_data.precipitation < 0.5:
                 rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨"]
@@ -96,9 +101,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                     logger.debug(f"雨天時に晴天のコメントを除外: '{comment_text}'")
                     continue
             
-            # 曇天時に強い日差しのコメントを除外
-            if "曇" in weather_data.weather_description:
-                sunshine_keywords = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強"]
+            # 曇天時（うすぐもり含む）に強い日差しのコメントを除外
+            if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]):
+                sunshine_keywords = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]
                 if any(keyword in comment_text for keyword in sunshine_keywords):
                     logger.debug(f"曇天時に日差しのコメントを除外: '{comment_text}'")
                     continue
