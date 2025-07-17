@@ -33,27 +33,27 @@ class WeatherCondition(Enum):
     
     @property
     def priority(self) -> int:
-        """天気の優先度を返す（数値が小さいほど優先度が高い）"""
+        """天気の優先度を返す（数値が大きいほど優先度が高い）"""
         priorities = {
-            self.SEVERE_STORM: 1,  # 最優先：大雨・嵐
-            self.THUNDER: 2,       # 雷
-            self.STORM: 3,         # 嵐
-            self.HEAVY_RAIN: 4,    # 大雨
-            self.HEAVY_SNOW: 5,    # 大雪
-            self.FOG: 6,           # 霧
-            self.EXTREME_HEAT: 7,  # 猛暑
-            self.RAIN: 8,          # 雨
-            self.SNOW: 9,          # 雪
-            self.CLOUDY: 10,       # 曇り
-            self.PARTLY_CLOUDY: 11,  # 曇り時々晴れ
-            self.CLEAR: 12,        # 晴れ
-            self.UNKNOWN: 99,      # 不明
+            self.SEVERE_STORM: 12,  # 最優先：大雨・嵐
+            self.THUNDER: 11,       # 雷
+            self.STORM: 10,         # 嵐
+            self.HEAVY_RAIN: 9,     # 大雨
+            self.HEAVY_SNOW: 8,     # 大雪
+            self.FOG: 7,            # 霧
+            self.EXTREME_HEAT: 6,   # 猛暑
+            self.RAIN: 5,           # 雨
+            self.SNOW: 4,           # 雪
+            self.CLOUDY: 3,         # 曇り
+            self.PARTLY_CLOUDY: 2,  # 曇り時々晴れ
+            self.CLEAR: 1,          # 晴れ
+            self.UNKNOWN: 0,        # 不明
         }
-        return priorities.get(self, 99)
+        return priorities.get(self, 0)
 
     def is_special_condition(self) -> bool:
         """特別な天気状況かどうかを判定"""
-        return self.priority <= SPECIAL_WEATHER_PRIORITY_THRESHOLD
+        return self.priority >= SPECIAL_WEATHER_PRIORITY_THRESHOLD
 
     def is_precipitation(self) -> bool:
         """降水を伴う天気かどうかを判定"""
@@ -110,16 +110,17 @@ class WindDirection(Enum):
     VARIABLE = "variable"      # 不定
 
     @classmethod
-    def from_degrees(cls, degrees: float) -> WindDirection:
+    def from_degrees(cls, degrees: float | None) -> WindDirection:
         """角度から風向きを取得
         
         Args:
-            degrees: 風向きの角度（0-360度、北が0度）
+            degrees: 風向きの角度（0-360度、北が0度）、Noneの場合は不定
             
         Returns:
             対応する風向き
         """
-        if not isinstance(degrees, (int, float)):
+        # degreesがNoneの場合の処理
+        if degrees is None:
             return cls.VARIABLE
             
         # 角度を0-360の範囲に正規化

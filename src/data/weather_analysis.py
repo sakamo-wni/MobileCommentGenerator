@@ -12,10 +12,22 @@ from src.data.weather_models import WeatherForecast
 from src.data.weather_collection import WeatherForecastCollection
 from src.data.weather_enums import WeatherCondition
 
+# 分析用定数
+TEMPERATURE_CHANGE_THRESHOLD = 3.0  # 大幅な気温変化とみなす閾値（度）
+RAIN_RISK_HIGH_THRESHOLD = 0.7     # 高降水リスクとみなす割合
+RAIN_RISK_MEDIUM_THRESHOLD = 0.3   # 中降水リスクとみなす割合
+DEFAULT_ANALYSIS_HOURS = 12         # デフォルトの分析時間（時間）
+DEFAULT_LOOKAHEAD_HOURS = 3         # デフォルトの先読み時間（時間）
+OUTDOOR_START_HOUR = 6              # 外出開始時刻のデフォルト
+OUTDOOR_END_HOUR = 18               # 外出終了時刻のデフォルト
+COMFORTABLE_TEMP_MIN = 20.0         # 快適な気温の下限
+COMFORTABLE_TEMP_MAX = 25.0         # 快適な気温の上限
+LOW_WIND_SPEED_MAX = 3.0            # 弱風の上限（m/s）
+
 
 def detect_weather_changes(
     collection: WeatherForecastCollection,
-    hours_ahead: int = 3
+    hours_ahead: int = DEFAULT_LOOKAHEAD_HOURS
 ) -> list[tuple[datetime, str]]:
     """天気の変化を検出
     
@@ -48,9 +60,9 @@ def detect_weather_changes(
             change_desc = f"{prev.weather_condition.get_japanese_name()} → {curr.weather_condition.get_japanese_name()}"
             changes.append((curr.datetime, change_desc))
         
-        # 大幅な気温変化（3度以上）
+        # 大幅な気温変化
         temp_diff = abs(curr.temperature - prev.temperature)
-        if temp_diff >= 3.0:
+        if temp_diff >= TEMPERATURE_CHANGE_THRESHOLD:
             direction = "上昇" if curr.temperature > prev.temperature else "下降"
             changes.append((curr.datetime, f"気温{direction} ({temp_diff:.1f}度)"))
         
@@ -65,7 +77,7 @@ def detect_weather_changes(
 
 def analyze_weather_trend(
     collection: WeatherForecastCollection,
-    hours: int = 12
+    hours: int = DEFAULT_ANALYSIS_HOURS
 ) -> dict[str, any]:
     """天気の傾向を分析
     
@@ -93,9 +105,9 @@ def analyze_weather_trend(
     temperatures = [f.temperature for f in forecasts]
     temp_diff = temperatures[-1] - temperatures[0] if len(temperatures) > 1 else 0
     
-    if temp_diff > 3:
+    if temp_diff > TEMPERATURE_CHANGE_THRESHOLD:
         temp_trend = "rising"
-    elif temp_diff < -3:
+    elif temp_diff < -TEMPERATURE_CHANGE_THRESHOLD:
         temp_trend = "falling"
     else:
         temp_trend = "stable"
@@ -104,9 +116,9 @@ def analyze_weather_trend(
     rain_count = sum(1 for f in forecasts if f.is_rainy)
     rain_percentage = rain_count / len(forecasts) if forecasts else 0
     
-    if rain_percentage > 0.7:
+    if rain_percentage > RAIN_RISK_HIGH_THRESHOLD:
         precip_risk = "high"
-    elif rain_percentage > 0.3:
+    elif rain_percentage > RAIN_RISK_MEDIUM_THRESHOLD:
         precip_risk = "medium"
     else:
         precip_risk = "low"
@@ -139,8 +151,8 @@ def analyze_weather_trend(
 
 def find_optimal_outdoor_time(
     collection: WeatherForecastCollection,
-    start_hour: int = 6,
-    end_hour: int = 18
+    start_hour: int = OUTDOOR_START_HOUR,
+    end_hour: int = OUTDOOR_END_HOUR
 ) -> Optional[datetime]:
     """外出に最適な時間を探す
     
@@ -172,14 +184,14 @@ def find_optimal_outdoor_time(
         # 降水ペナルティ
         score += forecast.precipitation * 10
         
-        # 天気状況ペナルティ
-        score += forecast.weather_condition.priority * 2
+        # 天気状況ペナルティ（priorityが高いほど悪天候なので、そのまま使用）
+        score += (12 - forecast.weather_condition.priority) * 2
         
         # 気温ペナルティ（快適温度から離れるほど高い）
-        if forecast.temperature < 15:
-            score += (15 - forecast.temperature) * 0.5
-        elif forecast.temperature > 28:
-            score += (forecast.temperature - 28) * 0.5
+        if forecast.temperature < COMFORTABLE_TEMP_MIN:
+            score += (COMFORTABLE_TEMP_MIN - forecast.temperature) * 0.5
+        elif forecast.temperature > COMFORTABLE_TEMP_MAX:
+            score += (forecast.temperature - COMFORTABLE_TEMP_MAX) * 0.5
         
         # 風速ペナルティ
         if forecast.is_strong_wind:

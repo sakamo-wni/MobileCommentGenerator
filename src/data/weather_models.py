@@ -61,6 +61,28 @@ class WeatherForecast:
             raise ValueError(f"Wind speed {self.wind_speed} is out of valid range")
 
     @property
+    def location(self) -> str:
+        """後方互換性のためのプロパティ（非推奨）"""
+        import warnings
+        warnings.warn(
+            "The 'location' property is deprecated. Use 'location_id' instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.location_id
+    
+    @location.setter
+    def location(self, value: str) -> None:
+        """後方互換性のためのセッター（非推奨）"""
+        import warnings
+        warnings.warn(
+            "The 'location' property is deprecated. Use 'location_id' instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        self.location_id = value
+    
+    @property
     def is_rainy(self) -> bool:
         """雨天かどうか"""
         return self.weather_condition in {
