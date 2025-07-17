@@ -107,6 +107,17 @@ def check_and_fix_weather_comment_safety(
                 )
                 break
     
+    # 晴天時に曇り表現は絶対に不適切 - 既存コメントから再選択
+    if any(sunny in weather_data.weather_description for sunny in SUNNY_WEATHER_DESCRIPTIONS) and weather_comment:
+        cloudy_inappropriate_patterns = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
+        for pattern in cloudy_inappropriate_patterns:
+            if pattern in weather_comment:
+                logger.warning(f"🚨 緊急修正: 晴天時に曇り表現「{pattern}」は不適切 - 代替コメント検索")
+                weather_comment = _find_alternative_weather_comment(
+                    weather_data, state.past_comments, cloudy_inappropriate_patterns, state
+                )
+                break
+    
     # 曇天時（うすぐもり含む）に強い日差し表現は絶対に不適切
     if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]) and weather_comment:
         strong_sun_patterns = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]

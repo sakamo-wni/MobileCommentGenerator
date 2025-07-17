@@ -126,6 +126,13 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                     logger.debug(f"晴天時に雨のコメントを除外: '{comment_text}'")
                     continue
             
+            # 晴天時に曇りのコメントを除外
+            if "晴" in weather_data.weather_description:
+                cloudy_keywords = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
+                if any(keyword in comment_text for keyword in cloudy_keywords):
+                    logger.debug(f"晴天時に曇りのコメントを除外: '{comment_text}'")
+                    continue
+            
             # 雨天時に晴天のコメントを除外
             if "雨" in weather_data.weather_description:
                 sunny_keywords = ["快晴", "青空", "強い日差し", "眩しい", "太陽がギラギラ"]
