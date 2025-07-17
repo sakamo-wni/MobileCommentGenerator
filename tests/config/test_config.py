@@ -5,7 +5,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from src.config.config import Config, ConfigurationError, get_config
+from src.config.config import Config, get_config
+from src.exceptions import ConfigError as ConfigurationError
 
 
 class TestConfig:

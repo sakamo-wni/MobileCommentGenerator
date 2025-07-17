@@ -1,4 +1,16 @@
-"""データ処理関連のエラークラス"""
+"""データ処理関連のエラークラス
+
+警告: このモジュールは非推奨です。
+代わりに error_types.py の統一された例外システムを使用してください。
+"""
+
+import warnings
+
+warnings.warn(
+    "data_errors モジュールは非推奨です。error_types.py の統一された例外システムを使用してください。",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 class DataError(Exception):

@@ -20,13 +20,9 @@ from .settings import (
     CommentConfig, SevereWeatherConfig,
     UISettings, GenerationSettings, DataSettings
 )
+from src.exceptions.error_types import ConfigError as ConfigurationError
 
 logger = logging.getLogger(__name__)
-
-
-class ConfigurationError(Exception):
-    """設定エラー"""
-    pass
 
 
 @dataclass
@@ -281,6 +277,12 @@ def get_server_config() -> ServerConfig:
 def get_llm_config() -> LLMConfig:
     """LLM設定を取得"""
     return get_config().llm
+
+
+def reset_config() -> None:
+    """設定シングルトンをリセット（テスト用）"""
+    if hasattr(Config, '_instance'):
+        Config._instance = None
 
 
 @lru_cache(maxsize=1)
