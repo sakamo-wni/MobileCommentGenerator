@@ -7,7 +7,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Iterator
+from typing import Iterator, Any
 
 from src.data.weather_models import WeatherForecast
 from src.data.weather_enums import WeatherCondition
@@ -20,8 +20,8 @@ class WeatherForecastCollection:
     location_id: str
     forecasts: list[WeatherForecast] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
-    metadata: dict[str, any] = field(default_factory=dict)
-
+    metadata: dict[str, Any] = field(default_factory=dict)
+    
     def __post_init__(self) -> None:
         """予報データを時系列でソート"""
         self.forecasts.sort(key=lambda f: f.datetime)
@@ -85,7 +85,37 @@ class WeatherForecastCollection:
         """総降水量を取得"""
         return sum(f.precipitation for f in self.forecasts)
 
-    def to_dict(self) -> dict[str, any]:
+    def get_current_forecast(self) -> WeatherForecast | None:
+        """現在時刻に最も近い予報を取得"""
+        return self.get_forecast_at(datetime.now())
+    
+    def get_daily_summary(self) -> dict[str, Any]:
+        """日次サマリーを取得"""
+        if not self.forecasts:
+            return {}
+        
+        temperatures = [f.temperature for f in self.forecasts]
+        precipitations = [f.precipitation for f in self.forecasts]
+        
+        return {
+            "max_temperature": max(temperatures),
+            "min_temperature": min(temperatures),
+            "total_precipitation": sum(precipitations),
+            "weather_conditions": list({f.weather_condition.value for f in self.forecasts}),
+            "forecast_count": len(self.forecasts),
+        }
+    
+    def filter_by_time_range(self, start_time: datetime, end_time: datetime) -> WeatherForecastCollection:
+        """時間範囲でフィルタリングした新しいコレクションを返す"""
+        filtered_forecasts = [f for f in self.forecasts if start_time <= f.datetime < end_time]
+        return WeatherForecastCollection(
+            location_id=self.location_id,
+            forecasts=filtered_forecasts,
+            created_at=self.created_at,
+            metadata=self.metadata,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換"""
         return {
             "location_id": self.location_id,
@@ -95,7 +125,7 @@ class WeatherForecastCollection:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, any]) -> WeatherForecastCollection:
+    def from_dict(cls, data: dict[str, Any]) -> WeatherForecastCollection:
         """辞書形式から作成"""
         collection = cls(
             location_id=data["location_id"],

@@ -130,7 +130,7 @@ class TestWxTechAPIClient:
         client = WxTechAPIClient("test_api_key")
         forecast_collection = client.get_forecast(35.6762, 139.6503)
 
-        assert forecast_collection.location == "lat:35.6762,lon:139.6503"
+        assert forecast_collection.location_id == "lat:35.6762,lon:139.6503"
         assert len(forecast_collection.forecasts) == 1
 
         forecast = forecast_collection.forecasts[0]
@@ -166,7 +166,7 @@ class TestWxTechAPIClient:
 
         forecast_collection = client.get_forecast_by_location(tokyo)
 
-        assert forecast_collection.location == "東京"
+        assert forecast_collection.location_id == "東京"
         assert len(forecast_collection.forecasts) == 1
 
     def test_forecast_by_location_without_coordinates(self):

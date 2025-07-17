@@ -14,7 +14,8 @@ WxTech APIからの天気予報データを標準化して扱うためのクラ�
 # 後方互換性のための再エクスポート
 from src.data.weather_enums import WeatherCondition, WindDirection
 from src.data.weather_models import WeatherForecast
-from src.data.weather_collection import WeatherForecastCollection
+# 互換性ラッパーを使用
+from src.data.weather_data_compat import WeatherForecastCollection
 
 # 分析関数も再エクスポート（必要に応じて）
 from src.data.weather_analysis import (
