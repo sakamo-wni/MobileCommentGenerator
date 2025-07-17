@@ -202,9 +202,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             elif precipitation >= PRECIP.LIGHT_RAIN:  # 軽い雨閾値以上
                 logger.info("通常の雨のため、雨関連のコメントを選択")
                 weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '大雨', '雷']]
-            else:  # 1mm未満は小雨
-                logger.info("小雨のため、軽い雨のコメントも含めて選択")
-                weather_comments = [c for c in original_weather_comments if c.weather_condition in ['雨', '曇り']]  # 曇りも含める（小雨の可能性）
+            else:  # 2mm未満は小雨
+                logger.info(f"小雨（{precipitation}mm）のため、雨のコメントのみ選択")
+                weather_comments = [c for c in original_weather_comments if c.weather_condition == '雨']  # 雨のコメントのみ
             
             if not weather_comments:
                 logger.warning("適切な雨関連のコメントが見つかりません。全コメントを使用します。")
