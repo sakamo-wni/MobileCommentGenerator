@@ -133,6 +133,19 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                     logger.debug(f"晴天時に曇りのコメントを除外: '{comment_text}'")
                     continue
             
+            # 安定した天気の時に変わりやすい天気のコメントを除外
+            # 4時点の予報データをチェック
+            if state and hasattr(state, 'generation_metadata'):
+                period_forecasts = state.generation_metadata.get('period_forecasts', [])
+                if len(period_forecasts) >= 4:
+                    # 全て同じ天気条件かチェック
+                    weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
+                    if len(set(weather_conditions)) == 1:  # 全て同じ天気
+                        changeable_keywords = ["変わりやすい", "天気急変", "不安定", "変化", "急変", "めまぐるしく", "一時的"]
+                        if any(keyword in comment_text for keyword in changeable_keywords):
+                            logger.debug(f"安定した天気で変わりやすい表現を除外: '{comment_text}'")
+                            continue
+            
             # 雨天時に晴天のコメントを除外
             if "雨" in weather_data.weather_description:
                 sunny_keywords = ["快晴", "青空", "強い日差し", "眩しい", "太陽がギラギラ"]

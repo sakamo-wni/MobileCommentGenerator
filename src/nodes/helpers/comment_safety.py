@@ -127,6 +127,22 @@ def check_and_fix_weather_comment_safety(
                 weather_comment = _find_cloudy_weather_comment(state.past_comments, weather_comment)
                 break
     
+    # 安定した天気なのに変わりやすい表現をチェック
+    if state and hasattr(state, 'generation_metadata') and weather_comment:
+        period_forecasts = state.generation_metadata.get('period_forecasts', [])
+        if len(period_forecasts) >= 4:
+            # 全て同じ天気条件かチェック
+            weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
+            if len(set(weather_conditions)) == 1:  # 全て同じ天気
+                changeable_patterns = ["変わりやすい", "天気急変", "不安定", "変化", "急変", "めまぐるしく"]
+                for pattern in changeable_patterns:
+                    if pattern in weather_comment:
+                        logger.warning(f"🚨 緊急修正: 安定した天気で「{pattern}」は不適切 - 代替コメント検索")
+                        weather_comment = _find_alternative_weather_comment(
+                            weather_data, state.past_comments, changeable_patterns, state
+                        )
+                        break
+    
     # 季節外れの表現をチェック
     if state and hasattr(state, 'target_datetime') and weather_comment:
         month = state.target_datetime.month
