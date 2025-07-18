@@ -313,28 +313,30 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
     async def test_weather_node():
         api_key = os.getenv("WXTECH_API_KEY")
         if not api_key:
-            print("WXTECH_API_KEY環境変数が設定されていません")
+            logger.error("WXTECH_API_KEY環境変数が設定されていません")
             return
 
         # 東京の天気予報を取得
         result = await get_weather_forecast_for_location("東京", api_key)
 
         if result.get("error_message"):
-            print(f"エラー: {result['error_message']}")
+            logger.error(f"エラー: {result['error_message']}")
         else:
-            print("天気予報データ取得成功:")
-            print(f"地点: {result['weather_data']['location']}")
-            print(f"現在の天気: {result['weather_summary']['current_weather']['description']}")
-            print(f"気温: {result['weather_summary']['current_weather']['temperature']}°C")
+            logger.info("天気予報データ取得成功:")
+            logger.info(f"地点: {result['weather_data']['location']}")
+            logger.info(f"現在の天気: {result['weather_summary']['current_weather']['description']}")
+            logger.info(f"気温: {result['weather_summary']['current_weather']['temperature']}°C")
 
             recommendations = result["weather_summary"]["recommendations"]
             if recommendations:
-                print("推奨事項:")
+                logger.info("推奨事項:")
                 for rec in recommendations:
-                    print(f"- {rec}")
+                    logger.info(f"- {rec}")
 
     asyncio.run(test_weather_node())

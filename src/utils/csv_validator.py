@@ -92,13 +92,13 @@ def main():
     
     # レポート生成
     report = validator.generate_report(results)
-    print(report)
+    logger.info(report)
     
     # レポート保存
     if args.output:
         output_path = Path(args.output)
         validator.report_generator.save_report(report, output_path)
-        print(f"\nレポートを {output_path} に保存しました")
+        logger.info(f"\nレポートを {output_path} に保存しました")
     
     # 終了コード
     has_errors = any(not result.is_valid for result in results.values())
