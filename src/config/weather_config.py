@@ -11,6 +11,7 @@
 # 後方互換性のために全てのクラスと関数を再エクスポート
 
 from __future__ import annotations
+import logging
 from .config import get_weather_config, get_langgraph_config
 from .app_settings import (
     AppConfig,
@@ -19,6 +20,8 @@ from .app_settings import (
     validate_config,
     setup_environment_defaults,
 )
+
+logger = logging.getLogger(__name__)
 
 # 互換性のためのWeatherConfigとLangGraphConfigのエイリアス
 class WeatherConfig:
@@ -44,22 +47,23 @@ __all__ = [
 
 if __name__ == "__main__":
     # 設定テスト
+    logging.basicConfig(level=logging.INFO)
     try:
         setup_environment_defaults()
         config = get_config()
-        print("設定読み込み成功:")
-        print(config.to_dict())
+        logger.info("設定読み込み成功:")
+        logger.info(config.to_dict())
 
         # 設定検証
         validation_errors = validate_config(config)
         if validation_errors:
-            print("\n設定検証エラー:")
+            logger.error("\n設定検証エラー:")
             for category, errors in validation_errors.items():
-                print(f"{category}:")
+                logger.error(f"{category}:")
                 for error in errors:
-                    print(f"  - {error}")
+                    logger.error(f"  - {error}")
         else:
-            print("\n設定検証: 問題なし")
+            logger.info("\n設定検証: 問題なし")
 
     except Exception as e:
-        print(f"エラー: {str(e)}")
+        logger.error(f"エラー: {str(e)}")

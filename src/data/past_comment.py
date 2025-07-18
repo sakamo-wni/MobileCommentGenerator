@@ -36,7 +36,11 @@ __all__ = [
 # テストデータ（後方互換性のため残す）
 if __name__ == "__main__":
     import json
+    import logging
     from datetime import datetime
+    
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
     # テストデータ作成
     test_data = [
@@ -65,16 +69,16 @@ if __name__ == "__main__":
     for data in test_data:
         comment = PastComment.from_dict(data)
         comments.append(comment)
-        print(f"Created: {comment.location} - {comment.comment_text}")
+        logger.info(f"Created: {comment.location} - {comment.comment_text}")
 
     # PastCommentCollectionのテスト
     collection = PastCommentCollection(comments=comments)
-    print(f"\nCollection size: {len(collection)}")
+    logger.info(f"\nCollection size: {len(collection)}")
 
     # フィルタリングテスト
     weather_comments = collection.filter_by_comment_type(CommentType.WEATHER_COMMENT)
-    print(f"Weather comments: {len(weather_comments)}")
+    logger.info(f"Weather comments: {len(weather_comments)}")
 
     # 統計情報テスト
     stats = collection.get_statistics()
-    print(f"\nStatistics: {json.dumps(stats, indent=2, ensure_ascii=False)}")
+    logger.info(f"\nStatistics: {json.dumps(stats, indent=2, ensure_ascii=False)}")
