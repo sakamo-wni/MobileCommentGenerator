@@ -314,7 +314,6 @@ if __name__ == "__main__":
 
     load_dotenv()
     logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
 
     async def test_weather_node():
         api_key = os.getenv("WXTECH_API_KEY")
