@@ -191,12 +191,14 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                     logger.info(f"雨天時に晴天のコメントを除外: '{comment_text}'")
                     continue
             
-            # 晴天時に雨のコメントを除外
-            if any(sunny in weather_data.weather_description for sunny in ["晴", "快晴"]):
-                rain_keywords = ["雨", "傘", "濡れ", "しっとり", "じめじめ", "ずぶ濡れ", "土砂降り", "にわか雨", "雷雨"]
-                if any(keyword in comment_text for keyword in rain_keywords):
-                    logger.info(f"晴天時に雨のコメントを除外: '{comment_text}'")
-                    continue
+            # 晴天時または曇天時に雨のコメントを除外（降水がない場合）
+            if any(condition in weather_data.weather_description for condition in ["晴", "快晴", "曇", "くもり", "うすぐもり"]):
+                precipitation = getattr(weather_data, 'precipitation', 0)
+                if precipitation == 0:  # 降水量がゼロの場合のみ
+                    rain_keywords = ["雨", "傘", "濡れ", "しっとり", "じめじめ", "ずぶ濡れ", "土砂降り", "にわか雨", "雷雨", "降りやすい"]
+                    if any(keyword in comment_text for keyword in rain_keywords):
+                        logger.info(f"降水なしの天気で雨のコメントを除外: '{comment_text}'")
+                        continue
             
             # 曇天時（うすぐもり含む）に強い日差しのコメントを除外
             if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]):
