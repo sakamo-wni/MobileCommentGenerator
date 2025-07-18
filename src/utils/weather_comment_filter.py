@@ -5,8 +5,12 @@
 """
 
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, TYPE_CHECKING
 from datetime import datetime
+from src.constants.weather_constants import TEMP
+
+if TYPE_CHECKING:
+    from src.data.past_comment import PastComment
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +89,25 @@ class WeatherCommentFilter:
             
         weather_desc_lower = weather_description.lower()
         
+        # 英語判定を先に行う（日本語より優先）
+        english_weather_types = {
+            "sunny": ["sunny", "clear", "fine"],
+            "cloudy": ["cloudy", "overcast"],
+            "rainy": ["rain", "rainy", "shower"],
+            "snowy": ["snow", "snowy"]
+        }
+        
+        for weather_type, patterns in english_weather_types.items():
+            if any(pattern in weather_desc_lower for pattern in patterns):
+                return weather_type
+        
         # 雨・雪の判定（降水量も考慮）
         if precipitation > 0:
-            if any(snow in weather_desc_lower for snow in ["雪", "snow"]):
+            if any(snow in weather_description for snow in ["雪", "ゆき"]):
                 return "snowy"
             return "rainy"
         
-        # 天気説明から判定
+        # 天気説明から判定（日本語）
         for weather_type, config in self.WEATHER_INCOMPATIBLE_KEYWORDS.items():
             for pattern in config["weather_patterns"]:
                 if pattern in weather_description:
@@ -150,17 +166,22 @@ class WeatherCommentFilter:
                 if keyword in comment_text:
                     return False, f"{month}月に「{keyword}」は不適切"
         
+        # 熱中症チェック
+        if temperature is not None and temperature < TEMP.HEATSTROKE:
+            if "熱中症" in comment_text:
+                return False, f"温度{temperature}°C（{TEMP.HEATSTROKE}°C未満）で「熱中症」は不適切"
+        
         return True, None
     
     def filter_comments(
         self,
-        comments: List,
+        comments: List['PastComment'],
         weather_description: str,
         precipitation: float = 0,
         temperature: Optional[float] = None,
         month: Optional[int] = None,
         is_stable_weather: bool = False
-    ) -> List:
+    ) -> List['PastComment']:
         """
         コメントリストをフィルタリング
         

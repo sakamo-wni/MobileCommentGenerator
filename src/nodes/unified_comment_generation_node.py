@@ -152,12 +152,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
         
-        # 追加の温度別フィルタリング
-        if temperature < TEMP.HEATSTROKE:
-            # 熱中症閾値未満では熱中症関連のコメントを除外
-            logger.info(f"温度が{temperature}°C（{TEMP.HEATSTROKE}°C未満）のため、熱中症関連コメントを除外")
-            weather_comments = [c for c in weather_comments if "熱中症" not in c.comment_text]
-            advice_comments = [c for c in advice_comments if "熱中症" not in c.comment_text]
+        # 熱中症フィルタリングはWeatherCommentFilterに統合済み
         
         # 天気に応じたコメントのフィルタリング
         if hasattr(weather_data, 'weather_description') and '雨' in weather_data.weather_description:
@@ -257,7 +252,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             logger.error("アドバイスコメントが空です")
             raise ValueError("アドバイスコメントが利用可能ではありません")
         
-        # 安全なインデックスアクセス（空リストチェック済みなので安全）
+        # 安全なインデックスアクセス
+        # min()を使用してインデックスが範囲外の場合は最後の要素を選択
         selected_weather = weather_comments[min(weather_idx, len(weather_comments) - 1)]
         selected_advice = advice_comments[min(advice_idx, len(advice_comments) - 1)]
         
@@ -269,10 +265,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             selection_reason="統一モードによる自動選択"
         )
         
-        # 生成されたコメントを取得（使用しないが、LLMの応答を確認）
+        # LLMの応答を確認（デバッグ用）
         weather_comment = result.get("weather_comment", "")
         advice_comment = result.get("advice_comment", "")
-        generated_comment = f"{weather_comment}　{advice_comment}" if weather_comment and advice_comment else ""
+        logger.debug(f"LLMの応答 - 天気: {weather_comment}, アドバイス: {advice_comment}")
         
         # 常に選択されたコメントの結合を使用（LLMが創作しないように）
         weather_text = selected_weather.comment_text
