@@ -85,7 +85,7 @@ _env_loaded = False
 
 
 def get_config() -> AppConfig:
-    """グローバル設定インスタンスを取得（非推奨: get_unified_configを使用してください）
+    """グローバル設定インスタンスを取得
 
     Returns:
         アプリケーション設定
