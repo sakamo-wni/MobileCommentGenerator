@@ -96,10 +96,12 @@ class CommentGenerationConstants:
         MAX_LENGTH: コメントの最大文字数 (15文字) - 日本語での簡潔な表現に適した長さ
         CANDIDATE_LIMIT: LLMに渡す候補数 (10件) - 十分な選択肢を確保
         CONTINUOUS_RAIN_HOURS: 連続雨判定時間 (4時間) - にわか雨除外の基準
+        OPTIMIZED_CANDIDATE_LIMIT: パフォーマンス最適化のためのLLM候補数 (5件) - 統合モードでの最適値
     """
     MAX_LENGTH: int = 15
     CANDIDATE_LIMIT: int = 10
     CONTINUOUS_RAIN_HOURS: int = 4
+    OPTIMIZED_CANDIDATE_LIMIT: int = 5
 
 
 # インスタンスを作成（後方互換性のため）

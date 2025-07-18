@@ -25,10 +25,10 @@ from src.nodes.unified_comment_generation import (
     check_continuous_rain,
     filter_shower_comments,
     filter_mild_umbrella_comments,
-    filter_forbidden_phrases,
-    filter_seasonal_inappropriate_comments
+    filter_forbidden_phrases
 )
 from src.utils.comment_deduplicator import CommentDeduplicator
+from src.utils.weather_comment_filter import WeatherCommentFilter
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,12 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             target_datetime = datetime.now()
         llm_provider = state.llm_provider or "openai"
         
-        logger.debug(f"入力データ確認 - weather_data: {weather_data is not None}, past_comments: {past_comments is not None}")
+        # 統合フィルターの初期化
+        weather_filter = WeatherCommentFilter()
+        
+        logger.info(f"入力データ確認 - weather_data: {weather_data is not None}, past_comments: {past_comments is not None}")
         if past_comments:
-            logger.debug(f"past_comments count: {len(past_comments)}")
+            logger.info(f"past_comments count: {len(past_comments)}")
         
         if not weather_data:
             raise ValueError("天気データが利用できません")
@@ -63,126 +66,93 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
         advice_comments = [c for c in past_comments if c.comment_type == CommentType.ADVICE]
         
-        # 禁止フレーズを含むコメントをフィルタリング
-        weather_comments = filter_forbidden_phrases(weather_comments)
-        advice_comments = filter_forbidden_phrases(advice_comments)
-        
-        # 季節性に矛盾するコメントをフィルタリング
-        month = target_datetime.month
-        weather_comments = filter_seasonal_inappropriate_comments(weather_comments, month)
-        advice_comments = filter_seasonal_inappropriate_comments(advice_comments, month)
-        
         if not weather_comments or not advice_comments:
             raise ValueError("適切なコメントタイプが見つかりません")
             
-        logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
+        logger.info(f"初期コメント数 - 天気: {len(weather_comments)}, アドバイス: {len(advice_comments)}")
         
-        # 天気と矛盾するコメントを候補から除外
-        filtered_weather_comments = []
-        for comment in weather_comments:
-            comment_text = comment.comment_text
-            
-            # 季節に不適切なコメントを除外
-            month = target_datetime.month
-            
-            # 残暑は9月以降のみ
-            if month not in [9, 10, 11] and "残暑" in comment_text:
-                logger.debug(f"{month}月に「残暑」は不適切: '{comment_text}'")
-                continue
-            
-            # 春（3-5月）に不適切な表現
-            if month in [3, 4, 5]:
-                spring_inappropriate = ["梅雨", "真夏", "猛暑", "残暑", "師走", "年末", "初雪", "真冬"]
-                if any(word in comment_text for word in spring_inappropriate):
-                    logger.debug(f"春（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 夏（6-8月）に不適切な表現
-            elif month in [6, 7, 8]:
-                summer_inappropriate = ["初雪", "雪", "真冬", "厳寒", "凍結", "霜", "初霜", "残暑", "紅葉", "落ち葉"]
-                if any(word in comment_text for word in summer_inappropriate):
-                    logger.debug(f"夏（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 秋（9-11月）に不適切な表現
-            elif month in [9, 10, 11]:
-                autumn_inappropriate = ["真夏", "猛暑", "梅雨", "初雪", "真冬", "厳寒"]
-                # 9月は残暑OK、10-11月は微妙だが許容
-                if any(word in comment_text for word in autumn_inappropriate):
-                    logger.debug(f"秋（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 冬（12-2月）に不適切な表現
-            elif month in [12, 1, 2]:
-                winter_inappropriate = ["残暑", "猛暑", "真夏", "梅雨", "桜", "新緑", "紅葉"]
-                if any(word in comment_text for word in winter_inappropriate):
-                    logger.debug(f"冬（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 晴天時に雨のコメントを除外
-            if "晴" in weather_data.weather_description and weather_data.precipitation < 0.5:
-                rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨"]
-                if any(keyword in comment_text for keyword in rain_keywords):
-                    logger.debug(f"晴天時に雨のコメントを除外: '{comment_text}'")
-                    continue
-            
-            # 晴天時に曇りのコメントを除外
-            if "晴" in weather_data.weather_description:
-                cloudy_keywords = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
-                if any(keyword in comment_text for keyword in cloudy_keywords):
-                    logger.debug(f"晴天時に曇りのコメントを除外: '{comment_text}'")
-                    continue
-            
-            # 安定した天気の時に変わりやすい天気のコメントを除外
-            # 4時点の予報データをチェック
-            if state and hasattr(state, 'generation_metadata'):
-                period_forecasts = state.generation_metadata.get('period_forecasts', [])
-                if len(period_forecasts) >= 4:
-                    # 全て同じ天気条件かチェック
-                    weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
-                    if len(set(weather_conditions)) == 1:  # 全て同じ天気
-                        changeable_keywords = ["変わりやすい", "天気急変", "不安定", "変化", "急変", "めまぐるしく", "一時的"]
-                        if any(keyword in comment_text for keyword in changeable_keywords):
-                            logger.debug(f"安定した天気で変わりやすい表現を除外: '{comment_text}'")
-                            continue
-            
-            # 雨天時に晴天のコメントを除外
-            if "雨" in weather_data.weather_description:
-                sunny_keywords = ["快晴", "青空", "強い日差し", "眩しい", "太陽がギラギラ"]
-                if any(keyword in comment_text for keyword in sunny_keywords):
-                    logger.debug(f"雨天時に晴天のコメントを除外: '{comment_text}'")
-                    continue
-            
-            # 曇天時（うすぐもり含む）に強い日差しのコメントを除外
-            if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]):
-                sunshine_keywords = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]
-                if any(keyword in comment_text for keyword in sunshine_keywords):
-                    logger.debug(f"曇天時に日差しのコメントを除外: '{comment_text}'")
-                    continue
-            
-            filtered_weather_comments.append(comment)
+        # 安定天気の判定
+        is_stable_weather = False
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            if len(period_forecasts) >= 4:
+                weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
+                precipitations = [getattr(f, 'precipitation', 0) for f in period_forecasts]
+                max_precip = max(precipitations) if precipitations else 0
+                
+                from src.utils.weather_normalizer import is_stable_weather_condition
+                is_stable_weather = is_stable_weather_condition(weather_conditions) and max_precip < 0.5
+                logger.info(f"安定天気判定: {is_stable_weather}")
         
-        # フィルタリング後のコメントを使用
-        if filtered_weather_comments:
-            weather_comments = filtered_weather_comments
-            logger.info(f"フィルタリング後の天気コメント数: {len(weather_comments)}")
-        else:
-            logger.warning("フィルタリング後の天気コメントが0件になったため、元のリストを使用")
+        # 統合フィルタリングパイプラインを適用
+        from src.utils.validators.temperature_validator import TemperatureValidator
+        temp_validator = TemperatureValidator()
+        
+        # フィルタリング用パラメータの準備
+        precipitation = getattr(weather_data, 'precipitation', 0)
+        month = target_datetime.month
+        temperature = getattr(weather_data, 'temperature', 0)
+        if temperature is None:
+            temperature = 0
+        
+        def apply_unified_filters(comments, comment_type="weather"):
+            """
+            全てのフィルタリングを統合したパイプライン
+            1. 禁止フレーズフィルター
+            2. 天気・季節性統合フィルター（WeatherCommentFilter）
+            3. 温度バリデーション
+            """
+            if not comments:
+                logger.warning(f"{comment_type}コメントが空のためフィルタリングをスキップ")
+                return comments
+            
+            # Step 1: 禁止フレーズフィルター
+            filtered = filter_forbidden_phrases(comments)
+            logger.info(f"禁止フレーズフィルター後の{comment_type}コメント数: {len(filtered)}")
+            
+            # Step 2: 天気・季節性統合フィルター（WeatherCommentFilterに季節性チェックが含まれる）
+            weather_filtered = weather_filter.filter_comments(
+                filtered,
+                weather_data.weather_description,
+                precipitation=precipitation,
+                temperature=temperature,
+                month=month,
+                is_stable_weather=is_stable_weather
+            )
+            
+            if not weather_filtered:
+                logger.warning(f"天気・季節性フィルタリング後の{comment_type}コメントが0件になったため、前のリストを使用")
+                weather_filtered = filtered
+            else:
+                logger.info(f"天気・季節性フィルタリング後の{comment_type}コメント数: {len(weather_filtered)}")
+                filtered = weather_filtered
+            
+            # Step 3: 温度バリデーション
+            temp_filtered = []
+            for comment in filtered:
+                is_valid, reason = temp_validator.validate(comment, weather_data)
+                if is_valid:
+                    temp_filtered.append(comment)
+                else:
+                    logger.info(f"温度バリデーターで{comment_type}コメントを除外: {reason}")
+            
+            if not temp_filtered:
+                logger.warning(f"温度バリデーション後の{comment_type}コメントが0件になったため、フィルタリング前のリストを使用")
+                return filtered
+            else:
+                logger.info(f"温度バリデーション後の{comment_type}コメント数: {len(temp_filtered)}")
+                return temp_filtered
+        
+        # 統合フィルタリングパイプラインを適用
+        weather_comments = apply_unified_filters(weather_comments, "天気")
+        advice_comments = apply_unified_filters(advice_comments, "アドバイス")
         
         # LLMマネージャーの初期化
         from src.config.config import get_config
         config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
         
-        # 温度に応じたコメントのフィルタリング
-        temperature = getattr(weather_data, 'temperature', 0)
-        if temperature is None:
-            temperature = 0
-        if temperature < TEMP.HEATSTROKE:
-            # 熱中症閾値未満では熱中症関連のコメントを除外
-            logger.info(f"温度が{temperature}°C（{TEMP.HEATSTROKE}°C未満）のため、熱中症関連コメントを除外")
-            weather_comments = [c for c in weather_comments if "熱中症" not in c.comment_text]
-            advice_comments = [c for c in advice_comments if "熱中症" not in c.comment_text]
+        # 熱中症フィルタリングはWeatherCommentFilterに統合済み
         
         # 天気に応じたコメントのフィルタリング
         if hasattr(weather_data, 'weather_description') and '雨' in weather_data.weather_description:
@@ -223,9 +193,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             logger.info(f"フィルタリング前 - アドバイスコメント数: {len(advice_comments)}")
             
             # アドバイスコメントの内容を確認
-            logger.debug("フィルタリング前のアドバイスコメント:")
+            logger.info("フィルタリング前のアドバイスコメント:")
             for i, comment in enumerate(advice_comments[:COMMENT.CANDIDATE_LIMIT]):
-                logger.debug(f"  {i}: {comment.comment_text}")
+                logger.info(f"  {i}: {comment.comment_text}")
             
             weather_comments = filter_shower_comments(weather_comments)
             advice_comments = filter_mild_umbrella_comments(advice_comments)
@@ -235,9 +205,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             logger.info(f"フィルタリング後 - アドバイスコメント数: {len(advice_comments)}")
             
             # フィルタリング後のアドバイスコメントの内容を確認
-            logger.debug("フィルタリング後のアドバイスコメント:")
+            logger.info("フィルタリング後のアドバイスコメント:")
             for i, comment in enumerate(advice_comments[:COMMENT.CANDIDATE_LIMIT]):
-                logger.debug(f"  {i}: {comment.comment_text}")
+                logger.info(f"  {i}: {comment.comment_text}")
         
         # 天気情報のフォーマット
         weather_info = format_weather_info(
@@ -247,11 +217,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         )
         
         # 統合プロンプトの構築
-        # パフォーマンス最適化のため候補数を5に制限
-        OPTIMIZED_CANDIDATE_LIMIT = 5
+        # パフォーマンス最適化のため候補数を制限
         unified_prompt = build_unified_prompt(
-            weather_comments[:OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
-            advice_comments[:OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
+            weather_comments[:COMMENT.OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
+            advice_comments[:COMMENT.OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
             weather_info,
             location_name,
             target_datetime
@@ -275,8 +244,18 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             logger.warning("LLMがadvice_indexにnullを返しました。デフォルト値0を使用します。")
             advice_idx = 0
         
-        selected_weather = weather_comments[weather_idx] if weather_idx < len(weather_comments) else weather_comments[0]
-        selected_advice = advice_comments[advice_idx] if advice_idx < len(advice_comments) else advice_comments[0]
+        # 空リストチェックを含む安全なインデックスアクセス
+        if not weather_comments:
+            logger.error("天気コメントが空です")
+            raise ValueError("天気コメントが利用可能ではありません")
+        if not advice_comments:
+            logger.error("アドバイスコメントが空です")
+            raise ValueError("アドバイスコメントが利用可能ではありません")
+        
+        # 安全なインデックスアクセス
+        # min()を使用してインデックスが範囲外の場合は最後の要素を選択
+        selected_weather = weather_comments[min(weather_idx, len(weather_comments) - 1)]
+        selected_advice = advice_comments[min(advice_idx, len(advice_comments) - 1)]
         
         # CommentPairの作成
         selected_pair = CommentPair(
@@ -286,10 +265,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             selection_reason="統一モードによる自動選択"
         )
         
-        # 生成されたコメントを取得（使用しないが、LLMの応答を確認）
+        # LLMの応答を確認（デバッグ用）
         weather_comment = result.get("weather_comment", "")
         advice_comment = result.get("advice_comment", "")
-        generated_comment = f"{weather_comment}　{advice_comment}" if weather_comment and advice_comment else ""
+        logger.debug(f"LLMの応答 - 天気: {weather_comment}, アドバイス: {advice_comment}")
         
         # 常に選択されたコメントの結合を使用（LLMが創作しないように）
         weather_text = selected_weather.comment_text
