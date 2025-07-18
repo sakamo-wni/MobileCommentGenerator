@@ -94,84 +94,63 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                 is_stable_weather = is_stable_weather_condition(weather_conditions) and max_precip < 0.5
                 logger.info(f"安定天気判定: {is_stable_weather}")
         
-        # 統合フィルターを使用して天気コメントをフィルタリング
+        # 統合フィルタリングパイプラインを適用
+        from src.utils.validators.temperature_validator import TemperatureValidator
+        temp_validator = TemperatureValidator()
+        
+        # フィルタリング用パラメータの準備
         precipitation = getattr(weather_data, 'precipitation', 0)
         month = target_datetime.month
+        temperature = getattr(weather_data, 'temperature', 0)
+        if temperature is None:
+            temperature = 0
         
-        filtered_weather_comments = weather_filter.filter_comments(
-            weather_comments,
-            weather_data.weather_description,
-            precipitation=precipitation,
-            temperature=getattr(weather_data, 'temperature', None),
-            month=month,
-            is_stable_weather=is_stable_weather
-        )
+        def apply_unified_filters(comments, comment_type="weather"):
+            """天気フィルターと温度バリデーターを適用する統合パイプライン"""
+            if not comments:
+                logger.warning(f"{comment_type}コメントが空のためフィルタリングをスキップ")
+                return comments
+            
+            # Step 1: 天気フィルターを適用
+            filtered = weather_filter.filter_comments(
+                comments,
+                weather_data.weather_description,
+                precipitation=precipitation,
+                temperature=temperature,
+                month=month,
+                is_stable_weather=is_stable_weather
+            )
+            
+            if not filtered:
+                logger.warning(f"天気フィルタリング後の{comment_type}コメントが0件になったため、元のリストを使用")
+                filtered = comments
+            else:
+                logger.info(f"天気フィルタリング後の{comment_type}コメント数: {len(filtered)}")
+            
+            # Step 2: 温度バリデーターを適用
+            temp_filtered = []
+            for comment in filtered:
+                is_valid, reason = temp_validator.validate(comment, weather_data)
+                if is_valid:
+                    temp_filtered.append(comment)
+                else:
+                    logger.info(f"温度バリデーターで{comment_type}コメントを除外: {reason}")
+            
+            if not temp_filtered:
+                logger.warning(f"温度バリデーション後の{comment_type}コメントが0件になったため、フィルタリング前のリストを使用")
+                return filtered
+            else:
+                logger.info(f"温度バリデーション後の{comment_type}コメント数: {len(temp_filtered)}")
+                return temp_filtered
         
-        if filtered_weather_comments:
-            weather_comments = filtered_weather_comments
-            logger.info(f"統合フィルタリング後の天気コメント数: {len(weather_comments)}")
-        else:
-            logger.warning("統合フィルタリング後の天気コメントが0件になったため、元のリストを使用")
-        
-        # アドバイスコメントも統合フィルターでフィルタリング
-        filtered_advice_comments = weather_filter.filter_comments(
-            advice_comments,
-            weather_data.weather_description,
-            precipitation=precipitation,
-            temperature=getattr(weather_data, 'temperature', None),
-            month=month,
-            is_stable_weather=is_stable_weather
-        )
-        
-        if filtered_advice_comments:
-            advice_comments = filtered_advice_comments
-            logger.info(f"統合フィルタリング後のアドバイスコメント数: {len(advice_comments)}")
-        else:
-            logger.warning("統合フィルタリング後のアドバイスコメントが0件になったため、元のリストを使用")
+        # 統合フィルタリングパイプラインを適用
+        weather_comments = apply_unified_filters(weather_comments, "天気")
+        advice_comments = apply_unified_filters(advice_comments, "アドバイス")
         
         # LLMマネージャーの初期化
         from src.config.config import get_config
         config = get_config()
         llm_manager = LLMManager(provider=llm_provider, config=config)
-        
-        # 温度に応じたコメントのフィルタリング
-        temperature = getattr(weather_data, 'temperature', 0)
-        if temperature is None:
-            temperature = 0
-        
-        # TemperatureValidatorの適用
-        from src.utils.validators.temperature_validator import TemperatureValidator
-        temp_validator = TemperatureValidator()
-        
-        # 温度バリデーターを使用してコメントをフィルタリング
-        filtered_weather_by_temp = []
-        for comment in weather_comments:
-            is_valid, reason = temp_validator.validate(comment, weather_data)
-            if is_valid:
-                filtered_weather_by_temp.append(comment)
-            else:
-                logger.info(f"温度バリデーターでコメントを除外: {reason}")
-        
-        filtered_advice_by_temp = []
-        for comment in advice_comments:
-            is_valid, reason = temp_validator.validate(comment, weather_data)
-            if is_valid:
-                filtered_advice_by_temp.append(comment)
-            else:
-                logger.info(f"温度バリデーターでコメントを除外: {reason}")
-        
-        # フィルタリング後のコメントを使用
-        if filtered_weather_by_temp:
-            weather_comments = filtered_weather_by_temp
-            logger.info(f"温度バリデーション後の天気コメント数: {len(weather_comments)}")
-        else:
-            logger.warning("温度バリデーション後の天気コメントが0件になったため、元のリストを使用")
-        
-        if filtered_advice_by_temp:
-            advice_comments = filtered_advice_by_temp
-            logger.info(f"温度バリデーション後のアドバイスコメント数: {len(advice_comments)}")
-        else:
-            logger.warning("温度バリデーション後のアドバイスコメントが0件になったため、元のリストを使用")
         
         # 追加の温度別フィルタリング
         if temperature < TEMP.HEATSTROKE:
@@ -270,6 +249,14 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         if advice_idx is None:
             logger.warning("LLMがadvice_indexにnullを返しました。デフォルト値0を使用します。")
             advice_idx = 0
+        
+        # 空リストチェックを含む安全なインデックスアクセス
+        if not weather_comments:
+            logger.error("天気コメントが空です")
+            raise ValueError("天気コメントが利用可能ではありません")
+        if not advice_comments:
+            logger.error("アドバイスコメントが空です")
+            raise ValueError("アドバイスコメントが利用可能ではありません")
         
         selected_weather = weather_comments[weather_idx] if weather_idx < len(weather_comments) else weather_comments[0]
         selected_advice = advice_comments[advice_idx] if advice_idx < len(advice_comments) else advice_comments[0]

@@ -74,11 +74,15 @@ class WeatherCommentFilter:
         
         Args:
             weather_description: 天気の説明
-            precipitation: 降水量
+            precipitation: 降水量（Noneの場合も0として扱う）
             
         Returns:
             天気タイプ (sunny, cloudy, rainy, snowy)
         """
+        # 降水量のNoneチェック
+        if precipitation is None:
+            precipitation = 0
+            
         weather_desc_lower = weather_description.lower()
         
         # 雨・雪の判定（降水量も考慮）
@@ -171,10 +175,19 @@ class WeatherCommentFilter:
         Returns:
             フィルタリング後のコメントリスト
         """
+        # 入力パラメータの検証
+        if not comments:
+            return comments
+            
+        if not weather_description:
+            weather_description = ""
+            
         filtered = []
         
         for comment in comments:
             comment_text = comment.comment_text if hasattr(comment, 'comment_text') else str(comment)
+            if not comment_text:
+                continue
             
             is_appropriate, reason = self.is_comment_appropriate(
                 comment_text,

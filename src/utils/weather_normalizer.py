@@ -3,6 +3,7 @@
 
 天気の表記ゆれを統一的に扱うためのユーティリティ関数
 """
+from typing import List
 
 def normalize_weather_description(weather_desc: str) -> str:
     """
@@ -36,7 +37,7 @@ def normalize_weather_description(weather_desc: str) -> str:
     return "other"
 
 
-def is_stable_weather_condition(weather_descriptions: list[str]) -> bool:
+def is_stable_weather_condition(weather_descriptions: List[str]) -> bool:
     """
     天気が安定しているかどうかを判定
     
