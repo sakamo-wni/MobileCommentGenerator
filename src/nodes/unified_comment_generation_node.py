@@ -25,8 +25,7 @@ from src.nodes.unified_comment_generation import (
     check_continuous_rain,
     filter_shower_comments,
     filter_mild_umbrella_comments,
-    filter_forbidden_phrases,
-    filter_seasonal_inappropriate_comments
+    filter_forbidden_phrases
 )
 from src.utils.comment_deduplicator import CommentDeduplicator
 from src.utils.weather_comment_filter import WeatherCommentFilter
@@ -100,9 +99,8 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             """
             全てのフィルタリングを統合したパイプライン
             1. 禁止フレーズフィルター
-            2. 季節性フィルター  
-            3. 天気条件フィルター（WeatherCommentFilterに含まれる）
-            4. 温度バリデーション
+            2. 天気・季節性統合フィルター（WeatherCommentFilter）
+            3. 温度バリデーション
             """
             if not comments:
                 logger.warning(f"{comment_type}コメントが空のためフィルタリングをスキップ")
@@ -112,11 +110,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             filtered = filter_forbidden_phrases(comments)
             logger.info(f"禁止フレーズフィルター後の{comment_type}コメント数: {len(filtered)}")
             
-            # Step 2: 季節性フィルター
-            filtered = filter_seasonal_inappropriate_comments(filtered, month)
-            logger.info(f"季節性フィルター後の{comment_type}コメント数: {len(filtered)}")
-            
-            # Step 3: 天気条件フィルター（WeatherCommentFilterに季節性チェックも含まれる）
+            # Step 2: 天気・季節性統合フィルター（WeatherCommentFilterに季節性チェックが含まれる）
             weather_filtered = weather_filter.filter_comments(
                 filtered,
                 weather_data.weather_description,
@@ -127,13 +121,13 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             )
             
             if not weather_filtered:
-                logger.warning(f"天気フィルタリング後の{comment_type}コメントが0件になったため、前のリストを使用")
+                logger.warning(f"天気・季節性フィルタリング後の{comment_type}コメントが0件になったため、前のリストを使用")
                 weather_filtered = filtered
             else:
-                logger.info(f"天気フィルタリング後の{comment_type}コメント数: {len(weather_filtered)}")
+                logger.info(f"天気・季節性フィルタリング後の{comment_type}コメント数: {len(weather_filtered)}")
                 filtered = weather_filtered
             
-            # Step 4: 温度バリデーション
+            # Step 3: 温度バリデーション
             temp_filtered = []
             for comment in filtered:
                 is_valid, reason = temp_validator.validate(comment, weather_data)
@@ -228,11 +222,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         )
         
         # 統合プロンプトの構築
-        # パフォーマンス最適化のため候補数を5に制限
-        OPTIMIZED_CANDIDATE_LIMIT = 5
+        # パフォーマンス最適化のため候補数を制限
         unified_prompt = build_unified_prompt(
-            weather_comments[:OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
-            advice_comments[:OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
+            weather_comments[:COMMENT.OPTIMIZED_CANDIDATE_LIMIT],  # 上位5件に制限（パフォーマンス最適化）
+            advice_comments[:COMMENT.OPTIMIZED_CANDIDATE_LIMIT],   # 上位5件に制限（パフォーマンス最適化）
             weather_info,
             location_name,
             target_datetime
