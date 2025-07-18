@@ -150,15 +150,27 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                 else:
                     logger.info(f"period_forecasts count: {len(period_forecasts)}")
                 if len(period_forecasts) >= 4:
+                    # period_forecastsの構造を確認
+                    if period_forecasts and "急な雨" in comment_text:
+                        logger.info(f"period_forecasts[0]の型: {type(period_forecasts[0])}")
+                        logger.info(f"period_forecasts[0]の属性: {dir(period_forecasts[0]) if hasattr(period_forecasts[0], '__dict__') else 'dict or other type'}")
+                    
                     # 全て同じ天気条件かチェック
                     weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
                     # 降水量もチェック
                     precipitations = [getattr(f, 'precipitation', 0) for f in period_forecasts]
                     max_precip = max(precipitations) if precipitations else 0
                     
+                    # デバッグ: 天気条件を確認
+                    if "急な雨" in comment_text:
+                        logger.info(f"急な雨コメントの処理: weather_conditions={weather_conditions}, max_precip={max_precip}")
+                    
                     # 全て晴れまたは曇りで、降水量が少ない場合
                     all_stable = all(any(stable in desc for stable in ["晴", "曇"]) and "雨" not in desc 
                                    for desc in weather_conditions)
+                    
+                    if "急な雨" in comment_text:
+                        logger.info(f"急な雨コメント - all_stable={all_stable}, max_precip={max_precip}")
                     
                     if all_stable and max_precip < 0.5:
                         # 安定した天気で不適切な表現を除外
