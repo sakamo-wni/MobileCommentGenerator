@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from dotenv import load_dotenv
 
-from .config import get_system_constants, get_weather_config, get_langgraph_config, get_config as get_unified_config
+from .config import get_system_constants, get_weather_config, get_langgraph_config, get_config
 
 # 定数を取得
 _sys_const = get_system_constants()
@@ -34,11 +34,11 @@ class AppConfig:
 
     def __init__(self):
         """統一設定から初期化"""
-        unified_config = get_unified_config()
-        self.weather = unified_config.weather
-        self.langgraph = unified_config.langgraph
-        self.debug_mode = unified_config.app.debug
-        self.log_level = unified_config.app.log_level
+        config = get_config()
+        self.weather = config.weather
+        self.langgraph = config.langgraph
+        self.debug_mode = config.app.debug
+        self.log_level = config.app.log_level
 
     def to_dict(self) -> dict[str, Any]:
         """辞書形式に変換
