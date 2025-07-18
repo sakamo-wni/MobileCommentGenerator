@@ -140,7 +140,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
             # 安定した天気の時に変わりやすい天気のコメントを除外
             # 4時点の予報データをチェック
+            logger.debug(f"state exists: {state is not None}, has generation_metadata: {hasattr(state, 'generation_metadata') if state else False}")
             if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+                # generation_metadataの内容を確認
+                logger.debug(f"generation_metadata keys: {list(state.generation_metadata.keys())}")
                 period_forecasts = state.generation_metadata.get('period_forecasts', [])
                 if not period_forecasts:
                     logger.debug("period_forecasts not found in generation_metadata")
