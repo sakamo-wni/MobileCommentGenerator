@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from dotenv import load_dotenv
 
-from .config import get_system_constants, get_weather_config, get_langgraph_config, get_config
+from .config import get_system_constants, get_weather_config, get_langgraph_config, get_config as get_base_config
 
 # 定数を取得
 _sys_const = get_system_constants()
@@ -34,7 +34,8 @@ class AppConfig:
 
     def __init__(self):
         """統一設定から初期化"""
-        config = get_config()
+        # 循環参照を避けるため、直接設定を取得
+        config = get_base_config()
         self.weather = config.weather
         self.langgraph = config.langgraph
         self.debug_mode = config.app.debug
