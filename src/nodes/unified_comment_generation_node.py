@@ -166,8 +166,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                         logger.info(f"急な雨コメントの処理: weather_conditions={weather_conditions}, max_precip={max_precip}")
                     
                     # 全て晴れまたは曇りで、降水量が少ない場合
-                    all_stable = all(any(stable in desc for stable in ["晴", "曇", "くもり", "うすぐもり"]) and "雨" not in desc 
-                                   for desc in weather_conditions)
+                    # weather_normalizerを使用して表記ゆれに対応
+                    from src.utils.weather_normalizer import is_stable_weather_condition
+                    all_stable = is_stable_weather_condition(weather_conditions)
                     
                     if "急な雨" in comment_text:
                         logger.info(f"急な雨コメント - all_stable={all_stable}, max_precip={max_precip}")
