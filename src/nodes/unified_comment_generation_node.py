@@ -79,6 +79,11 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         
         # 天気と矛盾するコメントを候補から除外
         filtered_weather_comments = []
+        # 初期の天気コメントリストを確認
+        rain_comment_count = sum(1 for c in weather_comments if "急な雨" in c.comment_text)
+        if rain_comment_count > 0:
+            logger.info(f"フィルタリング前: 「急な雨」を含むコメントが{rain_comment_count}件見つかりました")
+        
         for comment in weather_comments:
             comment_text = comment.comment_text
             
@@ -135,8 +140,12 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
             # 安定した天気の時に変わりやすい天気のコメントを除外
             # 4時点の予報データをチェック
-            if state and hasattr(state, 'generation_metadata'):
+            if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
                 period_forecasts = state.generation_metadata.get('period_forecasts', [])
+                if not period_forecasts:
+                    logger.debug("period_forecasts not found in generation_metadata")
+                else:
+                    logger.debug(f"period_forecasts count: {len(period_forecasts)}")
                 if len(period_forecasts) >= 4:
                     # 全て同じ天気条件かチェック
                     weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
@@ -186,6 +195,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         if filtered_weather_comments:
             weather_comments = filtered_weather_comments
             logger.info(f"フィルタリング後の天気コメント数: {len(weather_comments)}")
+            # フィルタリング後の「急な雨」コメント数を確認
+            rain_comment_count_after = sum(1 for c in weather_comments if "急な雨" in c.comment_text)
+            if rain_comment_count_after > 0:
+                logger.warning(f"フィルタリング後も「急な雨」を含むコメントが{rain_comment_count_after}件残っています")
         else:
             logger.warning("フィルタリング後の天気コメントが0件になったため、元のリストを使用")
         
@@ -195,7 +208,7 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             comment_text = comment.comment_text
             
             # 安定した天気で「急な雨」のアドバイスを除外
-            if state and hasattr(state, 'generation_metadata'):
+            if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
                 period_forecasts = state.generation_metadata.get('period_forecasts', [])
                 if len(period_forecasts) >= 4:
                     weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
