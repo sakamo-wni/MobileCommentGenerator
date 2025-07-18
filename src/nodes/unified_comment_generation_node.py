@@ -29,6 +29,7 @@ from src.nodes.unified_comment_generation import (
     filter_seasonal_inappropriate_comments
 )
 from src.utils.comment_deduplicator import CommentDeduplicator
+from src.utils.weather_comment_filter import WeatherCommentFilter
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             logger.warning(f"target_datetimeが不正な型です: {type(target_datetime)}, 現在時刻を使用します")
             target_datetime = datetime.now()
         llm_provider = state.llm_provider or "openai"
+        
+        # 統合フィルターの初期化
+        weather_filter = WeatherCommentFilter()
         
         logger.info(f"入力データ確認 - weather_data: {weather_data is not None}, past_comments: {past_comments is not None}")
         if past_comments:
@@ -77,184 +81,53 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             
         logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
         
-        # 天気と矛盾するコメントを候補から除外
-        filtered_weather_comments = []
-        # 初期の天気コメントリストを確認
-        rain_comment_count = sum(1 for c in weather_comments if "急な雨" in c.comment_text)
-        if rain_comment_count > 0:
-            logger.info(f"フィルタリング前: 「急な雨」を含むコメントが{rain_comment_count}件見つかりました")
+        # 安定天気の判定
+        is_stable_weather = False
+        if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
+            period_forecasts = state.generation_metadata.get('period_forecasts', [])
+            if len(period_forecasts) >= 4:
+                weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
+                precipitations = [getattr(f, 'precipitation', 0) for f in period_forecasts]
+                max_precip = max(precipitations) if precipitations else 0
+                
+                from src.utils.weather_normalizer import is_stable_weather_condition
+                is_stable_weather = is_stable_weather_condition(weather_conditions) and max_precip < 0.5
+                logger.info(f"安定天気判定: {is_stable_weather}")
         
-        for comment in weather_comments:
-            comment_text = comment.comment_text
-            
-            # 季節に不適切なコメントを除外
-            month = target_datetime.month
-            
-            # 残暑は9月以降のみ
-            if month not in [9, 10, 11] and "残暑" in comment_text:
-                logger.info(f"{month}月に「残暑」は不適切: '{comment_text}'")
-                continue
-            
-            # 春（3-5月）に不適切な表現
-            if month in [3, 4, 5]:
-                spring_inappropriate = ["梅雨", "真夏", "猛暑", "残暑", "師走", "年末", "初雪", "真冬"]
-                if any(word in comment_text for word in spring_inappropriate):
-                    logger.info(f"春（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 夏（6-8月）に不適切な表現
-            elif month in [6, 7, 8]:
-                summer_inappropriate = ["初雪", "雪", "真冬", "厳寒", "凍結", "霜", "初霜", "残暑", "紅葉", "落ち葉"]
-                if any(word in comment_text for word in summer_inappropriate):
-                    logger.info(f"夏（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 秋（9-11月）に不適切な表現
-            elif month in [9, 10, 11]:
-                autumn_inappropriate = ["真夏", "猛暑", "梅雨", "初雪", "真冬", "厳寒"]
-                # 9月は残暑OK、10-11月は微妙だが許容
-                if any(word in comment_text for word in autumn_inappropriate):
-                    logger.info(f"秋（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 冬（12-2月）に不適切な表現
-            elif month in [12, 1, 2]:
-                winter_inappropriate = ["残暑", "猛暑", "真夏", "梅雨", "桜", "新緑", "紅葉"]
-                if any(word in comment_text for word in winter_inappropriate):
-                    logger.info(f"冬（{month}月）に不適切な表現を除外: '{comment_text}'")
-                    continue
-            
-            # 晴天時に雨のコメントを除外
-            if "晴" in weather_data.weather_description and weather_data.precipitation < 0.5:
-                rain_keywords = ["雨", "雷雨", "降水", "傘", "濡れ", "豪雨", "にわか雨", "大雨", "激しい雨"]
-                if any(keyword in comment_text for keyword in rain_keywords):
-                    logger.info(f"晴天時に雨のコメントを除外: '{comment_text}'")
-                    continue
-            
-            # 晴天時に曇りのコメントを除外
-            if "晴" in weather_data.weather_description:
-                cloudy_keywords = ["雲が優勢", "雲が多", "どんより", "雲が厚", "曇り空", "グレーの空", "雲に覆われ"]
-                if any(keyword in comment_text for keyword in cloudy_keywords):
-                    logger.info(f"晴天時に曇りのコメントを除外: '{comment_text}'")
-                    continue
-            
-            # 安定した天気の時に変わりやすい天気のコメントを除外
-            # 4時点の予報データをチェック
-            logger.info(f"state exists: {state is not None}, has generation_metadata: {hasattr(state, 'generation_metadata') if state else False}")
-            if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
-                # generation_metadataの内容を確認
-                logger.info(f"generation_metadata keys: {list(state.generation_metadata.keys())}")
-                period_forecasts = state.generation_metadata.get('period_forecasts', [])
-                if not period_forecasts:
-                    logger.info("period_forecasts not found in generation_metadata")
-                else:
-                    logger.info(f"period_forecasts count: {len(period_forecasts)}")
-                if len(period_forecasts) >= 4:
-                    # period_forecastsの構造を確認
-                    if period_forecasts and "急な雨" in comment_text:
-                        logger.info(f"period_forecasts[0]の型: {type(period_forecasts[0])}")
-                        logger.info(f"period_forecasts[0]の属性: {dir(period_forecasts[0]) if hasattr(period_forecasts[0], '__dict__') else 'dict or other type'}")
-                    
-                    # 全て同じ天気条件かチェック
-                    weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
-                    # 降水量もチェック
-                    precipitations = [getattr(f, 'precipitation', 0) for f in period_forecasts]
-                    max_precip = max(precipitations) if precipitations else 0
-                    
-                    # デバッグ: 天気条件を確認
-                    if "急な雨" in comment_text:
-                        logger.info(f"急な雨コメントの処理: weather_conditions={weather_conditions}, max_precip={max_precip}")
-                    
-                    # 全て晴れまたは曇りで、降水量が少ない場合
-                    # weather_normalizerを使用して表記ゆれに対応
-                    from src.utils.weather_normalizer import is_stable_weather_condition
-                    all_stable = is_stable_weather_condition(weather_conditions)
-                    
-                    if "急な雨" in comment_text:
-                        logger.info(f"急な雨コメント - all_stable={all_stable}, max_precip={max_precip}")
-                    
-                    if all_stable and max_precip < 0.5:
-                        # 安定した天気で不適切な表現を除外
-                        unstable_keywords = [
-                            "変わりやすい", "天気急変", "不安定", "変化", "急変", 
-                            "めまぐるしく", "一時的", "急な雨", "にわか雨", 
-                            "突然の雨", "ゲリラ豪雨", "天気の急変"
-                        ]
-                        if any(keyword in comment_text for keyword in unstable_keywords):
-                            logger.info(f"安定した天気で不安定な表現を除外: '{comment_text}'")
-                            continue
-            
-            # 雨天時に晴天のコメントを除外
-            if "雨" in weather_data.weather_description:
-                sunny_keywords = ["快晴", "青空", "強い日差し", "眩しい", "太陽がギラギラ"]
-                if any(keyword in comment_text for keyword in sunny_keywords):
-                    logger.info(f"雨天時に晴天のコメントを除外: '{comment_text}'")
-                    continue
-            
-            # 晴天時または曇天時に雨のコメントを除外（降水がない場合）
-            if any(condition in weather_data.weather_description for condition in ["晴", "快晴", "曇", "くもり", "うすぐもり"]):
-                precipitation = getattr(weather_data, 'precipitation', 0)
-                if precipitation == 0:  # 降水量がゼロの場合のみ
-                    rain_keywords = ["雨", "傘", "濡れ", "しっとり", "じめじめ", "ずぶ濡れ", "土砂降り", "にわか雨", "雷雨", "降りやすい"]
-                    if any(keyword in comment_text for keyword in rain_keywords):
-                        logger.info(f"降水なしの天気で雨のコメントを除外: '{comment_text}'")
-                        continue
-            
-            # 曇天時（うすぐもり含む）に強い日差しのコメントを除外
-            if any(cloud in weather_data.weather_description for cloud in ["曇", "くもり", "うすぐもり"]):
-                sunshine_keywords = ["強い日差し", "眩しい", "太陽がギラギラ", "日光が強", "日差しジリジリ", "照りつける", "燦々"]
-                if any(keyword in comment_text for keyword in sunshine_keywords):
-                    logger.info(f"曇天時に日差しのコメントを除外: '{comment_text}'")
-                    continue
-            
-            filtered_weather_comments.append(comment)
+        # 統合フィルターを使用して天気コメントをフィルタリング
+        precipitation = getattr(weather_data, 'precipitation', 0)
+        month = target_datetime.month
         
-        # フィルタリング後のコメントを使用
+        filtered_weather_comments = weather_filter.filter_comments(
+            weather_comments,
+            weather_data.weather_description,
+            precipitation=precipitation,
+            temperature=getattr(weather_data, 'temperature', None),
+            month=month,
+            is_stable_weather=is_stable_weather
+        )
+        
         if filtered_weather_comments:
             weather_comments = filtered_weather_comments
-            logger.info(f"フィルタリング後の天気コメント数: {len(weather_comments)}")
-            # フィルタリング後の「急な雨」コメント数を確認
-            rain_comment_count_after = sum(1 for c in weather_comments if "急な雨" in c.comment_text)
-            if rain_comment_count_after > 0:
-                logger.warning(f"フィルタリング後も「急な雨」を含むコメントが{rain_comment_count_after}件残っています")
+            logger.info(f"統合フィルタリング後の天気コメント数: {len(weather_comments)}")
         else:
-            logger.warning("フィルタリング後の天気コメントが0件になったため、元のリストを使用")
+            logger.warning("統合フィルタリング後の天気コメントが0件になったため、元のリストを使用")
         
-        # アドバイスコメントも同様にフィルタリング
-        filtered_advice_comments = []
-        for comment in advice_comments:
-            comment_text = comment.comment_text
-            
-            # 安定した天気で「急な雨」のアドバイスを除外
-            if state and hasattr(state, 'generation_metadata') and state.generation_metadata:
-                period_forecasts = state.generation_metadata.get('period_forecasts', [])
-                if len(period_forecasts) >= 4:
-                    weather_conditions = [f.weather_description for f in period_forecasts if hasattr(f, 'weather_description')]
-                    precipitations = [getattr(f, 'precipitation', 0) for f in period_forecasts]
-                    max_precip = max(precipitations) if precipitations else 0
-                    
-                    # 全て晴れまたは曇りで、降水量が少ない場合
-                    all_stable = all(any(stable in desc for stable in ["晴", "曇", "くもり", "うすぐもり"]) and "雨" not in desc 
-                                   for desc in weather_conditions)
-                    
-                    if all_stable and max_precip < 0.5:
-                        # 安定した天気で不適切な雨の警告を除外
-                        rain_warning_keywords = [
-                            "急な雨", "にわか雨", "突然の雨", "ゲリラ豪雨", 
-                            "天気の急変", "雨に注意", "傘を持", "雨具"
-                        ]
-                        if any(keyword in comment_text for keyword in rain_warning_keywords):
-                            logger.info(f"安定した天気で雨の警告を除外: '{comment_text}'")
-                            continue
-            
-            filtered_advice_comments.append(comment)
+        # アドバイスコメントも統合フィルターでフィルタリング
+        filtered_advice_comments = weather_filter.filter_comments(
+            advice_comments,
+            weather_data.weather_description,
+            precipitation=precipitation,
+            temperature=getattr(weather_data, 'temperature', None),
+            month=month,
+            is_stable_weather=is_stable_weather
+        )
         
-        # アドバイスコメントのフィルタリング結果を適用
         if filtered_advice_comments:
             advice_comments = filtered_advice_comments
-            logger.info(f"フィルタリング後のアドバイスコメント数: {len(advice_comments)}")
+            logger.info(f"統合フィルタリング後のアドバイスコメント数: {len(advice_comments)}")
         else:
-            logger.warning("フィルタリング後のアドバイスコメントが0件になったため、元のリストを使用")
+            logger.warning("統合フィルタリング後のアドバイスコメントが0件になったため、元のリストを使用")
         
         # LLMマネージャーの初期化
         from src.config.config import get_config
