@@ -67,19 +67,10 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
         weather_comments = [c for c in past_comments if c.comment_type == CommentType.WEATHER_COMMENT]
         advice_comments = [c for c in past_comments if c.comment_type == CommentType.ADVICE]
         
-        # 禁止フレーズを含むコメントをフィルタリング
-        weather_comments = filter_forbidden_phrases(weather_comments)
-        advice_comments = filter_forbidden_phrases(advice_comments)
-        
-        # 季節性に矛盾するコメントをフィルタリング
-        month = target_datetime.month
-        weather_comments = filter_seasonal_inappropriate_comments(weather_comments, month)
-        advice_comments = filter_seasonal_inappropriate_comments(advice_comments, month)
-        
         if not weather_comments or not advice_comments:
             raise ValueError("適切なコメントタイプが見つかりません")
             
-        logger.info(f"天気コメント数: {len(weather_comments)}, アドバイスコメント数: {len(advice_comments)}")
+        logger.info(f"初期コメント数 - 天気: {len(weather_comments)}, アドバイス: {len(advice_comments)}")
         
         # 安定天気の判定
         is_stable_weather = False
@@ -106,14 +97,28 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             temperature = 0
         
         def apply_unified_filters(comments, comment_type="weather"):
-            """天気フィルターと温度バリデーターを適用する統合パイプライン"""
+            """
+            全てのフィルタリングを統合したパイプライン
+            1. 禁止フレーズフィルター
+            2. 季節性フィルター  
+            3. 天気条件フィルター（WeatherCommentFilterに含まれる）
+            4. 温度バリデーション
+            """
             if not comments:
                 logger.warning(f"{comment_type}コメントが空のためフィルタリングをスキップ")
                 return comments
             
-            # Step 1: 天気フィルターを適用
-            filtered = weather_filter.filter_comments(
-                comments,
+            # Step 1: 禁止フレーズフィルター
+            filtered = filter_forbidden_phrases(comments)
+            logger.info(f"禁止フレーズフィルター後の{comment_type}コメント数: {len(filtered)}")
+            
+            # Step 2: 季節性フィルター
+            filtered = filter_seasonal_inappropriate_comments(filtered, month)
+            logger.info(f"季節性フィルター後の{comment_type}コメント数: {len(filtered)}")
+            
+            # Step 3: 天気条件フィルター（WeatherCommentFilterに季節性チェックも含まれる）
+            weather_filtered = weather_filter.filter_comments(
+                filtered,
                 weather_data.weather_description,
                 precipitation=precipitation,
                 temperature=temperature,
@@ -121,13 +126,14 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
                 is_stable_weather=is_stable_weather
             )
             
-            if not filtered:
-                logger.warning(f"天気フィルタリング後の{comment_type}コメントが0件になったため、元のリストを使用")
-                filtered = comments
+            if not weather_filtered:
+                logger.warning(f"天気フィルタリング後の{comment_type}コメントが0件になったため、前のリストを使用")
+                weather_filtered = filtered
             else:
-                logger.info(f"天気フィルタリング後の{comment_type}コメント数: {len(filtered)}")
+                logger.info(f"天気フィルタリング後の{comment_type}コメント数: {len(weather_filtered)}")
+                filtered = weather_filtered
             
-            # Step 2: 温度バリデーターを適用
+            # Step 4: 温度バリデーション
             temp_filtered = []
             for comment in filtered:
                 is_valid, reason = temp_validator.validate(comment, weather_data)
@@ -258,8 +264,9 @@ def unified_comment_generation_node(state: CommentGenerationState) -> CommentGen
             logger.error("アドバイスコメントが空です")
             raise ValueError("アドバイスコメントが利用可能ではありません")
         
-        selected_weather = weather_comments[weather_idx] if weather_idx < len(weather_comments) else weather_comments[0]
-        selected_advice = advice_comments[advice_idx] if advice_idx < len(advice_comments) else advice_comments[0]
+        # 安全なインデックスアクセス（空リストチェック済みなので安全）
+        selected_weather = weather_comments[min(weather_idx, len(weather_comments) - 1)]
+        selected_advice = advice_comments[min(advice_idx, len(advice_comments) - 1)]
         
         # CommentPairの作成
         selected_pair = CommentPair(
